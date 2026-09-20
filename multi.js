@@ -1,8 +1,9 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v8)
-   - Plus de set({}) sur mulligan → plus d'écrasement
-   - pseudosAttendus relu à chaque on() depuis p.joueurs
-   - Logs détaillés
+   FAMILLE TCG — Multijoueur Firebase (v9)
+   Principe : joueur1 démarre la partie dès que
+   - les 2 mulligans sont validés, OU
+   - 6 secondes se sont écoulées.
+   Les deux joueurs écoutent un seul flag : `parties_data/<id>/demarrage`
    =========================================================== */
 
 const firebaseConfig = {
@@ -40,8 +41,7 @@ function normaliserPseudo(p) {
 function calculerPartieId(pseudoA, pseudoB) {
     const a = normaliserPseudo(pseudoA);
     const b = normaliserPseudo(pseudoB);
-    const tries = [a, b].sort();
-    return 'p_' + tries[0] + '_' + tries[1];
+    return 'p_' + [a, b].sort().join('_');
 }
 
 /* ---------- Initialisation ---------- */
@@ -49,26 +49,19 @@ function initFirebase() {
     if (typeof firebase === 'undefined') {
         const info = document.getElementById('multi-info');
         if (info) info.innerText = 'Firebase non chargé.';
-        console.error('[Firebase] SDK non chargé.');
         return;
     }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     fbDB = firebase.database();
-
-    if (!firebaseConfig.databaseURL) {
-        console.error('[Firebase] databaseURL manquant');
-        return;
-    }
+    if (!firebaseConfig.databaseURL) { console.error('[Firebase] databaseURL manquant'); return; }
 
     monId = sessionStorage.getItem('familletcg_monId');
     if (!monId) {
         monId = 'j_' + Math.random().toString(36).slice(2, 10);
         sessionStorage.setItem('familletcg_monId', monId);
     }
-
     monPseudo = normaliserPseudo(J.nom || 'anonyme');
-
-    console.log('[Multi] initFirebase — monId =', monId, '— monPseudo =', monPseudo);
+    console.log('[Multi] init — monId =', monId, '— monPseudo =', monPseudo);
 
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
@@ -81,41 +74,27 @@ function initFirebase() {
         dernierPing: Date.now()
     });
 
-    fbJoueursRef.on('value', snap => {
-        const data = snap.val() || {};
-        afficherListeJoueurs(data);
-    });
+    fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
     // Défis
     fbDB.ref('defis').on('value', snap => {
         const tout = snap.val() || {};
         const monDefi = tout[monPseudo];
         if (monDefi && monDefi.de && monDefi.etat === 'en_attente') {
-            console.log('[Multi] Défi reçu :', monDefi);
             afficherDefiRecu(monDefi);
-        } else {
-            const ov = document.getElementById('defi-overlay');
-            if (ov && ov.classList.contains('open') && defiEnCours) {
-                const encore = tout[monPseudo];
-                if (!encore || encore.etat !== 'en_attente') {
-                    ov.classList.remove('open');
-                    defiEnCours = null;
-                }
-            }
         }
     });
 
-    // Parties : filtre sur moi
+    // Parties : notif d'acceptation + forfait
     fbDB.ref('parties').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([cle, p]) => {
             if (!p) return;
-            const jeSuisDedans = (p.de === monPseudo || p.adversaire === monPseudo ||
+            const dansLaPartie = (p.de === monPseudo || p.adversaire === monPseudo ||
                                   p.joueur1 === monPseudo || p.joueur2 === monPseudo);
-            if (!jeSuisDedans) return;
+            if (!dansLaPartie) return;
 
             if (p.etat === 'en_cours' && p.partieId) {
-                console.log('[Multi] Notification en_cours :', cle, p);
                 ecouterPartie(p.partieId);
             }
 
@@ -138,15 +117,11 @@ function initFirebase() {
     });
 
     const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Connecté à Firebase — tu es visible dans la liste.';
+    if (info) info.innerText = 'Connecté à Firebase.';
 }
 
 /* ---------- Liste des joueurs ---------- */
-function rafraichirJoueurs() {
-    if (!fbDB) { initFirebase(); return; }
-    const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Liste à jour.';
-}
+function rafraichirJoueurs() { if (!fbDB) initFirebase(); }
 
 function afficherListeJoueurs(data) {
     const liste = document.getElementById('multi-liste');
@@ -187,13 +162,10 @@ function afficherListeJoueurs(data) {
     if (combatCount) combatCount.innerText = `${enCombat} en combat`;
 }
 
-/* ---------- Envoi d'un défi ---------- */
+/* ---------- Envoi / réception d'un défi ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo) return;
-    console.log('[Multi] defierJoueur(', pseudoCible, ') depuis', monPseudo);
-
     const partieId = calculerPartieId(monPseudo, pseudoCible);
-
     fbDB.ref('defis/' + pseudoCible).set({
         de: monPseudo,
         dePseudo: J.nom || 'Anonyme',
@@ -203,10 +175,9 @@ function defierJoueur(pseudoCible) {
         timestamp: Date.now()
     });
     const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Défi envoyé… en attente de réponse.';
+    if (info) info.innerText = 'Défi envoyé…';
 }
 
-/* ---------- Réception d'un défi ---------- */
 function afficherDefiRecu(defi) {
     defiEnCours = defi;
     const texte = document.getElementById('defi-texte');
@@ -222,14 +193,9 @@ function accepterDefi() {
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.remove('open');
 
-    console.log('[Multi] accepterDefi — partieId =', partieId);
-    console.log('[Multi]   monPseudo =', monPseudo, '/ adverse =', pseudoAdverse);
-
     const pseudosTries = [monPseudo, pseudoAdverse].sort();
     monRole = (monPseudo === pseudosTries[0]) ? 'joueur1' : 'joueur2';
-    const roleAdverse = (monRole === 'joueur1') ? 'joueur2' : 'joueur1';
 
-    // ⚠️ AUCUN set({}) sur mulligan. On utilise update() global — Firebase crée les sous-noeuds au besoin.
     const refPartieData = fbDB.ref('parties_data/' + partieId);
     refPartieData.update({
         joueurs: {
@@ -244,7 +210,6 @@ function accepterDefi() {
         timestamp: Date.now()
     });
 
-    // Notification commune aux deux joueurs
     fbDB.ref('parties/' + partieId).update({
         partieId,
         de: pseudoAdverse,
@@ -257,11 +222,10 @@ function accepterDefi() {
 
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
     fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value').then(snap => {
-        snap.forEach(child => { child.ref.update({ etat: 'en_combat' }); });
+        snap.forEach(child => child.ref.update({ etat: 'en_combat' }));
     });
 
     fbDB.ref('defis/' + monPseudo).remove();
-
     ecouterPartie(partieId);
 }
 
@@ -275,15 +239,11 @@ function refuserDefi() {
 
 /* ---------- Écoute de la partie_data ---------- */
 function ecouterPartie(partieId) {
-    if (_ecouteurActif === partieId) {
-        console.log('[Multi] ecouterPartie déjà branché sur', partieId);
-        return;
-    }
+    if (_ecouteurActif === partieId) return;
     _ecouteurActif = partieId;
-
     console.log('[Multi] ecouterPartie(', partieId, ')');
-    const refLocal = fbDB.ref('parties_data/' + partieId);
 
+    const refLocal = fbDB.ref('parties_data/' + partieId);
     refLocal.child('presence/' + monPseudo).set(true);
     refLocal.child('presence/' + monPseudo).onDisconnect().remove();
 
@@ -291,21 +251,15 @@ function ecouterPartie(partieId) {
         const p = snap.val();
         if (!p || !p.joueurs) return;
 
-        // ⚠️ pseudosAttendus relu à CHAQUE update depuis la source de vérité
         const pseudosAttendus = Object.keys(p.joueurs);
-        if (pseudosAttendus.length < 2) {
-            console.log('[Multi] En attente du 2e joueur...', pseudosAttendus);
-            return;
-        }
+        if (pseudosAttendus.length < 2) return;
 
         const roleLocal = p.roles[monPseudo] || ((monPseudo === pseudosAttendus[0]) ? 'joueur1' : 'joueur2');
         monRole = roleLocal;
 
-        // ---- Étape 1 : lancement local une seule fois ----
+        // -------- Étape 1 : lancement local --------
         if (!dejaLancee) {
             const pseudoAdverse = pseudosAttendus.find(id => id !== monPseudo);
-            console.log('[Multi] Lancement — rôle =', roleLocal, '— adverse =', pseudoAdverse);
-
             fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value').then(snapJ => {
                 let pseudoAffiche = pseudoAdverse;
                 snapJ.forEach(child => {
@@ -321,34 +275,27 @@ function ecouterPartie(partieId) {
                     refPartieData: refLocal,
                     role: roleLocal,
                     jeCommence: (roleLocal === 'joueur1'),
-                    mulliganTermine: false
+                    demarrageTraite: false,
+                    pseudosAttendus: pseudosAttendus.slice()
                 };
+                console.log('[Multi] Lancement local — rôle =', roleLocal);
                 lancerPartieMultijoueur(pseudoAffiche);
             });
             return;
         }
 
-        // ---- Étape 2 : mulligan ----
-        const mull = p.mulligan || {};
-        const idsMull = Object.keys(mull);
-        const tousPrets = pseudosAttendus.every(id => mull[id] === true);
-
-        console.log('[Multi] Mulligan reçus :', idsMull,
-                    '— attendus :', pseudosAttendus,
-                    '— tousPrets =', tousPrets);
-
-        if (tousPrets && window.multiPartie && !window.multiPartie.mulliganTermine) {
-            window.multiPartie.mulliganTermine = true;
+        // -------- Étape 2 : le flag de démarrage --------
+        if (window.multiPartie && !window.multiPartie.demarrageTraite && p.demarrage === true) {
+            window.multiPartie.demarrageTraite = true;
             fermerAttente();
+            console.log('[Multi] Flag demarrage reçu — je passe au tour');
 
             if (window.multiPartie.jeCommence) {
-                console.log('[Multi] Démarrage — je commence');
                 tourActuel = 'joueur';
                 modeAttente = false;
                 debutTourJoueur();
                 publierEtat();
             } else {
-                console.log('[Multi] Démarrage — j\'attends l\'autre');
                 modeAttente = true;
                 tourActuel = 'attente';
                 document.getElementById('tour-indicateur').innerText = 'Attente…';
@@ -357,7 +304,7 @@ function ecouterPartie(partieId) {
             }
         }
 
-        // ---- Étape 3 : état adverse ----
+        // -------- Étape 3 : application de l'état adverse --------
         const etat = p.etat_data;
         if (etat && etat.par && etat.par !== monPseudo && window.multiPartie && window.multiPartie.active) {
             appliquerEtatAdverse(etat);
@@ -365,22 +312,35 @@ function ecouterPartie(partieId) {
     });
 }
 
-/* ---------- Deck pour la partie en ligne ---------- */
+/* ---------- Déclenche le démarrage (appelé par joueur1) ---------- */
+function declencherDemarrage() {
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    if (window.multiPartie.role !== 'joueur1') return;      // seul joueur1 déclenche
+    if (window.multiPartie.demarrageEnvoye) return;
+    window.multiPartie.demarrageEnvoye = true;
+    console.log('[Multi] Je déclenche le démarrage');
+    window.multiPartie.refPartieData.child('demarrage').set(true);
+}
+
+/* ---------- Mulligan ---------- */
+function signalerMulliganPret() {
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    window.multiPartie.refPartieData.child('mulligan/' + monPseudo).set(true);
+    console.log('[Multi] Mulligan validé pour', monPseudo);
+}
+
+/* ---------- Deck en ligne ---------- */
 function piocherDeckEnLigne() {
     const sel = document.getElementById('deck-select');
     const idx = sel ? parseInt(sel.value) : 0;
-    if (mesDecks[idx] && mesDecks[idx].cartes.length === 20) {
-        return mesDecks[idx].cartes.slice();
-    }
+    if (mesDecks[idx] && mesDecks[idx].cartes.length === 20) return mesDecks[idx].cartes.slice();
     return hasard(decksPreconstruits).cartes.slice();
 }
 
-/* ---------- Sérialisation / désérialisation ---------- */
+/* ---------- Sérialisation ---------- */
 function serialiserCote(side) {
     return {
-        patience: side.patience,
-        manaActuel: side.manaActuel,
-        manaMax: side.manaMax,
+        patience: side.patience, manaActuel: side.manaActuel, manaMax: side.manaMax,
         numTour: side.numTour,
         deckIds: side.deck.map(c => c.id),
         main: side.main.map(c => ({ id:c.id, uid:c.uid })),
@@ -430,14 +390,6 @@ function deserialiserCote(side, data) {
     })() : null;
 }
 
-/* ---------- Mulligan ---------- */
-function signalerMulliganPret() {
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    const chemin = 'parties_data/' + window.multiPartie.partieId + '/mulligan/' + monPseudo;
-    console.log('[Multi] signalerMulliganPret — écrit dans', chemin);
-    window.multiPartie.refPartieData.child('mulligan/' + monPseudo).set(true);
-}
-
 /* ---------- Publication de l'état ---------- */
 function publierEtat() {
     if (!window.multiPartie || !window.multiPartie.active) return;
@@ -463,11 +415,9 @@ function appliquerEtatAdverse(etat) {
         modeAttente = false;
         tourActuel = 'joueur';
         fermerAttente();
-
         prochainManaMax(J);
         J.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
         piocher(J, 1);
-
         document.getElementById('tour-indicateur').innerText = 'Ton tour';
         document.querySelector('.turn-pill').classList.remove('bot');
         document.getElementById('btn-endturn').classList.remove('inactif');
