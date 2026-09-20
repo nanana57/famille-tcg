@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Famille TCG — Édition Ultime</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Couche d'effets (dégâts flottants, éclats, bannières de tour) -->
+<div id="fx-layer"></div>
+
+<!-- Overlay de défi reçu -->
+<div id="defi-overlay">
+    <div class="defi-box">
+        <h3 id="defi-titre">Défi reçu</h3>
+        <p id="defi-texte"></p>
+        <div class="defi-actions">
+            <button class="btn-large" onclick="accepterDefi()">Accepter</button>
+            <button class="btn-action" onclick="refuserDefi()">Refuser</button>
+        </div>
+    </div>
+</div>
+
+<!-- Zoom carte -->
+<div id="card-zoom-overlay" onclick="fermerZoom()">
+    <div id="card-zoom-container"></div>
+    <p class="zoom-hint">Clique n'importe où pour fermer</p>
+</div>
+
+<!-- Navigation -->
+<nav id="main-nav" hidden>
+    <div class="nav-brand">Famille<span>TCG</span></div>
+    <div class="nav-links">
+        <button onclick="changerEcran('menu-screen')">Arène</button>
+        <button onclick="changerEcran('deckbuilder-screen')">Collection &amp; decks</button>
+        <button onclick="changerEcran('booster-screen')">Boosters</button>
+        <button onclick="changerEcran('multi-screen')">Multijoueur</button>
+        <button onclick="changerEcran('profil-screen')">Profil</button>
+        <button id="btn-forfait" class="btn-forfait" onclick="declarerForfait()" hidden>Forfait</button>
+    </div>
+    <div class="nav-pseudo" id="display-pseudo"></div>
+</nav>
+
+<!-- 1. Connexion -->
+<div id="login-screen" class="screen active">
+    <div class="login-stage">
+        <div class="login-cards" id="login-cards"></div>
+        <div class="box login-box">
+            <h1 class="title-hero">Famille TCG</h1>
+            <p class="subtitle">Quatre familles, une seule patience.</p>
+            <input type="text" id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+            <button class="btn-large" onclick="connecter()">Entrer dans l'arène</button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Menu -->
+<div id="menu-screen" class="screen">
+    <div class="box menu-box">
+        <h2>Lancer une partie</h2>
+        <label for="deck-select">Deck</label>
+        <select id="deck-select" class="deck-dropdown"></select>
+        <button class="btn-large" onclick="lancerPartie()">Affronter le bot</button>
+        <p class="hint">20 cartes exactement pour pouvoir jouer.</p>
+    </div>
+</div>
+
+<!-- 3. Collection & deckbuilder -->
+<div id="deckbuilder-screen" class="screen">
+    <div class="deckbuilder-container">
+        <aside class="sidebar">
+            <h3>Mes decks</h3>
+            <div id="liste-decks"></div>
+            <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck</button>
+        </aside>
+
+        <section class="collection-area">
+            <div class="sort-bar">
+                <h3>Collection</h3>
+                <div class="sort-actions">
+                    <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
+                    <button class="btn-chip" onclick="trierCollection('nom')">Nom</button>
+                    <button class="btn-chip" onclick="trierCollection('rarete')">Rareté</button>
+                    <button class="btn-chip" onclick="trierCollection('famille')">Famille</button>
+                </div>
+            </div>
+            <div class="grid" id="collection-grid"></div>
+        </section>
+
+        <aside class="deck-area">
+            <input type="text" id="deck-name-input" placeholder="Nom du deck">
+            <h3>Cartes <span id="deck-count">0</span>/20</h3>
+            <div class="mana-curve" id="mana-curve"></div>
+            <div id="deck-grid" class="deck-list"></div>
+            <button class="btn-large" onclick="sauvegarderDeck()">Enregistrer le deck</button>
+        </aside>
+    </div>
+</div>
+
+<!-- 3b. Profil -->
+<div id="profil-screen" class="screen">
+    <div class="box profil-box">
+        <h2>Ton profil</h2>
+        <p class="subtitle" id="profil-pseudo"></p>
+        <div class="profil-stats">
+            <div class="profil-stat"><span class="profil-nb" id="stat-parties">0</span><span>Parties jouées</span></div>
+            <div class="profil-stat win"><span class="profil-nb" id="stat-victoires">0</span><span>Victoires</span></div>
+            <div class="profil-stat lose"><span class="profil-nb" id="stat-defaites">0</span><span>Défaites</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-ratio">—</span><span>Taux de victoire</span></div>
+        </div>
+        <button class="btn-action full" onclick="reinitialiserStats()">Réinitialiser les statistiques</button>
+    </div>
+</div>
+
+<!-- 3c. Multijoueur -->
+<div id="multi-screen" class="screen">
+    <div class="box multi-box">
+        <h2>Multijoueur</h2>
+        <p class="subtitle">Défie un joueur connecté.</p>
+
+        <div class="multi-status">
+            <span id="multi-count">0 joueur(s) connecté(s)</span>
+            <span id="multi-combat-count">0 en combat</span>
+        </div>
+
+        <div id="multi-liste" class="multi-liste"></div>
+
+        <button class="btn-large" onclick="rafraichirJoueurs()">Rafraîchir la liste</button>
+        <p class="hint" id="multi-info">Connecte-toi avec Firebase pour voir les joueurs.</p>
+    </div>
+</div>
+
+<!-- 4. Boosters -->
+<div id="booster-screen" class="screen">
+    <div class="booster-wrap">
+        <h2>Ouverture de booster</h2>
+        <p class="hint">Clique sur chaque carte pour la révéler.</p>
+        <div class="pack" id="pack" onclick="preparerBooster()">
+            <div class="pack-inner">
+                <div class="pack-seal">FT</div>
+                <div class="pack-label">Ouvrir un paquet<br><small>5 cartes</small></div>
+            </div>
+        </div>
+        <div class="grid booster-grid" id="booster-results"></div>
+        <button class="btn-large hidden" id="btn-again" onclick="preparerBooster()">Ouvrir un autre paquet</button>
+    </div>
+</div>
+
+<!-- 5. Jeu -->
+<div id="game-screen" class="screen scrollable">
+
+    <div id="mulligan-overlay">
+        <h2>Choisis les cartes à rejeter</h2>
+        <p class="hint">Les cartes sélectionnées repartent dans le deck et sont remplacées.</p>
+        <div class="grid" id="mulligan-cards"></div>
+        <button class="btn-large" onclick="validerMulligan()">Garder cette main</button>
+    </div>
+
+    <div id="topbar">
+        <div class="turn-pill"><span id="tour-indicateur">Ton tour</span></div>
+        <div class="timer"><div class="timer-fill" id="timer-fill"></div><span id="timer-count">60</span></div>
+        <div id="combat-info">À toi de jouer</div>
+        <button id="btn-forfait-ingame" class="btn-forfait-ingame" onclick="declarerForfait()">Forfait</button>
+    </div>
+
+    <section class="side opponent">
+        <div class="hero-panel opp">
+            <div class="hero-portrait" id="opp-portrait">🤖</div>
+            <div class="hero-meta">
+                <div class="hero-name">Bot</div>
+                <div class="stat-line">
+                    <span class="badge hp" id="opp-health">20</span>
+                    <span class="badge mana" id="opp-mana">0/0</span>
+                    <span class="badge deck" id="opp-hand">5</span>
+                </div>
+            </div>
+        </div>
+        <div class="terrain-slot" id="opp-terrain"></div>
+        <div class="board-area" id="opponent-board"></div>
+        <div class="opp-hand" id="opp-hand-cards"></div>
+    </section>
+
+    <div class="board-divider"><span></span></div>
+
+    <section class="side player">
+        <div class="board-area" id="player-board"></div>
+        <div class="terrain-slot" id="player-terrain"></div>
+        <div class="hero-panel you">
+            <div class="hero-portrait" id="player-portrait">🧑</div>
+            <div class="hero-meta">
+                <div class="hero-name" id="hero-name">Toi</div>
+                <div class="stat-line">
+                    <span class="badge hp" id="player-health">20</span>
+                    <span class="badge mana" id="player-mana">0/0</span>
+                    <span class="badge deck" id="player-deck">15</span>
+                </div>
+                <div class="crystals" id="crystals"></div>
+            </div>
+            <button class="btn-endturn" id="btn-endturn" onclick="finDeTour()">Fin du tour</button>
+        </div>
+    </section>
+
+    <div class="hand-rail">
+        <div class="hand-area" id="player-hand"></div>
+    </div>
+
+    <div id="targeting-banner">Choisis une cible <button onclick="annulerCiblage()">Annuler</button></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script src="app.js"></script>
+<script src="multi.js"></script>
+</body>
+</html>
