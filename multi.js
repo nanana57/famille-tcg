@@ -1,9 +1,8 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v7)
-   - Écoute globale de defis/ et parties/
-   - update() au lieu de set() pour ne pas écraser le mulligan
-   - Détection robuste : on vérifie que TOUS les pseudos attendus
-     ont validé leur mulligan (basé sur p.joueurs)
+   FAMILLE TCG — Multijoueur Firebase (v8)
+   - Plus de set({}) sur mulligan → plus d'écrasement
+   - pseudosAttendus relu à chaque on() depuis p.joueurs
+   - Logs détaillés
    =========================================================== */
 
 const firebaseConfig = {
@@ -87,7 +86,7 @@ function initFirebase() {
         afficherListeJoueurs(data);
     });
 
-    // Défis : on écoute tout le nœud, on filtre sur monPseudo
+    // Défis
     fbDB.ref('defis').on('value', snap => {
         const tout = snap.val() || {};
         const monDefi = tout[monPseudo];
@@ -106,7 +105,7 @@ function initFirebase() {
         }
     });
 
-    // Parties : on écoute tout le nœud, on filtre sur les entrées où je suis joueur
+    // Parties : filtre sur moi
     fbDB.ref('parties').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([cle, p]) => {
@@ -230,7 +229,7 @@ function accepterDefi() {
     monRole = (monPseudo === pseudosTries[0]) ? 'joueur1' : 'joueur2';
     const roleAdverse = (monRole === 'joueur1') ? 'joueur2' : 'joueur1';
 
-    // ⚠️ On utilise UPDATE et non SET pour ne pas écraser mulligan déjà écrit par l'autre
+    // ⚠️ AUCUN set({}) sur mulligan. On utilise update() global — Firebase crée les sous-noeuds au besoin.
     const refPartieData = fbDB.ref('parties_data/' + partieId);
     refPartieData.update({
         joueurs: {
@@ -243,12 +242,6 @@ function accepterDefi() {
         },
         etat: 'init',
         timestamp: Date.now()
-        // On NE TOUCHE PAS à `mulligan`
-    });
-
-    // On s'assure que `mulligan` existe au moins vide
-    refPartieData.child('mulligan').once('value').then(s => {
-        if (!s.exists()) refPartieData.child('mulligan').set({});
     });
 
     // Notification commune aux deux joueurs
@@ -267,7 +260,6 @@ function accepterDefi() {
         snap.forEach(child => { child.ref.update({ etat: 'en_combat' }); });
     });
 
-    // On supprime le défi
     fbDB.ref('defis/' + monPseudo).remove();
 
     ecouterPartie(partieId);
@@ -299,6 +291,7 @@ function ecouterPartie(partieId) {
         const p = snap.val();
         if (!p || !p.joueurs) return;
 
+        // ⚠️ pseudosAttendus relu à CHAQUE update depuis la source de vérité
         const pseudosAttendus = Object.keys(p.joueurs);
         if (pseudosAttendus.length < 2) {
             console.log('[Multi] En attente du 2e joueur...', pseudosAttendus);
@@ -328,8 +321,7 @@ function ecouterPartie(partieId) {
                     refPartieData: refLocal,
                     role: roleLocal,
                     jeCommence: (roleLocal === 'joueur1'),
-                    mulliganTermine: false,
-                    pseudosAttendus: pseudosAttendus.slice()
+                    mulliganTermine: false
                 };
                 lancerPartieMultijoueur(pseudoAffiche);
             });
@@ -339,11 +331,10 @@ function ecouterPartie(partieId) {
         // ---- Étape 2 : mulligan ----
         const mull = p.mulligan || {};
         const idsMull = Object.keys(mull);
-        const attendus = window.multiPartie.pseudosAttendus || [];
-        const tousPrets = attendus.length >= 2 && attendus.every(id => mull[id] === true);
+        const tousPrets = pseudosAttendus.every(id => mull[id] === true);
 
         console.log('[Multi] Mulligan reçus :', idsMull,
-                    '— attendus :', attendus,
+                    '— attendus :', pseudosAttendus,
                     '— tousPrets =', tousPrets);
 
         if (tousPrets && window.multiPartie && !window.multiPartie.mulliganTermine) {
