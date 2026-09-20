@@ -1,8 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v10)
-   - UN SEUL écouteur sur parties_data/<id>
-   - Le joueur1 est chef : il écrit `demarrage = true`
-   - Les deux écoutent `demarrage` pour passer en jeu
+   FAMILLE TCG — Multijoueur Firebase (v5 — ID stable par pseudos)
    =========================================================== */
 
 const firebaseConfig = {
@@ -28,7 +25,7 @@ let dejaLancee = false;
 let defiEnCours = null;
 let _ecouteurActif = null;
 
-/* ---------- Utilitaires ---------- */
+/* ---------- Normalise un pseudo pour en faire un ID sûr ---------- */
 function normaliserPseudo(p) {
     return (p || 'anonyme')
         .toLowerCase()
@@ -36,28 +33,44 @@ function normaliserPseudo(p) {
         .replace(/[^a-z0-9]/g, '_')
         .slice(0, 20);
 }
-function calculerPartieId(a, b) {
-    const x = normaliserPseudo(a), y = normaliserPseudo(b);
-    return 'p_' + [x, y].sort().join('_');
+
+/* ---------- Calcule un ID de partie commun aux deux joueurs ---------- */
+function calculerPartieId(pseudoA, pseudoB) {
+    const a = normaliserPseudo(pseudoA);
+    const b = normaliserPseudo(pseudoB);
+    const tries = [a, b].sort();
+    return 'p_' + tries[0] + '_' + tries[1];
 }
 
-/* ---------- Init Firebase ---------- */
+/* ---------- Initialisation ---------- */
 function initFirebase() {
-    if (typeof firebase === 'undefined') { console.error('[FB] SDK absent'); return; }
+    if (typeof firebase === 'undefined') {
+        const info = document.getElementById('multi-info');
+        if (info) info.innerText = 'Firebase non chargé.';
+        console.error('[Firebase] SDK non chargé.');
+        return;
+    }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     fbDB = firebase.database();
-    if (!firebaseConfig.databaseURL) { console.error('[FB] databaseURL manquant'); return; }
 
-    monId = sessionStorage.getItem('ftcg_monId');
+    if (!firebaseConfig.databaseURL) {
+        console.error('[Firebase] databaseURL manquant');
+        return;
+    }
+
+    monId = sessionStorage.getItem('familletcg_monId');
     if (!monId) {
         monId = 'j_' + Math.random().toString(36).slice(2, 10);
-        sessionStorage.setItem('ftcg_monId', monId);
+        sessionStorage.setItem('familletcg_monId', monId);
     }
+
     monPseudo = normaliserPseudo(J.nom || 'anonyme');
-    console.log('[Multi] init — monId =', monId, '— monPseudo =', monPseudo);
+
+    console.log('[Multi] initFirebase — monId =', monId, '— monPseudo =', monPseudo);
 
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
+
     fbUserRef.onDisconnect().remove();
     fbUserRef.set({
         pseudo: J.nom || 'Anonyme',
@@ -66,69 +79,75 @@ function initFirebase() {
         dernierPing: Date.now()
     });
 
-    fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
-
-    // Défis
-    fbDB.ref('defis').on('value', snap => {
-        const tout = snap.val() || {};
-        const d = tout[monPseudo];
-        if (d && d.de && d.etat === 'en_attente') afficherDefiRecu(d);
+    fbJoueursRef.on('value', snap => {
+        const data = snap.val() || {};
+        afficherListeJoueurs(data);
     });
 
-    // Notif de partie (acceptée ou forfait)
-    fbDB.ref('parties').on('value', snap => {
-        const tout = snap.val() || {};
-        Object.entries(tout).forEach(([cle, p]) => {
-            if (!p) return;
-            const dedans = (p.de === monPseudo || p.adversaire === monPseudo ||
-                            p.joueur1 === monPseudo || p.joueur2 === monPseudo);
-            if (!dedans) return;
-            if (p.etat === 'en_cours' && p.partieId) {
-                ecouterPartie(p.partieId);
+    fbDB.ref('defis/' + monPseudo).on('value', snap => {
+        const defi = snap.val();
+        if (defi && defi.de && defi.etat === 'en_attente') {
+            afficherDefiRecu(defi);
+        }
+    });
+
+    fbDB.ref('parties/' + monPseudo).on('value', snap => {
+        const p = snap.val();
+        if (!p) return;
+
+        if (p.etat === 'en_cours' && p.partieId) {
+            console.log('[Multi] Notification en_cours :', p);
+            ecouterPartie(p.partieId);
+        }
+
+        if (p.etat === 'forfait' && p.forfaitPar && p.forfaitPar !== monPseudo) {
+            if (!partieFinie) {
+                partieFinie = true;
+                clearInterval(timer);
+                enregistrerResultat(true);
+                banniere('Victoire par forfait !');
+                const attente = document.getElementById('attente-overlay');
+                if (attente) attente.classList.remove('open');
+                setTimeout(() => {
+                    const bf = document.getElementById('btn-forfait');
+                    if (bf) bf.hidden = true;
+                    changerEcran('menu-screen');
+                }, 2200);
             }
-            if (p.etat === 'forfait' && p.forfaitPar && p.forfaitPar !== monPseudo) {
-                if (!partieFinie) {
-                    partieFinie = true;
-                    clearInterval(timer);
-                    enregistrerResultat(true);
-                    banniere('Victoire par forfait !');
-                    const a = document.getElementById('attente-overlay');
-                    if (a) a.classList.remove('open');
-                    setTimeout(() => {
-                        const bf = document.getElementById('btn-forfait');
-                        if (bf) bf.hidden = true;
-                        changerEcran('menu-screen');
-                    }, 2200);
-                }
-            }
-        });
+        }
     });
 
     const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Connecté à Firebase.';
+    if (info) info.innerText = 'Connecté à Firebase — tu es visible dans la liste.';
 }
 
-/* ---------- Liste joueurs ---------- */
-function rafraichirJoueurs() { if (!fbDB) initFirebase(); }
+/* ---------- Liste des joueurs ---------- */
+function rafraichirJoueurs() {
+    if (!fbDB) { initFirebase(); return; }
+    const info = document.getElementById('multi-info');
+    if (info) info.innerText = 'Liste à jour.';
+}
 
 function afficherListeJoueurs(data) {
     const liste = document.getElementById('multi-liste');
     const count = document.getElementById('multi-count');
     const combatCount = document.getElementById('multi-combat-count');
     if (!liste) return;
+
     const joueurs = Object.entries(data).filter(([id]) => id !== monId);
     let enCombat = 0;
     liste.innerHTML = '';
+
     if (joueurs.length === 0) {
         liste.innerHTML = '<p class="hint">Aucun autre joueur connecté pour le moment.</p>';
     }
+
     joueurs.forEach(([id, j]) => {
         if (j.etat === 'en_combat') enCombat++;
         const div = document.createElement('div');
         div.className = 'multi-joueur';
         const libre = j.etat === 'libre';
-        const cible = j.pseudoNorm || normaliserPseudo(j.pseudo);
-        const moiMeme = (cible === monPseudo);
+        const ciblePseudo = j.pseudoNorm || normaliserPseudo(j.pseudo);
         div.innerHTML = `
             <div>
                 <div class="mj-nom">${j.pseudo || 'Anonyme'}</div>
@@ -136,71 +155,90 @@ function afficherListeJoueurs(data) {
                     ${libre ? '● Disponible' : '⚔ En combat'}
                 </div>
             </div>
-            <button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">
-                ${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}
-            </button>`;
+            <button ${libre ? '' : 'disabled'} onclick="defierJoueur('${ciblePseudo}')">
+                ${libre ? 'Défier' : 'Occupé'}
+            </button>
+        `;
         liste.appendChild(div);
     });
+
     if (count) count.innerText = `${joueurs.length} joueur(s) connecté(s)`;
     if (combatCount) combatCount.innerText = `${enCombat} en combat`;
 }
 
-/* ---------- Défis ---------- */
+/* ---------- Envoi d'un défi ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo) return;
-    const partieId = calculerPartieId(monPseudo, pseudoCible);
+    console.log('[Multi] defierJoueur(', pseudoCible, ') depuis', monPseudo);
     fbDB.ref('defis/' + pseudoCible).set({
         de: monPseudo,
         dePseudo: J.nom || 'Anonyme',
-        deId: monId,
-        partieId,
         etat: 'en_attente',
         timestamp: Date.now()
     });
     const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Défi envoyé…';
+    if (info) info.innerText = 'Défi envoyé… en attente de réponse.';
 }
 
+/* ---------- Réception d'un défi ---------- */
 function afficherDefiRecu(defi) {
     defiEnCours = defi;
-    const t = document.getElementById('defi-texte');
-    if (t) t.innerText = `${defi.dePseudo} te défie en duel !`;
+    const texte = document.getElementById('defi-texte');
+    if (texte) texte.innerText = `${defi.dePseudo} te défie en duel !`;
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.add('open');
 }
 
 function accepterDefi() {
     if (!defiEnCours) return;
-    const pseudoAdverse = defiEnCours.de;
-    const partieId = defiEnCours.partieId || calculerPartieId(monPseudo, pseudoAdverse);
+    const pseudoAdverse = defiEnCours.de; 
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.remove('open');
 
-    const tries = [monPseudo, pseudoAdverse].sort();
-    monRole = (monPseudo === tries[0]) ? 'joueur1' : 'joueur2';
+    const partieId = calculerPartieId(monPseudo, pseudoAdverse);
+    console.log('[Multi] accepterDefi — partieId =', partieId);
 
-    fbDB.ref('parties_data/' + partieId).update({
-        joueurs: { [tries[0]]: true, [tries[1]]: true },
-        roles: { [tries[0]]: 'joueur1', [tries[1]]: 'joueur2' },
+    const pseudosTries = [monPseudo, pseudoAdverse].sort();
+    monRole = (monPseudo === pseudosTries[0]) ? 'joueur1' : 'joueur2';
+    const roleAdverse = (monRole === 'joueur1') ? 'joueur2' : 'joueur1';
+
+    const refPartieData = fbDB.ref('parties_data/' + partieId);
+    refPartieData.set({
+        joueurs: {
+            [pseudosTries[0]]: true,
+            [pseudosTries[1]]: true
+        },
+        roles: {
+            [pseudosTries[0]]: 'joueur1',
+            [pseudosTries[1]]: 'joueur2'
+        },
+        mulligan: {},
         etat: 'init',
         timestamp: Date.now()
     });
 
-    fbDB.ref('parties/' + partieId).update({
-        partieId,
-        de: pseudoAdverse,
-        adversaire: monPseudo,
-        joueur1: tries[0],
-        joueur2: tries[1],
+    fbDB.ref('parties/' + monPseudo).set({
         etat: 'en_cours',
-        timestamp: Date.now()
+        adversaire: pseudoAdverse,
+        partieId,
+        role: monRole
+    });
+    fbDB.ref('parties/' + pseudoAdverse).set({
+        etat: 'en_cours',
+        adversaire: monPseudo,
+        partieId,
+        role: roleAdverse
     });
 
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-    fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value')
-        .then(s => s.forEach(c => c.ref.update({ etat: 'en_combat' })));
+    fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value').then(snap => {
+        snap.forEach(child => {
+            child.ref.update({ etat: 'en_combat' });
+        });
+    });
 
     fbDB.ref('defis/' + monPseudo).remove();
+
     ecouterPartie(partieId);
 }
 
@@ -212,33 +250,41 @@ function refuserDefi() {
     defiEnCours = null;
 }
 
-/* ---------- Écoute centrale ---------- */
+/* ---------- Écoute de la partie_data ---------- */
 function ecouterPartie(partieId) {
     if (_ecouteurActif === partieId) return;
     _ecouteurActif = partieId;
-    console.log('[Multi] ecouterPartie(', partieId, ')');
 
+    console.log('[Multi] ecouterPartie(', partieId, ')');
     const refLocal = fbDB.ref('parties_data/' + partieId);
+
     refLocal.child('presence/' + monPseudo).set(true);
     refLocal.child('presence/' + monPseudo).onDisconnect().remove();
 
     refLocal.on('value', snap => {
         const p = snap.val();
         if (!p || !p.joueurs) return;
+
         const ids = Object.keys(p.joueurs);
         if (ids.length < 2) return;
 
         const roleLocal = p.roles[monPseudo] || ((monPseudo === ids[0]) ? 'joueur1' : 'joueur2');
         monRole = roleLocal;
 
-        // Étape 1 : lancement local une fois
+        // ---- Étape 1 : lancement local une seule fois ----
         if (!dejaLancee) {
-            const pseudoAdverse = ids.find(x => x !== monPseudo);
-            fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value').then(s => {
+            const pseudoAdverse = ids.find(id => id !== monPseudo);
+            console.log('[Multi] Lancement — rôle =', roleLocal, '— adverse =', pseudoAdverse);
+
+            fbDB.ref('joueurs').orderByChild('pseudoNorm').equalTo(pseudoAdverse).once('value').then(snapJ => {
                 let pseudoAffiche = pseudoAdverse;
-                s.forEach(c => { const v = c.val(); if (v && v.pseudo) pseudoAffiche = v.pseudo; });
+                snapJ.forEach(child => {
+                    const v = child.val();
+                    if (v && v.pseudo) pseudoAffiche = v.pseudo;
+                });
 
                 dejaLancee = true;
+
                 window.multiPartie = {
                     active: true,
                     adversaireId: pseudoAdverse,
@@ -246,39 +292,30 @@ function ecouterPartie(partieId) {
                     refPartieData: refLocal,
                     role: roleLocal,
                     jeCommence: (roleLocal === 'joueur1'),
-                    demarrageTraite: false,
-                    pseudosAttendus: ids.slice()
+                    mulliganTermine: false
                 };
-                console.log('[Multi] Lancement local — rôle =', roleLocal);
+
                 lancerPartieMultijoueur(pseudoAffiche);
             });
             return;
         }
 
-        // Étape 2 : mulligan (seul joueur1 surveille et écrit `demarrage`)
-        if (window.multiPartie.role === 'joueur1' && !window.multiPartie.demarrageEnvoye) {
-            const mull = p.mulligan || {};
-            const attendus = window.multiPartie.pseudosAttendus;
-            const tousPrets = attendus.length === 2 && attendus.every(x => mull[x] === true);
-            if (tousPrets) {
-                console.log('[Multi] Chef : 2 mulligans OK → demarrage');
-                window.multiPartie.demarrageEnvoye = true;
-                refLocal.child('demarrage').set(true);
-            }
-        }
+        // ---- Étape 2 : mulligan ----
+        const mull = p.mulligan || {};
+        const idsMull = Object.keys(mull);
 
-        // Étape 3 : le flag demarrage
-        if (!window.multiPartie.demarrageTraite && p.demarrage === true) {
-            window.multiPartie.demarrageTraite = true;
+        if (idsMull.length >= 2 && window.multiPartie && !window.multiPartie.mulliganTermine) {
+            window.multiPartie.mulliganTermine = true;
             fermerAttente();
-            console.log('[Multi] Flag demarrage reçu');
 
             if (window.multiPartie.jeCommence) {
+                console.log('[Multi] Démarrage — je commence');
                 tourActuel = 'joueur';
                 modeAttente = false;
                 debutTourJoueur();
                 publierEtat();
             } else {
+                console.log('[Multi] Démarrage — j\'attends l\'autre');
                 modeAttente = true;
                 tourActuel = 'attente';
                 document.getElementById('tour-indicateur').innerText = 'Attente…';
@@ -287,62 +324,20 @@ function ecouterPartie(partieId) {
             }
         }
 
-        // Étape 4 : état adverse
+        // ---- Étape 3 : appliquer l'état adverse ----
         const etat = p.etat_data;
-        if (etat && etat.par && etat.par !== monPseudo && window.multiPartie.active) {
+        if (etat && etat.par && etat.par !== monPseudo && window.multiPartie && window.multiPartie.active) {
             appliquerEtatAdverse(etat);
         }
     });
 }
 
-/* ---------- Mulligan : signaler + sécurité chef ---------- */
-function signalerMulliganPret() {
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    console.log('[Multi] Mulligan validé pour', monPseudo);
-    window.multiPartie.refPartieData.child('mulligan/' + monPseudo).set(true);
-
-    // Si je suis joueur1, je peux aussi déclencher en direct (au cas où l'écouteur tarde)
-    if (window.multiPartie.role === 'joueur1') {
-        setTimeout(() => {
-            if (!window.multiPartie || window.multiPartie.demarrageEnvoye) return;
-            window.multiPartie.refPartieData.child('mulligan').once('value').then(s => {
-                const mull = s.val() || {};
-                const attendus = window.multiPartie.pseudosAttendus;
-                const tousPrets = attendus.length === 2 && attendus.every(x => mull[x] === true);
-                if (tousPrets) {
-                    console.log('[Multi] Chef (check direct) : demarrage');
-                    window.multiPartie.demarrageEnvoye = true;
-                    window.multiPartie.refPartieData.child('demarrage').set(true);
-                }
-            });
-        }, 300);
-    }
-}
-
-/* ---------- Sécurité 8 s côté chef ---------- */
-function activerSecuriteChef() {
-    if (!window.multiPartie || window.multiPartie.role !== 'joueur1') return;
-    setTimeout(() => {
-        if (!window.multiPartie || !window.multiPartie.active) return;
-        if (window.multiPartie.demarrageEnvoye) return;
-        console.log('[Multi] Sécurité 8 s : je force le demarrage');
-        window.multiPartie.demarrageEnvoye = true;
-        window.multiPartie.refPartieData.child('demarrage').set(true);
-    }, 8000);
-}
-
-/* ---------- Deck en ligne ---------- */
-function piocherDeckEnLigne() {
-    const sel = document.getElementById('deck-select');
-    const idx = sel ? parseInt(sel.value) : 0;
-    if (mesDecks[idx] && mesDecks[idx].cartes.length === 20) return mesDecks[idx].cartes.slice();
-    return hasard(decksPreconstruits).cartes.slice();
-}
-
-/* ---------- Sérialisation ---------- */
+/* ---------- Sérialisation / désérialisation ---------- */
 function serialiserCote(side) {
     return {
-        patience: side.patience, manaActuel: side.manaActuel, manaMax: side.manaMax,
+        patience: side.patience,
+        manaActuel: side.manaActuel,
+        manaMax: side.manaMax,
         numTour: side.numTour,
         deckIds: side.deck.map(c => c.id),
         main: side.main.map(c => ({ id:c.id, uid:c.uid })),
@@ -363,13 +358,17 @@ function deserialiserCote(side, data) {
     side.manaActuel = data.manaActuel;
     side.manaMax = data.manaMax;
     side.numTour = data.numTour;
-    side.deck = data.deckIds.map(id => instancier(defCarte(id), side.cle));
-    side.main = data.main.map(o => {
+    
+    // Correction : || [] pour éviter les crashs sur tableaux vides (Firebase les supprime)
+    side.deck = (data.deckIds || []).map(id => instancier(defCarte(id), side.cle));
+    
+    side.main = (data.main || []).map(o => {
         const inst = instancier(defCarte(o.id), side.cle);
         inst.uid = o.uid;
         return inst;
     });
-    side.plateau = data.plateau.map(o => {
+    
+    side.plateau = (data.plateau || []).map(o => {
         const def = defCarte(o.id);
         return {
             uid:o.uid, id:o.id, prenom:o.prenom, emoji:o.emoji,
@@ -385,6 +384,7 @@ function deserialiserCote(side, data) {
             cote: side.cle
         };
     });
+    
     side.terrain = data.terrain ? (() => {
         const inst = instancier(defCarte(data.terrain.id), side.cle);
         inst.uid = data.terrain.uid;
@@ -392,32 +392,56 @@ function deserialiserCote(side, data) {
     })() : null;
 }
 
-/* ---------- Publication état ---------- */
+/* ---------- Mulligan ---------- */
+function signalerMulliganPret() {
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    window.multiPartie.refPartieData.child('mulligan/' + monPseudo).set(true);
+}
+
+/* ---------- Publication de l'état ---------- */
 function publierEtat() {
     if (!window.multiPartie || !window.multiPartie.active) return;
     if (typeof modeAttente !== 'undefined' && modeAttente) return;
     if (tourActuel === 'attente') return;
-    window.multiPartie.refPartieData.child('etat_data').set({
+
+    const etat = {
         par: monPseudo,
         tourActuel,
-        joueur1: serialiserCote(J),
-        joueur2: serialiserCote(B),
         timestamp: Date.now()
-    });
+    };
+
+    // Correction : On assigne les données selon le rôle pour ne pas écraser les perspectives
+    if (monRole === 'joueur1') {
+        etat.joueur1 = serialiserCote(J);
+        etat.joueur2 = serialiserCote(B);
+    } else {
+        etat.joueur1 = serialiserCote(B);
+        etat.joueur2 = serialiserCote(J);
+    }
+
+    window.multiPartie.refPartieData.child('etat_data').set(etat);
 }
 
-/* ---------- Application état adverse ---------- */
+/* ---------- Application de l'état adverse ---------- */
 function appliquerEtatAdverse(etat) {
-    deserialiserCote(J, etat.joueur1);
-    deserialiserCote(B, etat.joueur2);
+    // Correction : On restaure les données selon notre propre rôle
+    if (monRole === 'joueur1') {
+        deserialiserCote(J, etat.joueur1);
+        deserialiserCote(B, etat.joueur2);
+    } else {
+        deserialiserCote(J, etat.joueur2);
+        deserialiserCote(B, etat.joueur1);
+    }
 
     if (etat.tourActuel === 'bot') {
         modeAttente = false;
         tourActuel = 'joueur';
         fermerAttente();
+
         prochainManaMax(J);
         J.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
         piocher(J, 1);
+
         document.getElementById('tour-indicateur').innerText = 'Ton tour';
         document.querySelector('.turn-pill').classList.remove('bot');
         document.getElementById('btn-endturn').classList.remove('inactif');
@@ -430,6 +454,7 @@ function appliquerEtatAdverse(etat) {
         document.getElementById('btn-endturn').classList.add('inactif');
         afficherAttente("Tour adverse", "L'adversaire joue…");
     }
+
     rafraichirJeu();
     verifierFin();
 }
@@ -438,7 +463,7 @@ function appliquerEtatAdverse(etat) {
 function signalerForfaitEnLigne() {
     if (!window.multiPartie || !window.multiPartie.active) return;
     modeAttente = false;
-    fbDB.ref('parties/' + window.multiPartie.partieId).update({
+    fbDB.ref('parties/' + window.multiPartie.adversaireId).update({
         etat: 'forfait',
         forfaitPar: monPseudo,
         timestamp: Date.now()
@@ -447,6 +472,7 @@ function signalerForfaitEnLigne() {
     window.multiPartie.active = false;
 }
 
+/* ---------- Nettoyage ---------- */
 window.addEventListener('beforeunload', () => {
     if (fbDB && monId) {
         fbDB.ref('joueurs/' + monId).remove();
