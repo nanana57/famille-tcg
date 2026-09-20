@@ -648,6 +648,7 @@ function lancerPartieMultijoueur(pseudoAdversaire) {
     modeEnLigne = true;
     modeAttente = false;
     mulliganValide = false;
+    console.log('[App] lancerPartieMultijoueur — modeEnLigne =', modeEnLigne);
 
     J = nouveauCote('J', J.nom || 'Toi');
     B = nouveauCote('B', pseudoAdversaire || 'Adversaire');
@@ -677,6 +678,9 @@ function lancerPartieMultijoueur(pseudoAdversaire) {
 
     rafraichirJeu();
     ouvrirMulligan();
+
+    // Sécurité : le chef force le démarrage après 8 s si besoin
+    if (typeof activerSecuriteChef === 'function') activerSecuriteChef();
 }
 
 function piocherDeckEnLigne() {
@@ -688,7 +692,12 @@ function piocherDeckEnLigne() {
     return hasard(decksPreconstruits).cartes.slice();
 }
 
+/* ---------- Mulligan ---------- */
+let _timerMulligan = null;
+let _compteurMulligan = null;
+
 function ouvrirMulligan() {
+    console.log('[App] ouvrirMulligan — modeEnLigne =', modeEnLigne);
     const zone = document.getElementById('mulligan-cards');
     zone.innerHTML = '';
     J.main.forEach(c => {
@@ -698,11 +707,36 @@ function ouvrirMulligan() {
     });
     ajusterTextes(zone);
     document.getElementById('mulligan-overlay').classList.add('open');
+
+    clearTimeout(_timerMulligan);
+    clearInterval(_compteurMulligan);
+
+    if (modeEnLigne) {
+        const titre = document.querySelector('#mulligan-overlay h2');
+        if (titre) {
+            if (!titre.dataset.base) titre.dataset.base = titre.textContent;
+            let reste = 6;
+            titre.textContent = titre.dataset.base + ' (' + reste + ' s)';
+            _compteurMulligan = setInterval(() => {
+                reste--;
+                if (reste <= 0) { clearInterval(_compteurMulligan); return; }
+                titre.textContent = titre.dataset.base + ' (' + reste + ' s)';
+            }, 1000);
+        }
+        _timerMulligan = setTimeout(() => {
+            console.log('[Mulligan] 6 s écoulées → validation auto');
+            validerMulligan(true);
+        }, 6000);
+    }
 }
 
-function validerMulligan() {
-    const cartes = [...document.getElementById('mulligan-cards').children];
-    const indices = cartes.map((el, i) => el.classList.contains('rejetee') ? i : -1).filter(i => i >= 0);
+function validerMulligan(auto) {
+    clearTimeout(_timerMulligan);
+    clearInterval(_compteurMulligan);
+
+    const zone = document.getElementById('mulligan-cards');
+    const cartes = [...zone.children];
+    const indices = auto ? [] : cartes.map((el, i) => el.classList.contains('rejetee') ? i : -1).filter(i => i >= 0);
 
     const rejetees = indices.map(i => J.main[i]);
     const remplacantes = [];
@@ -714,12 +748,14 @@ function validerMulligan() {
     melanger(J.deck);
 
     document.getElementById('mulligan-overlay').classList.remove('open');
-    if (indices.length) flashInfo(`${indices.length} carte(s) remplacée(s)`);
+
+    const titre = document.querySelector('#mulligan-overlay h2');
+    if (titre && titre.dataset.base) titre.textContent = titre.dataset.base;
 
     if (modeEnLigne) {
         mulliganValide = true;
         if (typeof signalerMulliganPret === 'function') signalerMulliganPret();
-        afficherAttente("En attente de l'adversaire", "Ton adversaire prépare sa main…");
+        afficherAttente("En attente de l'adversaire", "Lancement de la partie…");
         return;
     }
 
@@ -1428,7 +1464,7 @@ window.addEventListener('resize', () => {
     if (document.getElementById('game-screen').classList.contains('active')) ajusterChevauchementMain();
 });
 
-/* ---------- 15. Décor connexion ---------- */
+/* ---------- 15. Décor de l'écran de connexion ---------- */
 (function decorConnexion() {
     const zone = document.getElementById('login-cards');
     ['m1','ma2','k1','ka1'].forEach(id => zone.appendChild(creerHTMLCarte(defCarte(id), 'zoom')));
@@ -1467,97 +1503,6 @@ function declarerForfait() {
         changerEcran('menu-screen');
     }, 2000);
 }
-/* ---------- 18. Appui long sur mobile → zoom carte ---------- */
-(function activerAppuiLong() {
-    const estMobile = (
-        ('ontouchstart' in window) &&
-        (navigator.maxTouchPoints > 0) &&
-        (window.matchMedia('(pointer: coarse)').matches)
-    );
-    if (!estMobile) return;   // Sur PC : rien
-
-    let timerAppui = null;
-    let dernierElement = null;
-    let deplacement = false;
-    let startX = 0, startY = 0;
-    const DUREE = 500;        // 500 ms d'appui
-    const TOLERANCE = 12;     // tolérance de mouvement en px
-
-    // À partir d'une cible DOM, retrouve l'ID de la carte si possible
-    function trouverIdCarte(cible) {
-        if (!cible) return null;
-
-        // 1) Si c'est une carte du plateau ou de la main
-        const wrapper = cible.closest && cible.closest('.card-wrapper');
-        if (wrapper) {
-            // On cherche l'ID de la carte via defCarte à partir du contexte
-            // Les cartes instanciées ont un dataset.uid. On remonte jusqu'à l'élément parent pour
-            // retrouver la carte par son texte (prenom) via les cartes affichées.
-            // Plus simple : on lit le prenom depuis .card-name et on cherche dans dbCartes.
-            const nom = wrapper.querySelector('.card-name');
-            if (nom) {
-                const txt = nom.textContent.trim();
-                const def = dbCartes.find(c => c.prenom === txt);
-                if (def) return def.id;
-            }
-        }
-
-        // 2) Cartes du deckbuilder/collection : elles ont un onclick zoomCarte dans .zoom-btn
-        const zoomBtn = cible.closest && cible.closest('.zoom-btn');
-        if (zoomBtn) {
-            const m = (zoomBtn.getAttribute('onclick') || '').match(/'([^']+)'/);
-            if (m) return m[1];
-        }
-
-        return null;
-    }
-
-    document.addEventListener('touchstart', e => {
-        const t = e.touches[0];
-        if (!t) return;
-        deplacement = false;
-        startX = t.clientX;
-        startY = t.clientY;
-        dernierElement = e.target;
-
-        clearTimeout(timerAppui);
-        timerAppui = setTimeout(() => {
-            if (deplacement) return;
-            const id = trouverIdCarte(dernierElement);
-            if (id) {
-                // Petit retour haptique si supporté
-                if (navigator.vibrate) navigator.vibrate(15);
-                zoomCarte(null, id);
-            }
-        }, DUREE);
-    }, { passive: true });
-
-    document.addEventListener('touchmove', e => {
-        const t = e.touches[0];
-        if (!t) return;
-        const dx = Math.abs(t.clientX - startX);
-        const dy = Math.abs(t.clientY - startY);
-        if (dx > TOLERANCE || dy > TOLERANCE) {
-            deplacement = true;
-            clearTimeout(timerAppui);
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => {
-        clearTimeout(timerAppui);
-    }, { passive: true });
-
-    document.addEventListener('touchcancel', () => {
-        clearTimeout(timerAppui);
-    }, { passive: true });
-
-    // Empêche le menu contextuel iOS sur appui long quand on l'a déjà géré
-    document.addEventListener('contextmenu', e => {
-        if (e.target && e.target.closest && e.target.closest('.card-wrapper')) {
-            e.preventDefault();
-        }
-    });
-})();
 
 /* ---------- 17. Mode mobile : paysage obligatoire ---------- */
 (function gererOrientation() {
@@ -1589,4 +1534,79 @@ function declarerForfait() {
 
     setTimeout(appliquerOrientation, 500);
     setTimeout(appliquerOrientation, 1200);
+})();
+
+/* ---------- 18. Appui long sur mobile → zoom carte ---------- */
+(function activerAppuiLong() {
+    const estMobile = (
+        ('ontouchstart' in window) &&
+        (navigator.maxTouchPoints > 0) &&
+        (window.matchMedia('(pointer: coarse)').matches)
+    );
+    if (!estMobile) return;
+
+    let timerAppui = null;
+    let dernierElement = null;
+    let deplacement = false;
+    let startX = 0, startY = 0;
+    const DUREE = 500;
+    const TOLERANCE = 12;
+
+    function trouverIdCarte(cible) {
+        if (!cible) return null;
+        const wrapper = cible.closest && cible.closest('.card-wrapper');
+        if (wrapper) {
+            const nom = wrapper.querySelector('.card-name');
+            if (nom) {
+                const txt = nom.textContent.trim();
+                const def = dbCartes.find(c => c.prenom === txt);
+                if (def) return def.id;
+            }
+        }
+        const zoomBtn = cible.closest && cible.closest('.zoom-btn');
+        if (zoomBtn) {
+            const m = (zoomBtn.getAttribute('onclick') || '').match(/'([^']+)'/);
+            if (m) return m[1];
+        }
+        return null;
+    }
+
+    document.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        if (!t) return;
+        deplacement = false;
+        startX = t.clientX;
+        startY = t.clientY;
+        dernierElement = e.target;
+
+        clearTimeout(timerAppui);
+        timerAppui = setTimeout(() => {
+            if (deplacement) return;
+            const id = trouverIdCarte(dernierElement);
+            if (id) {
+                if (navigator.vibrate) navigator.vibrate(15);
+                zoomCarte(null, id);
+            }
+        }, DUREE);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        if (!t) return;
+        const dx = Math.abs(t.clientX - startX);
+        const dy = Math.abs(t.clientY - startY);
+        if (dx > TOLERANCE || dy > TOLERANCE) {
+            deplacement = true;
+            clearTimeout(timerAppui);
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => clearTimeout(timerAppui), { passive: true });
+    document.addEventListener('touchcancel', () => clearTimeout(timerAppui), { passive: true });
+
+    document.addEventListener('contextmenu', e => {
+        if (e.target && e.target.closest && e.target.closest('.card-wrapper')) {
+            e.preventDefault();
+        }
+    });
 })();
