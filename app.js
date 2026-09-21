@@ -1229,7 +1229,6 @@ function clicHeroAdverse() {
     attaquer(selection, B);
 }
 async function attaquer(attaquant, cible) {
-    // Enregistrer l'action AVANT de résoudre (mais pas pendant le replay)
     if (modeEnLigne && attaquant.cote === 'J' && !attaquant._replay) {
         pousserAction({
             type:'attaque',
@@ -1267,8 +1266,7 @@ async function attaquer(attaquant, cible) {
 /* ---------- Tours ---------- */
 function prochainManaMax(side) {
     side.numTour++;
-    if (side.numTour === 1) side.manaMax = side.premier ? 2 : 3;
-    else side.manaMax = Math.min(10, side.manaMax + 1);
+    side.manaMax = Math.min(10, side.premier ? (side.numTour * 2) : (side.numTour * 2 + 1));
     side.manaActuel = side.manaMax;
 }
 function debutTourJoueur() {
@@ -1298,7 +1296,6 @@ function finDeTour() {
     if (J.voitMainAdverse > 0) J.voitMainAdverse--;
 
     if (modeEnLigne) {
-        // Envoyer un signal de fin de tour (action spéciale)
         pousserAction({ type: 'fin' });
 
         modeAttente = true;
@@ -1307,6 +1304,11 @@ function finDeTour() {
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
         info('L\'adversaire réfléchit...');
+
+        prochainManaMax(B);
+        B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
+        piocher(B, 1);
+        rafraichirJeu();
     } else {
         jouerTourBot();
     }
