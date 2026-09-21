@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu
+   FAMILLE TCG — moteur de jeu (v2 — multi corrigé)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -45,8 +45,7 @@ const dbCartes = [
     C('k7','Pina','Kerkache',2,1,2,'commune','Oiseau ultra rapide : attaque dès son arrivée.',['Charge'],'🦜'),
     C('k8','Oiseau 2','Kerkache',2,1,2,'commune','Gazouille joyeusement.',['Charge'],'🕊️'),
 
-  
-       /* --- Belgacemi --- */
+    /* --- Belgacemi --- */
     C('ka1','Khaled','Belgacemi',6,5,5,'legendaire','Cri de guerre : donne +2/+2 aux autres Belgacemi alliés.',[],'👨🏽'),
     C('ka2','Hanifa','Belgacemi',6,3,6,'legendaire','Cri de guerre : invoque un Bon repas 3/3.',[],'🧕'),
     C('ka3','Safya','Belgacemi',4,4,4,'epique','Cri de guerre : double l\'attaque de Saad s\'il est en jeu.',[],'👩🏽'),
@@ -136,13 +135,12 @@ function defCarte(id) { return parId[id]; }
 
 /* ---------- Fusion : recettes ---------- */
 const FUSIONS = {
-    'f1': ['ka5','ka6'],  // Naila + Nassim
-    'f2': ['m4','m5'],    // Amina + Marouane
-    'f3': ['ma3','ma4'],  // Islem + Inès
-    'f4': ['ka7','ka8'],  // Toufik + Manel
-    'f5': ['ka3','ka4']   // Safya + Saad
+    'f1': ['ka5','ka6'],
+    'f2': ['m4','m5'],
+    'f3': ['ma3','ma4'],
+    'f4': ['ka7','ka8'],
+    'f5': ['ka3','ka4']
 };
-// Inversé : pour une carte donnée, quelle fusion peut-on faire
 const FUSION_DE = {};
 Object.entries(FUSIONS).forEach(([fid, compo]) => {
     FUSION_DE[compo[0]] = FUSION_DE[compo[0]] || [];
@@ -153,7 +151,6 @@ Object.entries(FUSIONS).forEach(([fid, compo]) => {
 
 /* ---------- 2. Pouvoirs ---------- */
 const POUVOIRS = {
-    /* Meridja */
     m1:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source&&m.famille==='Meridja').forEach(m=>buff(m,2,2))},
     m2:{mode:'infini',blesse:({moi})=>soinHero(moi,3)},
     m3:{mode:'infini',aura:true},
@@ -165,7 +162,6 @@ const POUVOIRS = {
     m11:{mode:'eclair',jouer:({moi,source})=>{const v=lancerDe();if(v%2===0)piocher(moi,1);else moi.manaActuel+=1;if(moi.plateau.some(x=>x.id==='m4')&&moi.plateau.some(x=>x.id==='m5'))buff(source,2,2);}},
     m12:{mode:'eclair',jouer:({moi,ennemi,source})=>{const v=lancerDe();degatsHero(ennemi,v);if(moi.plateau.some(x=>x.id==='m4')&&moi.plateau.some(x=>x.id==='m5'))buff(source,2,2);}},
 
-    /* Marouf */
     ma1:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.forEach(m=>{m.atk=Math.max(0,m.atk-2);fxSur(m,'-2 ⚔','degat');})},
     ma2:{mode:'infini',finTour:({moi})=>{piocher(moi,1);fxSurHero(moi,'Pioche','buff');}},
     ma3:{mode:'infini',jouer:({moi})=>{moi.contreSort=true;}},
@@ -177,7 +173,6 @@ const POUVOIRS = {
     ma9:{mode:'infini',aura:true},
     ma11:{mode:'eclair',cible:{camp:'ennemi',hero:true,texte:'Choisis une cible à frapper'},jouer:({moi,source,cible})=>{const v=lancerDe();fraper(cible,v);if(moi.plateau.some(x=>x.id==='ma3')&&moi.plateau.some(x=>x.id==='ma4'))buff(source,2,2);}},
 
-    /* Kerkache */
     k1:{mode:'infini',aura:true},
     k2:{mode:'infini',finTour:({moi})=>soinHero(moi,3)},
     k3:{mode:'infini',aura:true},
@@ -185,8 +180,6 @@ const POUVOIRS = {
     k5:{mode:'eclair',jouer:({moi})=>soinHero(moi,2)},
     k6:{mode:'infini',aura:true},
 
-
-    /* Belgacemi */
     ka1:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source&&m.famille==='Belgacemi').forEach(m=>buff(m,2,2))},
     ka2:{mode:'eclair',jouer:({moi})=>invoquerJeton(moi,'Bon repas',3,3,'🍲',[])},
     ka3:{mode:'eclair',jouer:({moi})=>{const s=moi.plateau.find(m=>m.id==='ka4');if(s)buff(s,s.atk,0);}},
@@ -199,7 +192,6 @@ const POUVOIRS = {
     ka10:{mode:'eclair',jouer:({moi})=>{const c=moi.plateau.find(m=>m.id==='ka9');if(c)buff(c,1,1);}},
     ka11:{mode:'eclair',cible:{camp:'allie',hero:true,texte:'Choisis une cible à soigner'},jouer:({moi,source,cible})=>{const v=lancerDe();soigner(cible,v);if(moi.plateau.some(x=>x.id==='ka3')&&moi.plateau.some(x=>x.id==='ka4'))buff(source,2,2);}},
 
-    /* Neutres */
     n1:{mode:'infini',finTour:({moi})=>moi.plateau.forEach(m=>soinCreature(m,99))},
     n2:{mode:'eclair',cible:{camp:'ennemi',texte:'Endors une créature ennemie'},jouer:({cible})=>{if(cible){cible.gele=2;fxSur(cible,'💤','buff');}}},
     n3:{mode:'eclair',jouer:({moi})=>soinHero(moi,2)},
@@ -208,7 +200,6 @@ const POUVOIRS = {
     n6:{mode:'infini',aura:true},
     n7:{mode:'infini',finTour:({moi})=>{const c=hasard(moi.plateau);if(c)buff(c,1,1);}},
 
-    /* Terrains */
     t1:{mode:'infini',aura:true},
     t2:{mode:'infini',aura:true},
     t3:{mode:'infini',finTourGlobal:()=>{soinHero(J,2);soinHero(B,2);}},
@@ -218,7 +209,6 @@ const POUVOIRS = {
     t7:{mode:'eclair',jouer:({moi})=>{const v=lancerDe();if(v>=4)soinHero(moi,2);}},
     t8:{mode:'eclair',jouer:({ennemi})=>{const pile=lancerPileOuFace();if(pile)defausseAleatoire(ennemi);}},
 
-    /* Sorts */
     s1:{mode:'eclair',cible:{camp:'ennemi',texte:'Renvoie une créature en main'},jouer:({cible,ennemi})=>{if(cible)renvoyerEnMain(cible,ennemi);}},
     s2:{mode:'eclair',jouer:({moi,ennemi})=>[...moi.plateau,...ennemi.plateau].forEach(m=>fraper(m,2))},
     s3:{mode:'eclair',jouer:({ennemi})=>{const c=hasard(ennemi.plateau);if(c){c.gele=1;fxSur(c,'💤','buff');}}},
@@ -250,7 +240,6 @@ const POUVOIRS = {
     s29:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.filter(m=>m.vie<=3).forEach(m=>fraper(m,999))},
     s30:{mode:'eclair',cible:{camp:'allie',texte:'Transforme une créature alliée'},jouer:({cible})=>{if(cible)transformerEn(cible,'Vase précieux',0,5,'🏺',['Provocation']);}},
 
-    /* Nouveaux sorts */
     s31:{mode:'eclair',cible:{camp:'tous',hero:true,texte:'Choisis un personnage'},jouer:({cible})=>{const pile=lancerPileOuFace();if(pile)soigner(cible,1);else fraper(cible,1);}},
     s32:{mode:'eclair',jouer:({moi})=>{const n=moi.plateau.some(m=>m.id==='ka10')?3:2;piocher(moi,n);}},
     s33:{mode:'eclair',cible:{camp:'allie',texte:'Choisis une créature'},jouer:({moi,cible})=>{if(cible){const v=moi.plateau.some(m=>m.id==='ka11')?3:2;buff(cible,0,v);}}},
@@ -262,7 +251,6 @@ const POUVOIRS = {
     s39:{mode:'eclair',jouer:({moi})=>moi.plateau.forEach(m=>buff(m,2,2))},
     s40:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.forEach(m=>{m.atk=Math.max(0,m.atk-2);fxSur(m,'-2 ⚔','degat');})},
 
-    /* Cartes Fusion */
     f1:{mode:'eclair',jouer:({ennemi})=>{for(let i=0;i<4;i++){const c=hasard(ennemi.plateau);if(c)fraper(c,1);else degatsHero(ennemi,1);}}},
     f2:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source).forEach(m=>buff(m,3,3))},
     f3:{mode:'eclair',jouer:({moi})=>{moi.contreSort=true;piocher(moi,1);}},
@@ -274,7 +262,6 @@ dbCartes.forEach(c => {
     if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation')) {
         POUVOIRS[c.id] = { mode:'infini', aura:true };
     }
-    // Rage : la carte gagne +2 en attaque quand elle subit des dégâts sans mourir
     if (c.motsCles.includes('Rage')) {
         if (!POUVOIRS[c.id]) POUVOIRS[c.id] = { mode:'infini' };
         const base = POUVOIRS[c.id].blesse;
@@ -300,16 +287,9 @@ const decksPreconstruits = [
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
-         { nom:'Les Infiltrés', cartes:[
-        // 5 fusions
+    { nom:'Les Infiltrés', cartes:[
         'f1','f2','f3','f4','f5',
-        // 10 composants (1 de chaque pour pouvoir fusionner)
-        'ka5','ka6',   // Naila + Nassim → f1
-        'm4','m5',     // Amina + Marouane → f2
-        'ma3','ma4',   // Islem + Inès → f3
-        'ka7','ka8',   // Toufik + Manel → f4
-        'ka3','ka4',   // Safya + Saad → f5
-        // 5 supports
+        'ka5','ka6', 'm4','m5', 'ma3','ma4', 'ka7','ka8', 'ka3','ka4',
         'm11','m12','ma11','ka11','n7'
     ] }
 ];
@@ -462,7 +442,6 @@ function creerHTMLCarte(c, ctx, opts) {
 
     const coutAffiche = opts.cout !== undefined ? opts.cout : c.cout;
     const classeTexte = POUVOIRS[c.id] ? 'pouvoir' : 'lore';
-    // Classe CSS famille : "Nouvelle famille" -> "Nouvelle"
     const clFamille = c.famille === 'Nouvelle famille' ? 'Nouvelle' : c.famille;
     const clRarete = c.rarete === 'fusion' ? 'fusion' : c.rarete;
 
@@ -668,7 +647,6 @@ function preparerBooster() {
         pack.classList.add('hidden');
         for (let i = 0; i < 5; i++) {
             const r = Math.random();
-            // Inclure la rareté fusion (très rare)
             let rarete;
             if (r > 0.98) rarete = 'fusion';
             else if (r > 0.93) rarete = 'legendaire';
@@ -757,6 +735,10 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     B.deck = deckAdverseIds.map(id => instancier(defCarte(id), 'B'));
     melanger(B.deck);
 
+    // ⚠️ IMPORTANT : on ne fixe PAS J.premier/B.premier ici.
+    // C'est multi.js qui le fera au moment du démarrage du tour, quand on
+    // connaîtra le rôle exact (s.roles[monPseudo] === 'joueur1').
+    // Ici on met juste une valeur par défaut cohérente.
     J.premier = false; B.premier = false;
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0;
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0;
@@ -1050,7 +1032,6 @@ function nettoyerMorts() {
 
 /* ---------- Fusion : détection ---------- */
 function fusionsPossibles(side, carteEnMain) {
-    // Renvoie la liste des fusions qu'on peut faire avec cette carte en main
     const recettes = FUSION_DE[carteEnMain.id];
     if (!recettes) return [];
     return recettes.filter(r => {
@@ -1076,15 +1057,11 @@ function clicCarteMain(index) {
     const c = J.main[index];
     if (!c) return;
 
-    // Cas particulier : carte Fusion
     if (c.rarete === 'fusion') {
         const dispo = fusionsPossibles(J, c);
-        if (!dispo.length) {
-            return info('Il te faut les deux cartes sur le terrain pour fusionner.');
-        }
+        if (!dispo.length) return info('Il te faut les deux cartes sur le terrain pour fusionner.');
         if (J.manaActuel < coutEffectif(J, c)) return info('Pas assez de mana.');
         if (J.plateau.length < 2) return info('Pas assez de place pour la fusion.');
-        // Sacrifier les composants
         sacrifierPourFusion(J, c.id);
         jouerCarte(J, index, null);
         return;
@@ -1276,6 +1253,7 @@ function debutTourJoueur() {
     if (!modeEnLigne) demarrerTimer();
     recalcAuras(); rafraichirJeu(); verifierFin();
 }
+
 function finDeTour() {
     if (partieFinie) return;
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
@@ -1293,12 +1271,13 @@ function finDeTour() {
         document.getElementById('tour-indicateur').innerText = 'Tour adverse';
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
-        fermerAttente();
+        afficherAttente("Tour adverse", "L'adversaire réfléchit…");
         if (typeof publierEtat === 'function') publierEtat();
     } else {
         jouerTourBot();
     }
 }
+
 function appliquerFinDeTour(side) {
     side.plateau.forEach(m => {
         const p = POUVOIRS[m.id];
