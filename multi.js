@@ -1,10 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v12 — salle unique)
-   Un seul nœud : salles/<partieId>
-   Chaque joueur y écrit : {pret, deck, mulligan}
-   Chacun écoute et démarre quand :
-     - les 2 ont annoncé leur deck → lance la partie locale
-     - les 2 ont validé le mulligan → démarre son 1er tour
+   FAMILLE TCG — Multijoueur Firebase (v13 — corrigé)
    =========================================================== */
 
 const firebaseConfig = {
@@ -83,14 +78,13 @@ function initFirebase() {
         Object.entries(tout).forEach(([cle, d]) => {
             if (!d) return;
             if (d.de === monPseudo && d.etat === 'accepte' && d.partieId) {
-                if (_defisTraites.has(d.partieId)) return;   // déjà traité, on évite de rouvrir l'écran
+                if (_defisTraites.has(d.partieId)) return;
                 _defisTraites.add(d.partieId);
                 console.log('[Multi] Mon défi a été accepté — partieId =', d.partieId);
                 const pseudoAdverse = cle;
-                monRole = null; // sera lu depuis salles/{id}/roles (tiré au hasard par l'acceptant)
+                monRole = null;
                 fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
                 ecouterSalle(d.partieId);
-                // On demande le choix du deck
                 ouvrirChoixDeckEnLigne(pseudoAdverse);
             }
         });
@@ -175,34 +169,27 @@ function afficherDefiRecu(defi) {
 function accepterDefi() {
     const defi = window._defiEnCours;
     if (!defi) return;
-    const pseudoAdverse = defi.de;           // le pseudo du challenger
+    const pseudoAdverse = defi.de;
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.remove('open');
 
     const partieId = calculerPartieId(monPseudo, pseudoAdverse);
 
-    // Demande : le premier joueur est choisi au hasard (et non par ordre alphabétique)
+    // Tirage au sort des rôles UNE SEULE FOIS, par celui qui accepte.
     const rolesAttribues = Math.random() < 0.5
         ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' }
         : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
     monRole = rolesAttribues[monPseudo];
 
-    // Créer la salle (une seule fois, par celui qui accepte)
     fbDB.ref('salles/' + partieId).update({
         roles: rolesAttribues,
         etat: 'init',
         timestamp: Date.now()
     });
-    // M'ajouter dedans
     fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).set({
         pret: true, deck: null, mulligan: false
     });
 
-    // IMPORTANT : on met à jour LE MÊME nœud que celui d'où vient le défi
-    // (defis/<mon propre pseudo>, celui que le challenger surveille), pour
-    // que les deux clients calculent bien le même partieId. Écrire ailleurs
-    // (comme sur defis/<pseudoAdverse>) créait une salle différente côté
-    // challenger et bloquait la partie pour l'un des deux joueurs.
     fbDB.ref('defis/' + monPseudo).update({
         etat: 'accepte',
         partieId,
@@ -211,13 +198,9 @@ function accepterDefi() {
 
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
 
-    // Nettoyage différé : on laisse le temps au challenger de lire l'état 'accepte'
-    // avant de supprimer le défi (évite une course avec le listener Firebase).
     setTimeout(() => { fbDB.ref('defis/' + monPseudo).remove(); }, 4000);
 
     ecouterSalle(partieId);
-
-    // Demander le choix du deck
     ouvrirChoixDeckEnLigne(pseudoAdverse);
 }
 
@@ -238,9 +221,6 @@ function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({
         pret: true, deck: deckIds, mulligan: false
     });
-    // Les rôles (qui commence) sont déjà tirés au hasard et écrits une seule
-    // fois par celui qui a créé la salle (accepterDefi) : on ne les touche
-    // plus ici pour ne pas écraser ce tirage aléatoire.
 }
 
 /* ---------- Écoute de la salle ---------- */
@@ -301,18 +281,15 @@ function ecouterSalle(partieId) {
                 console.log('[Multi] Les 2 mulligans validés — démarrage du tour');
 
                 if (window.multiPartie.jeCommence) {
-                    // Je commence
                     tourActuel = 'joueur';
                     modeAttente = false;
                     debutTourJoueur();
                     publierEtat();
                 } else {
-                    // J'attends
                     modeAttente = true;
                     tourActuel = 'attente';
                     document.getElementById('tour-indicateur').innerText = 'Attente…';
                     document.getElementById('btn-endturn').classList.add('inactif');
-                    rafraichirJeu();   // affiche le plateau (mains, terrains…) même en attente
                     afficherAttente("En attente de l'adversaire", "L'adversaire commence la partie…");
                 }
             }
@@ -339,9 +316,6 @@ function publierEtat() {
     if (typeof modeAttente !== 'undefined' && modeAttente) return;
     if (tourActuel === 'attente') return;
     if (!monRole) return;
-    // On publie TOUJOURS sous la clé de rôle stable de chacun (et non "qui vient
-    // d'agir"), sinon le joueur1/joueur2 change de sens selon qui a joué en
-    // dernier et les deux clients finissent par mélanger leurs plateaux.
     const roleAdverse = monRole === 'joueur1' ? 'joueur2' : 'joueur1';
     const donnees = {
         par: monPseudo,
@@ -410,9 +384,6 @@ function deserialiserCote(side, data) {
 function appliquerEtatAdverse(etat) {
     if (!monRole) return;
     const roleAdverse = monRole === 'joueur1' ? 'joueur2' : 'joueur1';
-    // etat[monRole] = mes propres données telles que vues/relayées par l'adversaire,
-    // etat[roleAdverse] = les données de l'adversaire. On applique donc chacune
-    // à la bonne variable locale (J = toujours moi, B = toujours l'adversaire).
     deserialiserCote(J, etat[monRole]);
     deserialiserCote(B, etat[roleAdverse]);
 
