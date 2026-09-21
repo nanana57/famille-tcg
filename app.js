@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (v3 — multi par actions)
+   FAMILLE TCG — moteur de jeu (v4 — multi temps réel)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -303,7 +303,7 @@ let triCourant = 'cout';
 function nouveauCote(cle, nom) {
     return { cle, nom, patience:20, manaActuel:0, manaMax:0, main:[], plateau:[], deck:[],
              terrain:null, surcout:0, contreSort:false, voitMainAdverse:0, pioceBloquee:false,
-             numTour:0, premier:false, _actionsTour:[] };
+             numTour:0, premier:false };
 }
 let J = nouveauCote('J', 'Toi');
 let B = nouveauCote('B', 'Bot');
@@ -317,6 +317,11 @@ let uidSeq = 1;
 let modeEnLigne = false;
 let modeAttente = false;
 let mulliganValide = false;
+
+// Traçabilité des actions multi
+let _dernierIdTraite = 0;
+let _compteurAction = 0;
+let _replayEnCours = false;
 
 const autre = s => (s === J ? B : J);
 const hasard = a => (a && a.length ? a[Math.floor(Math.random() * a.length)] : null);
@@ -715,6 +720,9 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     modeEnLigne = true;
     modeAttente = false;
     mulliganValide = false;
+    _dernierIdTraite = 0;
+    _compteurAction = 0;
+    _replayEnCours = false;
     console.log('[App] lancerPartieMultijoueur — adversaire =', pseudoAdversaire);
 
     J = nouveauCote('J', J.nom || 'Toi');
@@ -735,9 +743,6 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0;
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0;
     tourActuel = 'attente';
-
-    J._actionsTour = [];
-    B._actionsTour = [];
 
     for (let k = 0; k < 4; k++) piocher(B, 1);
     for (let k = 0; k < 4; k++) if (J.deck.length) J.main.push(J.deck.shift());
@@ -1040,6 +1045,26 @@ function sacrifierPourFusion(side, fusionId) {
     });
 }
 
+/* ---------- Envoi temps réel d'une action à Firebase ---------- */
+function pousserAction(action) {
+    if (!modeEnLigne) return;
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    if (!monRole) return;
+    if (typeof fbDB === 'undefined' || !fbDB) return;
+
+    _compteurAction++;
+    const id = Date.now() * 1000 + _compteurAction;
+    const payload = {
+        id: id,
+        par: monPseudo,
+        role: monRole,
+        action: action,
+        ts: Date.now()
+    };
+    console.log('[App] 📤 Action envoyée :', action.type, action.id || action.uid || '');
+    fbDB.ref('salles/' + window.multiPartie.partieId + '/queue/' + id).set(payload);
+}
+
 /* ---------- Jouer une carte ---------- */
 function clicCarteMain(index) {
     if (partieFinie) return;
@@ -1054,8 +1079,7 @@ function clicCarteMain(index) {
         if (!dispo.length) return info('Il te faut les deux cartes sur le terrain pour fusionner.');
         if (J.manaActuel < coutEffectif(J, c)) return info('Pas assez de mana.');
         if (J.plateau.length < 2) return info('Pas assez de place pour la fusion.');
-        // Enregistrer l'action AVANT de sacrifier
-        enregistrerAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
+        pousserAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
         sacrifierPourFusion(J, c.id);
         jouerCarte(J, index, null);
         return;
@@ -1072,13 +1096,13 @@ function clicCarteMain(index) {
             demarrerCiblage(p.cible, cibles, cible => {
                 const cibleUid = cible && cible.uid ? cible.uid : null;
                 const cibleHero = (cible === J || cible === B) ? cible.cle : null;
-                enregistrerAction({ type:'jouer', id:c.id, cibleUid, cibleHero });
+                pousserAction({ type:'jouer', id:c.id, cibleUid, cibleHero });
                 jouerCarte(J, index, cible);
             });
             return;
         }
     }
-    enregistrerAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
+    pousserAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
     jouerCarte(J, index, null);
 }
 
@@ -1205,9 +1229,9 @@ function clicHeroAdverse() {
     attaquer(selection, B);
 }
 async function attaquer(attaquant, cible) {
-    // Enregistrer l'action AVANT de résoudre
+    // Enregistrer l'action AVANT de résoudre (mais pas pendant le replay)
     if (modeEnLigne && attaquant.cote === 'J' && !attaquant._replay) {
-        enregistrerAction({
+        pousserAction({
             type:'attaque',
             uid: attaquant.uid,
             cibleUid: cible.uid || null,
@@ -1240,15 +1264,6 @@ async function attaquer(attaquant, cible) {
     verifierFin();
 }
 
-/* ---------- Enregistrement des actions ---------- */
-function enregistrerAction(action) {
-    if (!modeEnLigne) return;
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    if (tourActuel !== 'joueur') return;
-    if (!J._actionsTour) J._actionsTour = [];
-    J._actionsTour.push(action);
-}
-
 /* ---------- Tours ---------- */
 function prochainManaMax(side) {
     side.numTour++;
@@ -1260,7 +1275,6 @@ function debutTourJoueur() {
     if (partieFinie) return;
     tourActuel = 'joueur'; modeAttente = false; selection = null;
     fermerAttente();
-    J._actionsTour = [];   // reset les actions pour ce nouveau tour
     document.getElementById('tour-indicateur').innerText = 'Ton tour';
     document.querySelector('.turn-pill').classList.remove('bot');
     document.getElementById('btn-endturn').classList.remove('inactif');
@@ -1284,15 +1298,14 @@ function finDeTour() {
     if (J.voitMainAdverse > 0) J.voitMainAdverse--;
 
     if (modeEnLigne) {
-        // 📤 Envoyer les actions de mon tour à l'adversaire
-        if (typeof envoyerMesActions === 'function') envoyerMesActions();
+        // Envoyer un signal de fin de tour (action spéciale)
+        pousserAction({ type: 'fin' });
 
         modeAttente = true;
         tourActuel = 'bot';
         document.getElementById('tour-indicateur').innerText = 'Tour adverse';
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
-        // ⚠️ Pas d'overlay : on veut voir le plateau
         info('L\'adversaire réfléchit...');
     } else {
         jouerTourBot();
