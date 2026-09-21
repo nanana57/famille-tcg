@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v18 — défi + salle)
+   FAMILLE TCG — Multijoueur Firebase (Correction des tableaux vides et UI)
    =========================================================== */
 
 const firebaseConfig = {
@@ -265,15 +265,17 @@ function ecouterSalle(partieId) {
                     tourActuel = 'joueur';
                     modeAttente = false;
                     fermerAttente();
+                    info('À toi de jouer. Choisis une action.');
                     debutTourJoueur();
                     publierEtat();
                 } else {
                     modeAttente = true;
-                    tourActuel = 'bot'; // Change l'interface pour correspondre au tour adverse
+                    tourActuel = 'bot';
                     document.getElementById('tour-indicateur').innerText = 'Tour adverse';
                     document.querySelector('.turn-pill').classList.add('bot');
                     document.getElementById('btn-endturn').classList.add('inactif');
-                    fermerAttente(); // Enlève la boîte noire pour laisser voir le plateau !
+                    info('L\'adversaire réfléchit...');
+                    fermerAttente(); 
                 }
             }
         }
@@ -331,13 +333,15 @@ function deserialiserCote(side, data) {
     side.manaActuel = data.manaActuel;
     side.manaMax = data.manaMax;
     side.numTour = data.numTour;
-    side.deck = data.deckIds.map(id => instancier(defCarte(id), side.cle));
-    side.main = data.main.map(o => {
+    
+    // CORRECTION MAJEURE: Le "|| []" protège contre le fait que Firebase supprime les tableaux vides
+    side.deck = (data.deckIds || []).map(id => instancier(defCarte(id), side.cle));
+    side.main = (data.main || []).map(o => {
         const inst = instancier(defCarte(o.id), side.cle);
         inst.uid = o.uid;
         return inst;
     });
-    side.plateau = data.plateau.map(o => {
+    side.plateau = (data.plateau || []).map(o => {
         const def = defCarte(o.id);
         return {
             uid:o.uid, id:o.id, prenom:o.prenom, emoji:o.emoji,
@@ -346,26 +350,32 @@ function deserialiserCote(side, data) {
             rarete: def ? def.rarete : 'commune',
             desc: def ? def.desc : '',
             atk:o.atk, vie:o.vie, vieMax:o.vieMax,
-            auraAtk:o.auraAtk, auraVieAppliquee:o.auraVieAppliquee,
+            auraAtk:o.auraAtk || 0, auraVieAppliquee:o.auraVieAppliquee || 0,
             motsCles:o.motsCles || [],
-            aAttaque:o.aAttaque, malade:o.malade,
-            gele:o.gele, silence:o.silence, jeton:o.jeton,
+            aAttaque:!!o.aAttaque, malade:!!o.malade,
+            gele:o.gele || 0, silence:!!o.silence, jeton:!!o.jeton,
             cote: side.cle
         };
     });
-    side.terrain = data.terrain ? (() => {
+    
+    if (data.terrain) {
         const inst = instancier(defCarte(data.terrain.id), side.cle);
         inst.uid = data.terrain.uid;
-        return inst;
-    })() : null;
+        side.terrain = inst;
+    } else {
+        side.terrain = null;
+    }
 }
 
 /* ---------- Application état adverse ---------- */
 function appliquerEtatAdverse(etat) {
     if (!monRole) return;
     const roleAdverse = monRole === 'joueur1' ? 'joueur2' : 'joueur1';
+    
     deserialiserCote(J, etat[monRole]);
     deserialiserCote(B, etat[roleAdverse]);
+
+    let debutDeMonTour = false;
 
     if (etat.tourActuel === 'bot') {
         modeAttente = false;
@@ -374,20 +384,31 @@ function appliquerEtatAdverse(etat) {
         prochainManaMax(J);
         J.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
         piocher(J, 1);
+        
         document.getElementById('tour-indicateur').innerText = 'Ton tour';
         document.querySelector('.turn-pill').classList.remove('bot');
         document.getElementById('btn-endturn').classList.remove('inactif');
         banniere('À toi de jouer');
+        info('À toi de jouer. Choisis une action.');
+        
+        debutDeMonTour = true;
     } else {
         modeAttente = true;
         tourActuel = 'bot';
         document.getElementById('tour-indicateur').innerText = 'Tour adverse';
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
-        fermerAttente(); // Enlève la boîte noire pour observer
+        info('L\'adversaire réfléchit...');
+        fermerAttente();
     }
+    
     rafraichirJeu();
     verifierFin();
+    
+    // Si c'est mon tour, j'envoie mon état pour actualiser mon mana et mes cartes chez l'adversaire
+    if (debutDeMonTour) {
+        publierEtat();
+    }
 }
 
 /* ---------- Forfait en ligne ---------- */
