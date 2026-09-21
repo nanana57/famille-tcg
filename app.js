@@ -300,19 +300,17 @@ const decksPreconstruits = [
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
-      { nom:'Les Infiltrés', cartes:[
-        // Les 5 cartes fusion (les mariés)
+         { nom:'Les Infiltrés', cartes:[
+        // 5 fusions
         'f1','f2','f3','f4','f5',
-        // Les composants nécessaires (1 de chaque pour pouvoir fusionner)
+        // 10 composants (1 de chaque pour pouvoir fusionner)
         'ka5','ka6',   // Naila + Nassim → f1
         'm4','m5',     // Amina + Marouane → f2
         'ma3','ma4',   // Islem + Inès → f3
         'ka7','ka8',   // Toufik + Manel → f4
         'ka3','ka4',   // Safya + Saad → f5
-        // Les enfants / synergies
-        'm11','m12','ma11','ka11',
-        // Quelques neutres utiles pour la mécanique de fusion
-        'n7','s34','s37'
+        // 5 supports
+        'm11','m12','ma11','ka11','n7'
     ] }
 ];
 
