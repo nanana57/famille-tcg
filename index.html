@@ -22,19 +22,34 @@
 
 <div id="fx-layer"></div>
 
-<!-- Tutoriel -->
-<div id="tuto-overlay" onclick="fermerTuto()">
-    <div class="tuto-box" onclick="event.stopPropagation()">
-        <h3>Guide de jeu</h3>
-        <p><strong>But du jeu :</strong> Réduis la patience (points de vie) du héros adverse à 0 pour gagner !</p>
-        <ul style="text-align:left; color:var(--texte-doux); font-size:14px;">
-            <li><strong style="color:var(--laiton-clair)">Charge :</strong> La carte peut attaquer dès son arrivée sur le plateau.</li>
-            <li><strong style="color:var(--laiton-clair)">Provocation :</strong> Les ennemis doivent attaquer cette carte en premier.</li>
-            <li><strong style="color:var(--laiton-clair)">Rage :</strong> Si la carte subit des dégâts sans mourir, elle gagne +2 en attaque.</li>
-            <li><strong style="color:var(--laiton-clair)">Destruction :</strong> Déclenche un effet spécial lorsque la carte est détruite.</li>
-            <li><strong style="color:var(--laiton-clair)">Fusion :</strong> Pose une carte "Nouvelle famille" alors que les 2 mariés requis sont sur ton terrain pour les sacrifier et déclencher un effet dévastateur.</li>
-        </ul>
-        <button class="btn-large" onclick="fermerTuto()">Compris !</button>
+<!-- Guide / Tuto -->
+<div id="aide-overlay" onclick="fermerAide()">
+    <div class="aide-box" onclick="event.stopPropagation()">
+        <h2>📖 Guide du jeu</h2>
+        <div class="aide-section">
+            <h3>🎯 But du jeu</h3>
+            <p>Réduis la <strong>Patience</strong> de l'adversaire de 20 à 0. Chaque famille a ses forces et ses faiblesses. Invoque des créatures, lance des sorts, et prends le contrôle du plateau.</p>
+        </div>
+        <div class="aide-section">
+            <h3>⚙️ Mécaniques clés</h3>
+            <ul>
+                <li><strong>Charge</strong> ⚡ : La créature peut attaquer le tour où elle est jouée.</li>
+                <li><strong>Provocation</strong> 🛡️ : Les créatures adverses doivent l'attaquer en priorité.</li>
+                <li><strong>Rage</strong> 🔥 : Si la créature subit des dégâts sans mourir, elle gagne +2 en force.</li>
+                <li><strong>Destruction</strong> 💀 : Quand la créature meurt, un effet se déclenche.</li>
+                <li><strong>Fusion</strong> 💑 : Nécessite de sacrifier deux cartes spécifiques sur le terrain.</li>
+            </ul>
+        </div>
+        <div class="aide-section">
+            <h3>✨ Pouvoirs des cartes</h3>
+            <p><span class="power-badge eclair">⚡</span> Effet immédiat quand la carte est jouée.</p>
+            <p><span class="power-badge infini">♾️</span> Effet permanent ou qui se répète chaque tour.</p>
+        </div>
+        <div class="aide-section">
+            <h3>🎴 Raretés</h3>
+            <p><span style="color:#8d9aa8">● Commune</span> — <span style="color:#3aa0ff">● Rare</span> — <span style="color:#a86bff">● Épique</span> — <span style="color:#ffb63d">● Légendaire</span></p>
+        </div>
+        <button class="btn-large" onclick="fermerAide()">Compris !</button>
     </div>
 </div>
 
@@ -86,7 +101,7 @@
         <button onclick="changerEcran('booster-screen')">Boosters</button>
         <button onclick="changerEcran('multi-screen')">Multijoueur</button>
         <button onclick="changerEcran('profil-screen')">Profil</button>
-        <button onclick="ouvrirTuto()">❓ Guide</button>
+        <button onclick="ouvrirAide()">❓ Aide</button>
         <button id="btn-forfait" class="btn-forfait" onclick="declarerForfait()" hidden>Forfait</button>
     </div>
     <div class="nav-pseudo" id="display-pseudo"></div>
@@ -97,7 +112,7 @@
         <div class="login-cards" id="login-cards"></div>
         <div class="box login-box">
             <h1 class="title-hero">Famille TCG</h1>
-            <p class="subtitle">Quatre familles, une seule patience.</p>
+            <p class="subtitle">Cinq familles, une seule patience.</p>
             <input type="text" id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
             <button class="btn-large" onclick="connecter()">Entrer dans l'arène</button>
         </div>
@@ -124,7 +139,7 @@
 
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Collection (Total: <span id="collection-total-count">0</span>)</h3>
+                <h3>Collection <span id="collection-count" class="hint"></span></h3>
                 <div class="sort-actions">
                     <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
                     <button class="btn-chip" onclick="trierCollection('nom')">Nom</button>
@@ -189,6 +204,7 @@
 </div>
 
 <div id="game-screen" class="screen scrollable">
+
     <div id="mulligan-overlay">
         <h2>Choisis les cartes à rejeter</h2>
         <p class="hint">Les cartes sélectionnées repartent dans le deck et sont remplacées.</p>
