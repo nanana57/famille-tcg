@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (v2 — multi corrigé)
+   FAMILLE TCG — moteur de jeu (v3 — multi par actions)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -303,7 +303,7 @@ let triCourant = 'cout';
 function nouveauCote(cle, nom) {
     return { cle, nom, patience:20, manaActuel:0, manaMax:0, main:[], plateau:[], deck:[],
              terrain:null, surcout:0, contreSort:false, voitMainAdverse:0, pioceBloquee:false,
-             numTour:0, premier:false };
+             numTour:0, premier:false, _actionsTour:[] };
 }
 let J = nouveauCote('J', 'Toi');
 let B = nouveauCote('B', 'Bot');
@@ -347,12 +347,8 @@ function changerEcran(id) {
     if (id === 'multi-screen' && typeof rafraichirJoueurs === 'function') rafraichirJoueurs();
 }
 
-function ouvrirAide() {
-    document.getElementById('aide-overlay').classList.add('open');
-}
-function fermerAide() {
-    document.getElementById('aide-overlay').classList.remove('open');
-}
+function ouvrirAide() { document.getElementById('aide-overlay').classList.add('open'); }
+function fermerAide() { document.getElementById('aide-overlay').classList.remove('open'); }
 
 /* ---------- 5b. Profil ---------- */
 let stats = { parties:0, victoires:0, defaites:0 };
@@ -719,7 +715,7 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     modeEnLigne = true;
     modeAttente = false;
     mulliganValide = false;
-    console.log('[App] lancerPartieMultijoueur — adversaire =', pseudoAdversaire, '— cartes =', monDeckIds.length);
+    console.log('[App] lancerPartieMultijoueur — adversaire =', pseudoAdversaire);
 
     J = nouveauCote('J', J.nom || 'Toi');
     B = nouveauCote('B', pseudoAdversaire || 'Adversaire');
@@ -735,14 +731,13 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     B.deck = deckAdverseIds.map(id => instancier(defCarte(id), 'B'));
     melanger(B.deck);
 
-    // ⚠️ IMPORTANT : on ne fixe PAS J.premier/B.premier ici.
-    // C'est multi.js qui le fera au moment du démarrage du tour, quand on
-    // connaîtra le rôle exact (s.roles[monPseudo] === 'joueur1').
-    // Ici on met juste une valeur par défaut cohérente.
     J.premier = false; B.premier = false;
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0;
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0;
     tourActuel = 'attente';
+
+    J._actionsTour = [];
+    B._actionsTour = [];
 
     for (let k = 0; k < 4; k++) piocher(B, 1);
     for (let k = 0; k < 4; k++) if (J.deck.length) J.main.push(J.deck.shift());
@@ -817,10 +812,7 @@ function ouvrirMulligan() {
                 titre.textContent = titre.dataset.base + ' (' + reste + ' s)';
             }, 1000);
         }
-        _timerMulligan = setTimeout(() => {
-            console.log('[Mulligan] 6 s écoulées → validation auto');
-            validerMulligan(true);
-        }, 6000);
+        _timerMulligan = setTimeout(() => { validerMulligan(true); }, 6000);
     }
 }
 
@@ -848,7 +840,7 @@ function validerMulligan(auto) {
 
     if (modeEnLigne) {
         mulliganValide = true;
-        afficherAttente("En attente de l'adversaire", "Ton adversaire prépare sa main…");
+        info('En attente de l\'adversaire…');
         if (typeof signalerMulliganPret === 'function') signalerMulliganPret();
         return;
     }
@@ -1062,6 +1054,8 @@ function clicCarteMain(index) {
         if (!dispo.length) return info('Il te faut les deux cartes sur le terrain pour fusionner.');
         if (J.manaActuel < coutEffectif(J, c)) return info('Pas assez de mana.');
         if (J.plateau.length < 2) return info('Pas assez de place pour la fusion.');
+        // Enregistrer l'action AVANT de sacrifier
+        enregistrerAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
         sacrifierPourFusion(J, c.id);
         jouerCarte(J, index, null);
         return;
@@ -1075,10 +1069,16 @@ function clicCarteMain(index) {
     if (p && p.cible) {
         const cibles = ciblesValides(J, p.cible);
         if (cibles.length) {
-            demarrerCiblage(p.cible, cibles, cible => jouerCarte(J, index, cible));
+            demarrerCiblage(p.cible, cibles, cible => {
+                const cibleUid = cible && cible.uid ? cible.uid : null;
+                const cibleHero = (cible === J || cible === B) ? cible.cle : null;
+                enregistrerAction({ type:'jouer', id:c.id, cibleUid, cibleHero });
+                jouerCarte(J, index, cible);
+            });
             return;
         }
     }
+    enregistrerAction({ type:'jouer', id:c.id, cibleUid:null, cibleHero:null });
     jouerCarte(J, index, null);
 }
 
@@ -1159,7 +1159,6 @@ function jouerCarte(side, index, cible) {
     setTimeout(() => {
         rafraichirJeu();
         verifierFin();
-        if (modeEnLigne && typeof publierEtat === 'function') publierEtat();
     }, 60);
 }
 
@@ -1206,6 +1205,16 @@ function clicHeroAdverse() {
     attaquer(selection, B);
 }
 async function attaquer(attaquant, cible) {
+    // Enregistrer l'action AVANT de résoudre
+    if (modeEnLigne && attaquant.cote === 'J' && !attaquant._replay) {
+        enregistrerAction({
+            type:'attaque',
+            uid: attaquant.uid,
+            cibleUid: cible.uid || null,
+            cibleHero: cible.cle || null
+        });
+    }
+
     const elA = elOf(attaquant.uid);
     const elC = cible.uid ? elOf(cible.uid) : elHero(cible);
     selection = null;
@@ -1229,7 +1238,15 @@ async function attaquer(attaquant, cible) {
     await pause(260);
     rafraichirJeu();
     verifierFin();
-    if (modeEnLigne && typeof publierEtat === 'function') publierEtat();
+}
+
+/* ---------- Enregistrement des actions ---------- */
+function enregistrerAction(action) {
+    if (!modeEnLigne) return;
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    if (tourActuel !== 'joueur') return;
+    if (!J._actionsTour) J._actionsTour = [];
+    J._actionsTour.push(action);
 }
 
 /* ---------- Tours ---------- */
@@ -1243,6 +1260,7 @@ function debutTourJoueur() {
     if (partieFinie) return;
     tourActuel = 'joueur'; modeAttente = false; selection = null;
     fermerAttente();
+    J._actionsTour = [];   // reset les actions pour ce nouveau tour
     document.getElementById('tour-indicateur').innerText = 'Ton tour';
     document.querySelector('.turn-pill').classList.remove('bot');
     document.getElementById('btn-endturn').classList.remove('inactif');
@@ -1266,13 +1284,16 @@ function finDeTour() {
     if (J.voitMainAdverse > 0) J.voitMainAdverse--;
 
     if (modeEnLigne) {
+        // 📤 Envoyer les actions de mon tour à l'adversaire
+        if (typeof envoyerMesActions === 'function') envoyerMesActions();
+
         modeAttente = true;
         tourActuel = 'bot';
         document.getElementById('tour-indicateur').innerText = 'Tour adverse';
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
-        afficherAttente("Tour adverse", "L'adversaire réfléchit…");
-        if (typeof publierEtat === 'function') publierEtat();
+        // ⚠️ Pas d'overlay : on veut voir le plateau
+        info('L\'adversaire réfléchit...');
     } else {
         jouerTourBot();
     }
