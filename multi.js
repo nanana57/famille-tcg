@@ -1,11 +1,8 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v21 — actions replay)
+   FAMILLE TCG — Multijoueur Firebase (v22 — temps réel)
    
-   Principe :
-   - Chaque client est maître de son tour (même moteur que le bot)
-   - À la fin du tour, il envoie la LISTE DES ACTIONS jouées
-   - L'autre client reçoit et REJOUE les actions localement
-   - PV, morts, animations : tout est calculé localement
+   Chaque action est poussée IMMÉDIATEMENT dans salles/<id>/queue
+   L'autre client écoute la queue et rejoue chaque action en direct
    =========================================================== */
 
 const firebaseConfig = {
@@ -34,10 +31,6 @@ let _salleRef = null;
 let _ecouteurDefiEnvoye = null;
 let _pseudoCibleEnCours = null;
 
-// Anti-boucle : dernier timestamp de tour adverse traité
-let _dernierTourAdverseTraite = -1;
-let _replayEnCours = false;
-
 /* ---------- Utilitaires ---------- */
 function normaliserPseudo(p) {
     return (p || 'anonyme').toLowerCase()
@@ -54,7 +47,6 @@ function initFirebase() {
     if (typeof firebase === 'undefined') { console.error('[FB] SDK absent'); return; }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     fbDB = firebase.database();
-    if (!firebaseConfig.databaseURL) { console.error('[FB] databaseURL manquant'); return; }
 
     monId = sessionStorage.getItem('ftcg_monId');
     if (!monId) {
@@ -76,7 +68,7 @@ function initFirebase() {
 
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // Défi reçu (dans defis/<monPseudo>)
+    // Défi reçu
     fbDB.ref('defis/' + monPseudo).on('value', snap => {
         const d = snap.val();
         if (!d) return;
@@ -89,7 +81,7 @@ function initFirebase() {
         }
     });
 
-    // Salles où je suis présent
+    // Salles
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
@@ -105,9 +97,6 @@ function initFirebase() {
             ouvrirChoixDeckEnLigne(pseudoAdverse);
         });
     });
-
-    const info = document.getElementById('multi-info');
-    if (info) info.innerText = 'Connecté à Firebase.';
 }
 
 /* ---------- Liste joueurs ---------- */
@@ -287,9 +276,8 @@ function ecouterSalle(partieId) {
             const advMull = infosAdv.mulligan === true;
             if (mesMull && advMull) {
                 window.multiPartie.demarrageTraite = true;
-                _dernierTourAdverseTraite = -1;
                 fermerAttente();
-                console.log('[Multi] ✅ Démarrage du tour. jeCommence =', window.multiPartie.jeCommence);
+                console.log('[Multi] ✅ Démarrage. jeCommence =', window.multiPartie.jeCommence);
 
                 if (window.multiPartie.jeCommence) {
                     modeEnLigne = true;
@@ -311,90 +299,49 @@ function ecouterSalle(partieId) {
             return;
         }
 
-        // ---- Étape 3 : recevoir les actions de l'adversaire ----
-        const actionData = s.actions && s.actions[roleAdverse];
-        if (!actionData) return;
-        if (actionData.par === monPseudo) return;   // mon propre tour, on ignore
-
-        const ts = actionData.timestamp || 0;
-        if (ts === _dernierTourAdverseTraite) return;
-        _dernierTourAdverseTraite = ts;
-
-        if (_replayEnCours) return;
-        _replayEnCours = true;
-
-        console.log('[Multi] 🎬 Replay des actions de', pseudoAdverse, '— total =', (actionData.actions || []).length);
-        rejouerActionsAdverses(actionData.actions || []).then(() => {
-            _replayEnCours = false;
-        }).catch(err => {
-            console.error('[Multi] Erreur replay:', err);
-            _replayEnCours = false;
+        // ---- Étape 3 : traiter la queue d'actions ----
+        const queue = s.queue || {};
+        const entrees = Object.values(queue).sort((a, b) => (a.id || 0) - (b.id || 0));
+        entrees.forEach(e => {
+            if (!e || !e.action) return;
+            if (e.par === monPseudo) return;
+            if (e.id <= _dernierIdTraite) return;
+            _dernierIdTraite = e.id;
+            console.log('[Multi] 🎬 Action reçue :', e.action.type, 'de', e.par);
+            traiterActionRecue(e.action);
         });
     });
 }
 
-/* ---------- Rejouer les actions de l'adversaire ---------- */
-async function rejouerActionsAdverses(actions) {
-    // 1) On rejoue chaque action de l'adversaire sur SON côté (B)
-    for (const a of actions) {
-        await executerActionAdverse(a);
-        await pause(350);
-        rafraichirJeu();
-    }
-
-    // 2) Fin de tour adverse : appliquer les effets finTour
-    await pause(300);
-    appliquerFinDeTour(B);
-    B.surcout = 0;
-    if (B.voitMainAdverse > 0) B.voitMainAdverse--;
-    rafraichirJeu();
-    verifierFin();
-    if (partieFinie) return;
-
-    // 3) Mon tour démarre
-    modeAttente = false;
-    tourActuel = 'joueur';
-    J.premier = false; B.premier = true;
-    debutTourJoueur();
-}
-
-async function executerActionAdverse(a) {
+/* ---------- Traiter une action reçue ---------- */
+async function traiterActionRecue(a) {
     switch (a.type) {
         case 'jouer': {
             const idx = B.main.findIndex(c => c.id === a.id);
             if (idx < 0) {
-                console.warn('[Multi] Action ignorée : carte', a.id, 'pas en main');
+                console.warn('[Multi] ⚠️ Carte', a.id, 'introuvable dans la main adverse');
                 return;
             }
             const carte = B.main[idx];
-
-            // Résoudre la cible si nécessaire
             let cible = null;
-            if (a.cibleUid) {
-                cible = [...J.plateau, ...B.plateau].find(m => m.uid === a.cibleUid) || null;
-            } else if (a.cibleHero) {
-                cible = (a.cibleHero === 'J') ? J : B;
-            }
+            if (a.cibleUid) cible = [...J.plateau, ...B.plateau].find(m => m.uid === a.cibleUid) || null;
+            else if (a.cibleHero) cible = (a.cibleHero === 'J') ? J : B;
 
-            // Sacrifier les composants de fusion si nécessaire
-            if (carte.rarete === 'fusion') {
-                sacrifierPourFusion(B, carte.id);
-            }
-
+            if (carte.rarete === 'fusion') sacrifierPourFusion(B, carte.id);
             jouerCarte(B, idx, cible);
             break;
         }
         case 'attaque': {
             const attaquant = B.plateau.find(m => m.uid === a.uid);
             if (!attaquant) {
-                console.warn('[Multi] Action ignorée : attaquant', a.uid, 'introuvable');
+                console.warn('[Multi] ⚠️ Attaquant introuvable :', a.uid);
                 return;
             }
             let cible = null;
             if (a.cibleUid) cible = J.plateau.find(m => m.uid === a.cibleUid);
             else if (a.cibleHero) cible = (a.cibleHero === 'J') ? J : B;
             if (!cible) {
-                console.warn('[Multi] Action ignorée : cible introuvable');
+                console.warn('[Multi] ⚠️ Cible introuvable');
                 return;
             }
             attaquant._replay = true;
@@ -402,25 +349,24 @@ async function executerActionAdverse(a) {
             attaquant._replay = false;
             break;
         }
+        case 'fin': {
+            console.log('[Multi] 🔵 Fin du tour adverse → à moi !');
+            await pause(400);
+            appliquerFinDeTour(B);
+            B.surcout = 0;
+            if (B.voitMainAdverse > 0) B.voitMainAdverse--;
+            rafraichirJeu();
+            verifierFin();
+            if (partieFinie) return;
+            modeAttente = false;
+            tourActuel = 'joueur';
+            J.premier = false; B.premier = true;
+            debutTourJoueur();
+            break;
+        }
         default:
             console.warn('[Multi] Type d\'action inconnu :', a.type);
     }
-}
-
-/* ---------- Envoyer mes actions à la fin de mon tour ---------- */
-function envoyerMesActions() {
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    if (!monRole) return;
-    const actions = J._actionsTour || [];
-    console.log('[Multi] 📤 Envoi de', actions.length, 'actions');
-    const donnees = {
-        par: monPseudo,
-        role: monRole,
-        timestamp: Date.now(),
-        actions: actions
-    };
-    window.multiPartie.refSalle.child('actions/' + monRole).set(donnees);
-    J._actionsTour = [];
 }
 
 /* ---------- Mulligan ---------- */
