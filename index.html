@@ -22,6 +22,22 @@
 
 <div id="fx-layer"></div>
 
+<!-- Tutoriel -->
+<div id="tuto-overlay" onclick="fermerTuto()">
+    <div class="tuto-box" onclick="event.stopPropagation()">
+        <h3>Guide de jeu</h3>
+        <p><strong>But du jeu :</strong> Réduis la patience (points de vie) du héros adverse à 0 pour gagner !</p>
+        <ul style="text-align:left; color:var(--texte-doux); font-size:14px;">
+            <li><strong style="color:var(--laiton-clair)">Charge :</strong> La carte peut attaquer dès son arrivée sur le plateau.</li>
+            <li><strong style="color:var(--laiton-clair)">Provocation :</strong> Les ennemis doivent attaquer cette carte en premier.</li>
+            <li><strong style="color:var(--laiton-clair)">Rage :</strong> Si la carte subit des dégâts sans mourir, elle gagne +2 en attaque.</li>
+            <li><strong style="color:var(--laiton-clair)">Destruction :</strong> Déclenche un effet spécial lorsque la carte est détruite.</li>
+            <li><strong style="color:var(--laiton-clair)">Fusion :</strong> Pose une carte "Nouvelle famille" alors que les 2 mariés requis sont sur ton terrain pour les sacrifier et déclencher un effet dévastateur.</li>
+        </ul>
+        <button class="btn-large" onclick="fermerTuto()">Compris !</button>
+    </div>
+</div>
+
 <!-- Défi reçu -->
 <div id="defi-overlay">
     <div class="defi-box">
@@ -70,6 +86,7 @@
         <button onclick="changerEcran('booster-screen')">Boosters</button>
         <button onclick="changerEcran('multi-screen')">Multijoueur</button>
         <button onclick="changerEcran('profil-screen')">Profil</button>
+        <button onclick="ouvrirTuto()">❓ Guide</button>
         <button id="btn-forfait" class="btn-forfait" onclick="declarerForfait()" hidden>Forfait</button>
     </div>
     <div class="nav-pseudo" id="display-pseudo"></div>
@@ -107,7 +124,7 @@
 
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Collection</h3>
+                <h3>Collection (Total: <span id="collection-total-count">0</span>)</h3>
                 <div class="sort-actions">
                     <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
                     <button class="btn-chip" onclick="trierCollection('nom')">Nom</button>
@@ -172,7 +189,6 @@
 </div>
 
 <div id="game-screen" class="screen scrollable">
-
     <div id="mulligan-overlay">
         <h2>Choisis les cartes à rejeter</h2>
         <p class="hint">Les cartes sélectionnées repartent dans le deck et sont remplacées.</p>
