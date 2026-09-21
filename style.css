@@ -209,7 +209,7 @@ body:has(#game-screen.active){
 .card{
     display:flex;flex-direction:column;align-items:stretch;
     padding:.55em;color:#10161d;
-    border:.28em solid var(--r-commune);
+    border:.45em solid var(--r-commune); /* Épaisseur augmentée pour mieux voir la rareté */
     box-shadow:0 .5em 1.4em rgba(0,0,0,.65), inset 0 0 1.2em rgba(255,255,255,.18);
     transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
@@ -217,7 +217,7 @@ body:has(#game-screen.active){
     transform:rotateY(180deg);
     background:
         repeating-linear-gradient(45deg,#16233a,#16233a .8em,#1e3050 .8em,#1e3050 1.6em);
-    border:.28em solid var(--laiton);
+    border:.45em solid var(--laiton); /* Épaisseur augmentée */
     display:flex;align-items:center;justify-content:center;font-size:2.4em;
     box-shadow:0 0 1.5em rgba(217,164,65,.45);
 }
@@ -230,6 +230,7 @@ body:has(#game-screen.active){
 .bg-Neutre{background:linear-gradient(150deg,#e8eef3,#a9b7c3)}
 .bg-Sort{background:linear-gradient(150deg,#c3b6ff,#6c4bdb)}
 .bg-Terrain{background:linear-gradient(150deg,#f0a07c,#c1512a)}
+.bg-Nouvelle\ Famille{background:linear-gradient(150deg,#ffb6c1,#ff1493)} /* Ajout de couleur pour les fusions */
 
 .border-commune{border-color:var(--r-commune)}
 .border-rare{border-color:var(--r-rare);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 .8em rgba(58,160,255,.5)}
@@ -653,6 +654,28 @@ body:has(#game-screen.active){
     animation:spin 1s linear infinite;
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* ===========================================================
+   Modal Tutoriel (Nouveau)
+   =========================================================== */
+#tuto-overlay{
+    display:none;position:fixed;inset:0;z-index:3000;
+    background:rgba(4,8,12,.92);backdrop-filter:blur(4px);
+    align-items:center;justify-content:center;
+}
+#tuto-overlay.open{display:flex}
+.tuto-box{
+    background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
+    border:2px solid var(--laiton);border-radius:16px;
+    padding:28px 32px;text-align:center;
+    max-width:500px;width:90%;
+    box-shadow:0 30px 80px rgba(0,0,0,.7);
+}
+.tuto-box h3{
+    margin:0 0 16px;color:var(--laiton-clair);
+    font-family:'Cinzel',serif;font-size:22px;
+}
+.tuto-box p, .tuto-box li { margin-bottom: 10px; }
 
 /* ===========================================================
    MODE MOBILE / TABLETTE — Paysage obligatoire
