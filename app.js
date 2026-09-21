@@ -8,17 +8,21 @@ function C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji) {
 }
 
 const dbCartes = [
+    // MERIDJA
     C('m1','Farid','Meridja',6,5,6,'legendaire','Cri de guerre : donne +2/+2 aux autres Meridja alliés.',[],'👨🏻'),
     C('m2','Bachira','Meridja',6,4,7,'legendaire','Quand elle subit des dégâts, rend 3 patience à son héros.',['Provocation'],'👩🏻'),
     C('m3','Meriem','Meridja',4,4,4,'epique','Gagne +1/+1 pour chaque Marouf adverse en jeu.',[],'👱‍♀️'),
     C('m4','Amina','Meridja',4,3,5,'rare','Cri de guerre : +2 attaque si Marouane est en jeu.',[],'👩🏽'),
     C('m5','Marouane','Meridja',4,5,3,'rare','Attaque dès son arrivée.',['Charge'],'🧔🏽‍♂️'),
-    C('m6','Anness','Meridja',2,3,2,'commune','Fougue de la jeunesse meridiste.',[],'👦🏻'),
-    C('m7','Abder','Meridja',2,3,2,'commune','Toujours prêt à rigoler.',[],'👦🏽'),
+    C('m6','Anness','Meridja',2,3,2,'commune','Fougue de la jeunesse meridiste.',['Charge'],'👦🏻'),
+    C('m7','Abder','Meridja',2,3,2,'commune','Toujours prêt à rigoler.',['Rage'],'👦🏽'),
     C('m8','Channel','Meridja',2,2,1,'commune','Agilité féline : attaque dès son arrivée.',['Charge','Chat'],'🐈'),
     C('m9','Chat 2','Meridja',2,2,1,'commune','Miaule très fort la nuit.',['Charge','Chat'],'🐈'),
     C('m10','Chat 3','Meridja',2,2,1,'commune','Saute partout sans prévenir.',['Charge','Chat'],'🐈'),
+    C('m11','Imran','Meridja',2,2,2,'commune','Cri de guerre : lance un dé. Pair, pioche une carte. Impair, gagne 1 mana ce tour. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏽'),
+    C('m12','Zacharia','Meridja',4,3,3,'epique','Cri de guerre : lance un dé et inflige ce nombre de dégâts au héros adverse. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏼'),
 
+    // MAROUF
     C('ma1','Nourdinne','Marouf',6,4,6,'legendaire','Cri de guerre : -2 attaque à toutes les créatures ennemies.',[],'👨🏽‍🦳'),
     C('ma2','Karima','Marouf',6,3,8,'legendaire','À la fin de ton tour, pioche une carte.',['Provocation'],'🧕'),
     C('ma3','Islem','Marouf',4,4,5,'epique','Annule le prochain sort lancé par l\'adversaire.',[],'🧑🏽'),
@@ -29,7 +33,9 @@ const dbCartes = [
     C('ma8','Zahida','Marouf',2,2,4,'commune','Cri de guerre : rend 2 points de vie à une créature alliée.',[],'👵🏽'),
     C('ma9','Kiki','Marouf',2,1,1,'commune','Survole les défenses : attaque dès son arrivée.',['Charge'],'🐦'),
     C('ma10','Chat Islem','Marouf',2,2,1,'commune','Ronronne pour apaiser les tensions.',['Charge','Chat'],'🐈'),
+    C('ma11','Hiba','Marouf',3,2,4,'rare','Cri de guerre : lance un dé et inflige ce nombre de dégâts à une cible ennemie. Gagne +2/+2 si Inès et Islem sont en jeu.',[],'👧🏽'),
 
+    // KERKACHE
     C('k1','Sid Ali','Kerkache',7,5,7,'legendaire','Les créatures alliées adjacentes ne peuvent pas être ciblées par les sorts.',['Provocation'],'👴🏽'),
     C('k2','Samia','Kerkache',6,4,8,'legendaire','À la fin de ton tour, rend 3 patience à ton héros.',[],'👵🏻'),
     C('k3','Farid K.','Kerkache',5,5,6,'epique','Tant qu\'il est blessé, gagne +3 en attaque.',[],'👨🏽'),
@@ -39,6 +45,7 @@ const dbCartes = [
     C('k7','Pina','Kerkache',2,1,2,'commune','Oiseau ultra rapide : attaque dès son arrivée.',['Charge'],'🦜'),
     C('k8','Oiseau 2','Kerkache',2,1,2,'commune','Gazouille joyeusement.',['Charge'],'🕊️'),
 
+    // KADOUR
     C('ka1','Khaled','Kadour',6,5,5,'legendaire','Cri de guerre : donne +2/+2 aux autres Kadour alliés.',[],'👨🏽'),
     C('ka2','Hanifa','Kadour',6,3,6,'legendaire','Cri de guerre : invoque un Bon repas 3/3.',[],'🧕'),
     C('ka3','Safya','Kadour',4,4,4,'epique','Cri de guerre : double l\'attaque de Saad s\'il est en jeu.',[],'👩🏽'),
@@ -48,16 +55,25 @@ const dbCartes = [
     C('ka7','Toufik','Kadour',4,4,5,'rare','Bloque les attaques ennemies avec bravoure.',['Provocation'],'👨🏽‍🦱'),
     C('ka8','Manel','Kadour',3,3,3,'rare','Redonne de l\'énergie aux alliés.',[],'👩🏽‍🦰'),
     C('ka9','Camilla','Kadour',2,3,2,'commune','Petite protégée de Kamel.',[],'👧🏽'),
-    C('ka10','Kamel','Kadour',2,3,2,'commune','Grand protecteur de Camilla.',[],'👦🏻'),
+    C('ka10','Kamel','Kadour',2,3,2,'commune','Grand protecteur de Camilla.',['Provocation'],'👦🏻'),
     C('ka11','Hanna','Kadour',3,2,4,'rare','Cri de guerre : lance un dé et soigne une cible alliée de ce nombre de PV. Gagne +2/+2 si Saad et Safya sont en jeu.',[],'👧🏻'),
 
-    C('ma11','Hiba','Marouf',3,2,4,'rare','Cri de guerre : lance un dé et inflige ce nombre de dégâts à une cible ennemie. Gagne +2/+2 si Inès et Islem sont en jeu.',[],'👧🏽'),
-    C('m11','Imran','Meridja',2,2,2,'commune','Cri de guerre : lance un dé. Pair, pioche une carte. Impair, gagne 1 mana ce tour. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏽'),
-    C('m12','Zacharia','Meridja',4,3,3,'epique','Cri de guerre : lance un dé et inflige ce nombre de dégâts au héros adverse. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏼'),
-
+    // NEUTRES & NOUVELLES CARTES
     C('n1','Mima','Neutre',8,4,8,'legendaire','À la fin de ton tour, soigne entièrement tes créatures.',['Provocation'],'👵🏻'),
     C('n2','Sidou','Neutre',8,6,6,'legendaire','Cri de guerre : endort une créature ennemie pendant 2 tours.',[],'👴🏻'),
+    C('n3','Khalo Kamel','Neutre',5,5,5,'legendaire','Soutien : À la fin de ton tour, soigne tes autres créatures et leur donne +1/+1.',[],'🧔🏽'),
+    C('n4','La Nounou','Neutre',3,2,4,'commune','Cri de guerre : Soigne une cible alliée de 3 PV.',[],'👩🏽‍🍼'),
+    C('n5','La Femme de ménage','Neutre',4,3,4,'rare','Destruction : Renvoie une créature ennemie aléatoire dans la main de son propriétaire.',['Destruction'],'🧹'),
+    C('n6','Le Collègue de travail','Neutre',3,3,3,'commune','Ne lâche jamais l\'affaire.',['Rage'],'👨🏽‍💻'),
 
+    // FUSIONS (NOUVELLE FAMILLE)
+    C('f1','Naila x Nassim','Nouvelle Famille',7,7,7,'legendaire','Fusion : Si Naila et Nassim sont en jeu, sacrifiez-les pour invoquer cette carte. Inflige 4 dégâts à tous les ennemis.',[],'💍'),
+    C('f2','Amina x Marouane','Nouvelle Famille',7,8,6,'legendaire','Fusion : Si Amina et Marouane sont en jeu, sacrifiez-les. Donne Charge et +3/+3 à cette carte.',[],'💍'),
+    C('f3','Inès x Islem','Nouvelle Famille',7,6,8,'legendaire','Fusion : Si Inès et Islem sont en jeu, sacrifiez-les. Annule tous les sorts adverses ce tour et pioche 3 cartes.',[],'💍'),
+    C('f4','Toufik x Manel','Nouvelle Famille',7,5,9,'legendaire','Fusion : Si Toufik et Manel sont en jeu, sacrifiez-les. Tes autres créatures gagnent Provocation et +2/+2.',[],'💍'),
+    C('f5','Safya x Saad','Nouvelle Famille',7,8,8,'legendaire','Fusion : Si Safya et Saad sont en jeu, sacrifiez-les. Ton héros récupère 10 PV.',[],'💍'),
+
+    // TERRAINS
     C('t1','Moeurs Verdey','Terrain',4,0,0,'commune','Tes chats coûtent 0 mana et gagnent +1/+1.',[],'🌍'),
     C('t2','Villeparisis','Terrain',4,0,0,'commune','Tes créatures avec Provocation gagnent +2 en vie.',[],'🏙️'),
     C('t3','Belleville','Terrain',4,0,0,'commune','À la fin de chaque tour, rend 2 patience aux deux héros.',[],'🏡'),
@@ -67,6 +83,7 @@ const dbCartes = [
     C('t7','Pontault-Combault','Terrain',3,0,0,'commune','Cri de guerre : lance un dé. 4 ou plus, soigne ton héros de 2 PV.',[],'🏘️'),
     C('t8','Clamart','Terrain',3,0,0,'rare','Cri de guerre : pile ou face. Pile, l\'adversaire défausse une carte. Face, il ne se passe rien.',[],'🚇'),
 
+    // SORTS
     C('s1','Va ranger ta chambre !','Sort',2,0,0,'commune','Renvoie une créature ennemie dans la main de son propriétaire.',[],'🧹'),
     C('s2','Qui a touché au thermostat ?','Sort',4,0,0,'epique','Inflige 2 dégâts à toutes les créatures.',[],'🌡️'),
     C('s3','La télécommande perdue','Sort',3,0,0,'rare','Endort une créature ennemie au hasard pendant un tour.',[],'📺'),
@@ -96,7 +113,17 @@ const dbCartes = [
     C('s27','Retard chronique','Sort',2,0,0,'commune','Une créature ennemie ciblée ne peut pas attaquer au prochain tour.',[],'🐌'),
     C('s28','Selfie de famille','Sort',1,0,0,'commune','Donne +1/+1 à toutes tes créatures.',[],'🤳'),
     C('s29','Grand-mère a le dernier mot','Sort',6,0,0,'legendaire','Détruit toutes les créatures ennemies ayant 3 vie ou moins.',[],'👵'),
-    C('s30','Cadeau de mariage moche','Sort',2,0,0,'rare','Transforme une créature alliée ciblée en Vase précieux 0/5 avec Provocation.',[],'🏺')
+    C('s30','Cadeau de mariage moche','Sort',2,0,0,'rare','Transforme une créature alliée ciblée en Vase précieux 0/5 avec Provocation.',[],'🏺'),
+    C('s31','Un verre de thé','Sort',1,0,0,'commune','Pile ou face : si pile, +1 PV à un personnage. Si face, -1 PV à un personnage.',[],'🍵'),
+    C('s32','Le PC de Kamel','Sort',3,0,0,'rare','Fait planter le jeu adverse : le prochain sort ennemi coûte 3 mana de plus.',[],'💻'),
+    C('s33','Le nounours de Hanna','Sort',2,0,0,'commune','Donne +2/+2 et Provocation à une bête (Chat/Oiseau).',[],'🧸'),
+    C('s34','La Audi de Toufik','Sort',3,0,0,'epique','Écrase : inflige 3 dégâts à une cible. Si elle survit, pioche 1 carte.',[],'🚗'),
+    C('s35','Héritage Familial','Sort',5,0,0,'legendaire','Si la fusion Safya x Saad est sur le terrain, invoque Hanna avec Provocation et +2/+2.',[],'📜'),
+    C('s36','Photos de mariage','Sort',2,0,0,'commune','Pioche 1 carte. Si c\'est une carte "Nouvelle famille", elle coûte 2 mana de moins.',[],'📷'),
+    C('s37','Billet pour l\'Algérie','Sort',4,0,0,'rare','Renvoie toutes les créatures du plateau dans les mains.',[],'✈️'),
+    C('s38','Le potin du quartier','Sort',1,0,0,'commune','Dévoile la main adverse pour ce tour et inflige 1 dégât au héros ennemi.',[],'🗣️'),
+    C('s39','Tuto Youtube','Sort',2,0,0,'commune','Donne temporairement le mot-clé Rage à une créature.',[],'▶️'),
+    C('s40','Barbecue d\'été','Sort',4,0,0,'epique','Soigne ton héros de 5 PV et donne +1/+1 à toutes tes créatures.',[],'🥩')
 ];
 
 const parId = {};
@@ -109,18 +136,12 @@ const POUVOIRS = {
     m2:{mode:'infini',blesse:({moi})=>soinHero(moi,3)},
     m3:{mode:'infini',aura:true},
     m4:{mode:'eclair',jouer:({moi,source})=>{if(moi.plateau.some(m=>m.id==='m5'))buff(source,2,0);}},
-    m5:{mode:'infini',aura:true},
-    m8:{mode:'infini',aura:true},
     ma1:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.forEach(m=>{m.atk=Math.max(0,m.atk-2);fxSur(m,'-2 ⚔','degat');})},
     ma2:{mode:'infini',finTour:({moi})=>{piocher(moi,1);fxSurHero(moi,'Pioche','buff');}},
     ma3:{mode:'infini',jouer:({moi})=>{moi.contreSort=true;}},
     ma4:{mode:'eclair',jouer:({moi})=>invoquerJeton(moi,'Chat protecteur',2,1,'🐈',['Provocation','Chat'])},
     ma8:{mode:'eclair',cible:{camp:'allie',texte:'Soigne une créature alliée'},jouer:({cible})=>{if(cible)soinCreature(cible,2);}},
-    ma9:{mode:'infini',aura:true},
-    k1:{mode:'infini',aura:true},
     k2:{mode:'infini',finTour:({moi})=>soinHero(moi,3)},
-    k3:{mode:'infini',aura:true},
-    k6:{mode:'infini',aura:true},
     ka1:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source&&m.famille==='Kadour').forEach(m=>buff(m,2,2))},
     ka2:{mode:'eclair',jouer:({moi})=>invoquerJeton(moi,'Bon repas',3,3,'🍲',[])},
     ka3:{mode:'eclair',jouer:({moi})=>{const s=moi.plateau.find(m=>m.id==='ka4');if(s)buff(s,s.atk,0);}},
@@ -131,16 +152,29 @@ const POUVOIRS = {
     ma11:{mode:'eclair',cible:{camp:'ennemi',hero:true,texte:'Choisis une cible à frapper'},jouer:({moi,source,cible})=>{const v=lancerDe();fraper(cible,v);if(moi.plateau.some(x=>x.id==='ma3')&&moi.plateau.some(x=>x.id==='ma4'))buff(source,2,2);}},
     m11:{mode:'eclair',jouer:({moi,source})=>{const v=lancerDe();if(v%2===0)piocher(moi,1);else moi.manaActuel+=1;if(moi.plateau.some(x=>x.id==='m4')&&moi.plateau.some(x=>x.id==='m5'))buff(source,2,2);}},
     m12:{mode:'eclair',jouer:({moi,ennemi,source})=>{const v=lancerDe();degatsHero(ennemi,v);if(moi.plateau.some(x=>x.id==='m4')&&moi.plateau.some(x=>x.id==='m5'))buff(source,2,2);}},
+    
+    // Neutres 
     n1:{mode:'infini',finTour:({moi})=>moi.plateau.forEach(m=>soinCreature(m,99))},
     n2:{mode:'eclair',cible:{camp:'ennemi',texte:'Endors une créature ennemie'},jouer:({cible})=>{if(cible){cible.gele=2;fxSur(cible,'💤','buff');}}},
-    t1:{mode:'infini',aura:true},
-    t2:{mode:'infini',aura:true},
+    n3:{mode:'infini',finTour:({moi, source})=>moi.plateau.filter(m => m !== source).forEach(m => { soinCreature(m,99); buff(m,1,1); })},
+    n4:{mode:'eclair',cible:{camp:'allie', texte:'Soigne 3 PV'},jouer:({cible})=>{if(cible)soigner(cible,3);}},
+    n5:{mode:'infini',destruction:({ennemi})=>{const c=hasard(ennemi.plateau);if(c)renvoyerEnMain(c,ennemi);}},
+
+    // Mécaniques Fusions
+    f1:{mode:'eclair',jouer:({moi,ennemi})=>{ fusionner(moi, 'ka5', 'ka6'); ennemi.plateau.forEach(m=>fraper(m,4)); degatsHero(ennemi,4); }},
+    f2:{mode:'eclair',jouer:({moi,source})=>{ fusionner(moi, 'm4', 'm5'); source.motsCles.push('Charge'); source.malade=false; buff(source,3,3); }},
+    f3:{mode:'eclair',jouer:({moi,ennemi})=>{ fusionner(moi, 'ma4', 'ma3'); ennemi.contreSort=true; piocher(moi,3); }},
+    f4:{mode:'eclair',jouer:({moi,source})=>{ fusionner(moi, 'ka7', 'ka8'); moi.plateau.filter(m=>m!==source).forEach(m=>{m.motsCles.push('Provocation'); buff(m,2,2);}); }},
+    f5:{mode:'eclair',jouer:({moi})=>{ fusionner(moi, 'ka3', 'ka4'); soinHero(moi, 10); }},
+
+    // Terrains
     t3:{mode:'infini',finTourGlobal:()=>{soinHero(J,2);soinHero(B,2);}},
-    t4:{mode:'infini',aura:true},
     t5:{mode:'eclair',jouer:({moi})=>{const v=lancerDe();if(v<=3)degatsHero(moi,2);}},
     t6:{mode:'eclair',jouer:({moi})=>{const pile=lancerPileOuFace();if(pile)moi.manaActuel+=1;}},
     t7:{mode:'eclair',jouer:({moi})=>{const v=lancerDe();if(v>=4)soinHero(moi,2);}},
     t8:{mode:'eclair',jouer:({ennemi})=>{const pile=lancerPileOuFace();if(pile)defausseAleatoire(ennemi);}},
+
+    // Sorts
     s1:{mode:'eclair',cible:{camp:'ennemi',texte:'Renvoie une créature en main'},jouer:({cible,ennemi})=>{if(cible)renvoyerEnMain(cible,ennemi);}},
     s2:{mode:'eclair',jouer:({moi,ennemi})=>[...moi.plateau,...ennemi.plateau].forEach(m=>fraper(m,2))},
     s3:{mode:'eclair',jouer:({ennemi})=>{const c=hasard(ennemi.plateau);if(c){c.gele=1;fxSur(c,'💤','buff');}}},
@@ -170,18 +204,37 @@ const POUVOIRS = {
     s27:{mode:'eclair',cible:{camp:'ennemi',texte:'Endort une créature pour un tour'},jouer:({cible})=>{if(cible){cible.gele=1;fxSur(cible,'💤','buff');}}},
     s28:{mode:'eclair',jouer:({moi})=>moi.plateau.forEach(m=>buff(m,1,1))},
     s29:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.filter(m=>m.vie<=3).forEach(m=>fraper(m,999))},
-    s30:{mode:'eclair',cible:{camp:'allie',texte:'Transforme une créature alliée'},jouer:({cible})=>{if(cible)transformerEn(cible,'Vase précieux',0,5,'🏺',['Provocation']);}}
+    s30:{mode:'eclair',cible:{camp:'allie',texte:'Transforme une créature alliée'},jouer:({cible})=>{if(cible)transformerEn(cible,'Vase précieux',0,5,'🏺',['Provocation']);}},
+    
+    // Nouveaux Sorts
+    s31:{mode:'eclair',cible:{camp:'tous',texte:'Pile = +1 PV, Face = -1 PV'},jouer:({cible})=>{if(!cible)return; const pile=lancerPileOuFace(); if(pile)soigner(cible,1); else fraper(cible,1);}},
+    s32:{mode:'eclair',jouer:({ennemi})=>{ennemi.surcout=3; banniere('+3 Mana prochain sort');}},
+    s33:{mode:'eclair',cible:{camp:'allie', texte:'Cible une bête'},jouer:({cible})=>{if(cible && cible.motsCles.some(k=>k==='Chat'||k==='Charge')){ buff(cible,2,2); cible.motsCles.push('Provocation'); }}},
+    s34:{mode:'eclair',cible:{camp:'tous',texte:'Inflige 3 dégâts'},jouer:({cible, moi})=>{if(cible){ fraper(cible,3); if(cible.vie && cible.vie > 0) piocher(moi, 1); }}},
+    s35:{mode:'eclair',jouer:({moi})=>{if(moi.plateau.some(m=>m.id==='f5')){ invoquerJeton(moi,'Hanna',3,4,'👧🏻',['Provocation']); buff(moi.plateau[moi.plateau.length-1],2,2); }}},
+    s36:{mode:'eclair',jouer:({moi})=>{piocher(moi,1); const last = moi.main[moi.main.length - 1]; if(last && last.famille === 'Nouvelle Famille') last.cout = Math.max(0, last.cout - 2);}},
+    s37:{mode:'eclair',jouer:({moi, ennemi})=>{moi.plateau.forEach(m=>renvoyerEnMain(m,moi)); ennemi.plateau.forEach(m=>renvoyerEnMain(m,ennemi));}},
+    s38:{mode:'eclair',jouer:({moi, ennemi})=>{moi.voitMainAdverse=1; degatsHero(ennemi,1);}},
+    s39:{mode:'eclair',cible:{camp:'allie', texte:'Donne Rage'},jouer:({cible})=>{if(cible) cible.motsCles.push('Rage'); fxSur(cible, 'Rage !', 'buff');}},
+    s40:{mode:'eclair',jouer:({moi})=>{soinHero(moi,5); moi.plateau.forEach(m=>buff(m,1,1));}}
 };
 
 dbCartes.forEach(c => {
-    if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation')) {
+    if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation' || k === 'Rage')) {
         POUVOIRS[c.id] = { mode:'infini', aura:true };
     }
 });
+
 function modePouvoir(carte) {
     const p = POUVOIRS[carte.id];
     if (!p) return null;
     return p.mode;
+}
+
+// Helper Fusion
+function fusionner(side, id1, id2) {
+    side.plateau = side.plateau.filter(m => m.id !== id1 && m.id !== id2);
+    fxSurHero(side, 'FUSION !', 'buff');
 }
 
 /* ---------- 3. Collection & decks ---------- */
@@ -191,8 +244,9 @@ dbCartes.forEach(c => collectionJoueur[c.id] = (c.rarete === 'legendaire' || c.r
 const decksPreconstruits = [
     { nom:'Meridja Aggro',   cartes:['m1','m2','m3','m4','m4','m5','m5','m6','m6','m7','m7','m8','m8','m9','m9','m10','n1','n2','m11','m12'] },
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
-    { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
-    { nom:'Kadour Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] }
+    { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s32','s34','s15','s40'] },
+    { nom:'Kadour Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
+    { nom:'Les Infiltrés', cartes:['f1','f2','f3','f4','f5','ka5','ka6','m4','m5','ma3','ma4','ka7','ka8','ka3','ka4','m11','ka11','s35','n3','n6'] }
 ];
 let mesDecks = decksPreconstruits.map(d => ({ nom:d.nom, cartes:[...d.cartes], base:true }));
 let deckEnEdition = null;
@@ -231,7 +285,7 @@ function instancier(def, cle, jeton) {
              aAttaque:false, malade:true, gele:0, silence:false, jeton:!!jeton };
 }
 
-/* ---------- 5. Navigation ---------- */
+/* ---------- 5. Navigation & UI ---------- */
 function changerEcran(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -245,6 +299,16 @@ function changerEcran(id) {
     if (id === 'menu-screen') chargerDropdownDecks();
     if (id === 'profil-screen') afficherProfil();
     if (id === 'multi-screen' && typeof rafraichirJoueurs === 'function') rafraichirJoueurs();
+}
+
+function ouvrirTuto() {
+    const el = document.getElementById('tuto-overlay');
+    if (el) el.classList.add('open');
+}
+
+function fermerTuto() {
+    const el = document.getElementById('tuto-overlay');
+    if (el) el.classList.remove('open');
 }
 
 /* ---------- 5b. Profil ---------- */
@@ -339,7 +403,7 @@ function creerHTMLCarte(c, ctx, opts) {
     w.innerHTML = `
         ${qty}${loupe}${tagDeck}${tagNeuf}
         <div class="card-inner">
-            <div class="card bg-${c.famille} border-${c.rarete}">
+            <div class="card bg-${c.famille.replace(' ', '\\ ')} border-${c.rarete}">
                 <div class="card-head">
                     <div class="mana-gem">${coutAffiche}</div>
                     <div class="card-name">${c.prenom}</div>
@@ -381,7 +445,7 @@ function zoomCarte(event, id) {
 }
 function fermerZoom() { document.getElementById('card-zoom-overlay').classList.remove('open'); }
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { fermerZoom(); annulerCiblage(); }
+    if (e.key === 'Escape') { fermerZoom(); annulerCiblage(); fermerTuto(); }
 });
 
 /* ---------- 7. Deckbuilder ---------- */
@@ -428,7 +492,7 @@ function editerDeck(i) {
 function trierCollection(critere) {
     triCourant = critere;
     const ordreRarete = { legendaire:1, epique:2, rare:3, commune:4 };
-    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Kadour:4, Neutre:5, Terrain:6, Sort:7 };
+    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Kadour:4, 'Nouvelle Famille':5, Neutre:6, Terrain:7, Sort:8 };
     const liste = [...dbCartes];
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom));
     if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
@@ -437,9 +501,14 @@ function trierCollection(critere) {
 
     const grid = document.getElementById('collection-grid');
     grid.innerHTML = '';
+    
+    let totalPossede = 0;
+    
     liste.forEach(c => {
         const possede = collectionJoueur[c.id] || 0;
         if (!possede) return;
+        totalPossede += possede;
+        
         const dansDeck = tempDeckCartes.filter(id => id === c.id).length;
         const dispo = possede - dansDeck;
 
@@ -456,6 +525,8 @@ function trierCollection(critere) {
         };
         grid.appendChild(el);
     });
+    const cTotal = document.getElementById('collection-total-count');
+    if (cTotal) cTotal.innerText = totalPossede;
     ajusterTextes(grid);
 }
 
@@ -596,7 +667,6 @@ function lancerPartie() {
     ouvrirMulligan();
 }
 
-/* Lancement d'une partie en ligne (appelé par multi.js quand les 2 decks sont prêts) */
 function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     partieFinie = false; selection = null; ciblage = null;
     modeEnLigne = true;
@@ -613,15 +683,14 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     J.deck = monDeckIds.map(id => instancier(defCarte(id), 'J'));
     melanger(J.deck);
 
-    // On utilise le VRAI deck annoncé par l'adversaire quand on l'a (sinon
-    // un deck aléatoire en secours, remplacé de toute façon dès la première
-    // synchronisation d'état reçue).
     const deckAdverseIds = (Array.isArray(advDeckIds) && advDeckIds.length === 20)
         ? advDeckIds : hasard(decksPreconstruits).cartes;
     B.deck = deckAdverseIds.map(id => instancier(defCarte(id), 'B'));
     melanger(B.deck);
 
-    J.premier = false; B.premier = false;
+    J.premier = window.multiPartie.jeCommence; 
+    B.premier = !window.multiPartie.jeCommence;
+
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0;
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0;
     tourActuel = 'attente';
@@ -639,7 +708,6 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     ouvrirMulligan();
 }
 
-/* Fenêtre de choix du deck avant la partie multijoueur */
 let _adversaireEnAttente = null;
 
 function ouvrirChoixDeckEnLigne(pseudoAdversaire) {
@@ -798,6 +866,13 @@ function buff(m, a, v) { m.atk += a; m.vie += v; m.vieMax += v; fxSur(m, `+${a}/
 function fraper(cible, n) { if (!cible) return; if (cible.uid) appliquerDegatsCreature(cible, n); else degatsHero(cible, n); }
 function appliquerDegatsCreature(m, n) {
     m.vie -= n; fxSur(m, '-' + Math.min(n, 99), 'degat'); secouer(elOf(m.uid));
+    
+    // MÉCANIQUE RAGE
+    if (m.vie > 0 && m.motsCles.includes('Rage') && !m.silence) {
+        buff(m, 2, 0); 
+        fxSur(m, 'Rage !', 'buff');
+    }
+    
     const p = POUVOIRS[m.id];
     if (p && p.blesse && !m.silence && m.vie > 0) p.blesse({ moi:coteDe(m), source:m });
 }
@@ -904,6 +979,13 @@ function nettoyerMorts() {
     [J, B].forEach(side => {
         side.plateau.filter(m => m.vie <= 0).forEach(m => {
             const el = elOf(m.uid); if (el) el.classList.add('meurt');
+            
+            // MÉCANIQUE DESTRUCTION
+            const p = POUVOIRS[m.id];
+            if (p && p.destruction && !m.silence) {
+                p.destruction({ moi: side, ennemi: autre(side), source: m });
+                fxSur(m, 'Destruction', 'degat');
+            }
         });
         side.plateau = side.plateau.filter(m => m.vie > 0);
     });
