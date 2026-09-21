@@ -312,6 +312,7 @@ function ecouterSalle(partieId) {
                     tourActuel = 'attente';
                     document.getElementById('tour-indicateur').innerText = 'Attente…';
                     document.getElementById('btn-endturn').classList.add('inactif');
+                    rafraichirJeu();   // affiche le plateau (mains, terrains…) même en attente
                     afficherAttente("En attente de l'adversaire", "L'adversaire commence la partie…");
                 }
             }
