@@ -19,6 +19,7 @@
     --r-rare:#3aa0ff;
     --r-epique:#a86bff;
     --r-legendaire:#ffb63d;
+    --r-fusion:#ff4fd8;
 
     --cw-collection:138px;
     --cw-jeu:clamp(108px, 18.5vh, 190px);
@@ -59,7 +60,6 @@ button{font-family:inherit}
         var(--nuit);
 }
 
-/* ---------- Scroll pendant une partie ---------- */
 body:has(#game-screen.active){
     overflow-y:auto;
     overflow-x:hidden;
@@ -104,7 +104,6 @@ body:has(#game-screen.active){
     color:#fff !important;
 }
 
-/* ---------- Bouton Forfait dans l'arène ---------- */
 .btn-forfait-ingame{
     margin-left:auto;
     padding:8px 16px;border-radius:999px;border:2px solid #ffb0a4;cursor:pointer;
@@ -209,7 +208,7 @@ body:has(#game-screen.active){
 .card{
     display:flex;flex-direction:column;align-items:stretch;
     padding:.55em;color:#10161d;
-    border:.45em solid var(--r-commune); /* Épaisseur augmentée pour mieux voir la rareté */
+    border:.4em solid var(--r-commune);
     box-shadow:0 .5em 1.4em rgba(0,0,0,.65), inset 0 0 1.2em rgba(255,255,255,.18);
     transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
@@ -217,7 +216,7 @@ body:has(#game-screen.active){
     transform:rotateY(180deg);
     background:
         repeating-linear-gradient(45deg,#16233a,#16233a .8em,#1e3050 .8em,#1e3050 1.6em);
-    border:.45em solid var(--laiton); /* Épaisseur augmentée */
+    border:.4em solid var(--laiton);
     display:flex;align-items:center;justify-content:center;font-size:2.4em;
     box-shadow:0 0 1.5em rgba(217,164,65,.45);
 }
@@ -230,12 +229,13 @@ body:has(#game-screen.active){
 .bg-Neutre{background:linear-gradient(150deg,#e8eef3,#a9b7c3)}
 .bg-Sort{background:linear-gradient(150deg,#c3b6ff,#6c4bdb)}
 .bg-Terrain{background:linear-gradient(150deg,#f0a07c,#c1512a)}
-.bg-Nouvelle\ Famille{background:linear-gradient(150deg,#ffb6c1,#ff1493)} /* Ajout de couleur pour les fusions */
+.bg-Nouvelle{background:linear-gradient(150deg,#ffb3e6,#c9009c)}
 
-.border-commune{border-color:var(--r-commune)}
-.border-rare{border-color:var(--r-rare);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 .8em rgba(58,160,255,.5)}
-.border-epique{border-color:var(--r-epique);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1em rgba(168,107,255,.65)}
-.border-legendaire{border-color:var(--r-legendaire);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1.3em rgba(255,182,61,.8)}
+.border-commune{border-color:var(--r-commune);box-shadow:0 .4em 1.2em rgba(0,0,0,.6)}
+.border-rare{border-color:var(--r-rare);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1.2em rgba(58,160,255,.6)}
+.border-epique{border-color:var(--r-epique);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1.4em rgba(168,107,255,.75)}
+.border-legendaire{border-color:var(--r-legendaire);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1.8em rgba(255,182,61,.9)}
+.border-fusion{border-color:var(--r-fusion);box-shadow:0 .4em 1.2em rgba(0,0,0,.6),0 0 1.8em rgba(255,79,216,.95)}
 
 .card-head{display:flex;align-items:flex-start;gap:.3em;min-height:1.9em}
 .mana-gem{
@@ -490,7 +490,7 @@ body:has(#game-screen.active){
 
 @keyframes secousse{0%,100%{transform:none}20%{transform:translate(-6px,3px)}40%{transform:translate(6px,-3px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(4px,2px)}}
 .shake{animation:secousse .38s}
-@keyframes mort{to{transform:scale(.3) rotate(18deg);opacity:0;filter:blur(3px)}}
+@keyframes mort{to{transform:scale(.3) rotate(18deg);opacity:0;filter:blur(3px)}}}
 .card-wrapper.meurt{animation:mort .38s forwards;pointer-events:none}
 @keyframes flashRouge{0%{opacity:0}30%{opacity:.55}100%{opacity:0}}
 .hit-flash{position:fixed;inset:0;background:radial-gradient(circle,rgba(255,60,40,.5),transparent 70%);pointer-events:none;animation:flashRouge .45s forwards;z-index:900}
@@ -609,9 +609,7 @@ body:has(#game-screen.active){
 .defi-actions .btn-large,
 .defi-actions .btn-action{flex:1;margin:0}
 
-/* ===========================================================
-   Overlay d'attente multijoueur
-   =========================================================== */
+/* Overlay d'attente */
 #attente-overlay{
     display:none;
     position:fixed;
@@ -655,33 +653,110 @@ body:has(#game-screen.active){
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
 
-/* ===========================================================
-   Modal Tutoriel (Nouveau)
-   =========================================================== */
-#tuto-overlay{
-    display:none;position:fixed;inset:0;z-index:3000;
-    background:rgba(4,8,12,.92);backdrop-filter:blur(4px);
-    align-items:center;justify-content:center;
+/* Overlay d'aide */
+#aide-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    background: rgba(4,8,12,.92);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
 }
-#tuto-overlay.open{display:flex}
-.tuto-box{
+#aide-overlay.open { display: flex; }
+
+.aide-box {
+    background: linear-gradient(180deg, rgba(29,43,58,.98), rgba(11,17,24,.98));
+    border: 2px solid var(--laiton);
+    border-radius: 16px;
+    padding: 28px 32px;
+    max-width: 520px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7);
+    text-align: left;
+}
+.aide-box h2 {
+    margin: 0 0 16px;
+    color: var(--laiton-clair);
+    font-family: 'Cinzel', serif;
+    text-align: center;
+}
+.aide-section {
+    margin-bottom: 18px;
+}
+.aide-section h3 {
+    color: var(--laiton-clair);
+    font-size: 16px;
+    margin: 0 0 8px;
+    border-bottom: 1px solid rgba(217,164,65,.3);
+    padding-bottom: 4px;
+}
+.aide-section p, .aide-section li {
+    color: var(--texte-doux);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 4px 0;
+}
+.aide-section ul {
+    padding-left: 20px;
+    margin: 8px 0;
+}
+.aide-section .power-badge {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+/* Choix du deck multijoueur */
+#deck-choix-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:1250;
+    background:rgba(4,8,12,.92);
+    backdrop-filter:blur(4px);
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+}
+#deck-choix-overlay.open{ display:flex; }
+
+.deck-choix-box{
     background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
-    border:2px solid var(--laiton);border-radius:16px;
-    padding:28px 32px;text-align:center;
-    max-width:500px;width:90%;
+    border:2px solid var(--laiton);
+    border-radius:16px;
+    padding:28px 32px;
+    max-width:420px;
+    width:90%;
+    text-align:center;
     box-shadow:0 30px 80px rgba(0,0,0,.7);
 }
-.tuto-box h3{
-    margin:0 0 16px;color:var(--laiton-clair);
-    font-family:'Cinzel',serif;font-size:22px;
+.deck-choix-box h3{
+    margin:0 0 10px;
+    color:var(--laiton-clair);
+    font-family:'Cinzel',serif;
+    font-size:20px;
 }
-.tuto-box p, .tuto-box li { margin-bottom: 10px; }
+.deck-choix-box .deck-dropdown{
+    margin-top:14px;
+}
+.deck-choix-actions{
+    display:flex;
+    gap:12px;
+    margin-top:18px;
+}
+.deck-choix-actions .btn-large{
+    margin:0;
+    flex:1;
+}
 
 /* ===========================================================
    MODE MOBILE / TABLETTE — Paysage obligatoire
    =========================================================== */
-
-/* Overlay portrait */
 #rotate-overlay{
     display:none;
     position:fixed;
@@ -737,7 +812,6 @@ body.force-portrait > *:not(#rotate-overlay):not(#fx-layer){
 }
 body.force-portrait #fx-layer{ display:none !important; }
 
-/* Adaptations paysage mobile */
 @media (orientation: landscape) and (max-width: 1024px) and (pointer: coarse){
     :root{
         --cw-collection:110px;
@@ -776,17 +850,12 @@ body.force-portrait #fx-layer{ display:none !important; }
     .btn-large{ padding:11px 14px; font-size:14px; }
 }
 
-/* ===========================================================
-   Scroll mobile : autorisé sur tous les écrans
-   =========================================================== */
 @media (max-width: 1366px) and (pointer: coarse){
-    /* On laisse le body scrollable en permanence sur mobile/tablette */
     body{
         overflow-y:auto !important;
         overflow-x:hidden !important;
         -webkit-overflow-scrolling:touch;
     }
-    /* Chaque écran s'adapte au contenu et peut scroller */
     .screen{
         min-height:100vh;
         height:auto !important;
@@ -795,7 +864,6 @@ body.force-portrait #fx-layer{ display:none !important; }
         display:flex;
         min-height:100vh;
     }
-    /* Zones internes scrollables */
     .sidebar,
     .deck-area,
     .collection-area,
@@ -804,7 +872,6 @@ body.force-portrait #fx-layer{ display:none !important; }
         overflow-y:auto;
         -webkit-overflow-scrolling:touch;
     }
-    /* Deckbuilder en colonne sur mobile */
     .deckbuilder-container{
         flex-direction:column;
         height:auto;
@@ -823,49 +890,4 @@ body.force-portrait #fx-layer{ display:none !important; }
 
 @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms !important;transition-duration:.01ms !important}
-}
-
-/* ===========================================================
-   Choix du deck multijoueur
-   =========================================================== */
-#deck-choix-overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    z-index:1250;
-    background:rgba(4,8,12,.92);
-    backdrop-filter:blur(4px);
-    align-items:center;
-    justify-content:center;
-    padding:24px;
-}
-#deck-choix-overlay.open{ display:flex; }
-
-.deck-choix-box{
-    background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
-    border:2px solid var(--laiton);
-    border-radius:16px;
-    padding:28px 32px;
-    max-width:420px;
-    width:90%;
-    text-align:center;
-    box-shadow:0 30px 80px rgba(0,0,0,.7);
-}
-.deck-choix-box h3{
-    margin:0 0 10px;
-    color:var(--laiton-clair);
-    font-family:'Cinzel',serif;
-    font-size:20px;
-}
-.deck-choix-box .deck-dropdown{
-    margin-top:14px;
-}
-.deck-choix-actions{
-    display:flex;
-    gap:12px;
-    margin-top:18px;
-}
-.deck-choix-actions .btn-large{
-    margin:0;
-    flex:1;
 }
