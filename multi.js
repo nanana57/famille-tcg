@@ -1,14 +1,12 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v15 — salle directe)
+   FAMILLE TCG — Multijoueur Firebase (v16 — salle directe)
    
-   Principe simplifié et robuste :
+   Principe :
    - Le CHALLENGER crée directement la salle avec les 2 joueurs
-   - L'ACCEPTANT voit la salle apparaître (il écoute salles/)
+   - L'ACCEPTANT voit la salle apparaître (listener global salles/)
    - Les deux annoncent leur deck
    - Les deux valident leur mulligan
    - La partie commence
-   
-   Plus de système de "defis/" : trop fragile.
    =========================================================== */
 
 const firebaseConfig = {
@@ -74,30 +72,23 @@ function initFirebase() {
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
     // ---- Écoute GLOBALE des salles ----
-    // Dès qu'une salle apparaît où je suis présent ET que je n'ai pas encore
-    // rejoint, je la rejoins automatiquement.
+    // Dès qu'une salle apparaît où je suis présent ET que je ne suis pas
+    // déjà en train de la traiter, je la rejoins.
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
             if (!s || !s.joueurs) return;
             if (!s.joueurs[monPseudo]) return;           // pas pour moi
-            if (s.joueurs[monPseudo].pret) return;       // déjà rejoint
-            if (dejaLancee) return;
-            if (_partieIdEnCours === partieId) return;   // déjà en cours de traitement
+            if (dejaLancee) return;                      // partie déjà lancée
+            if (_partieIdEnCours === partieId) return;   // déjà traité (créateur ou déjà rejoint)
 
-            console.log('[Multi] Salle détectée où je suis présent :', partieId);
+            console.log('[Multi] 🔔 Salle détectée où je suis invité :', partieId);
             _partieIdEnCours = partieId;
             monRole = s.roles ? s.roles[monPseudo] : null;
-
-            // Je m'inscris (avec pret:false tant que j'ai pas choisi mon deck)
-            fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({
-                pret: false, deck: null, mulligan: false
-            });
 
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
             ecouterSalle(partieId);
 
-            // Demander le choix du deck
             const pseudoAdverse = Object.keys(s.joueurs).find(x => x !== monPseudo);
             ouvrirChoixDeckEnLigne(pseudoAdverse);
         });
@@ -147,7 +138,8 @@ function afficherListeJoueurs(data) {
 /* ---------- Défier : le challenger crée la salle directement ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo) return;
-    console.log('[Multi] Je défie', pseudoCible);
+    if (!pseudoCible || pseudoCible === monPseudo) return;
+    console.log('[Multi] ⚔️ Je défie', pseudoCible);
 
     const partieId = calculerPartieId(monPseudo, pseudoCible);
     _partieIdEnCours = partieId;
@@ -158,35 +150,33 @@ function defierJoueur(pseudoCible) {
         : { [monPseudo]: 'joueur2', [pseudoCible]: 'joueur1' };
     monRole = roles[monPseudo];
 
-    // Créer la salle AVEC les deux joueurs déjà présents
-    // Le challenger est marqué pret:false (il doit choisir son deck)
-    // La cible est marquée pret:false aussi (mais sans entrée tant qu'elle n'a pas rejoint)
+    // Créer la salle avec LES DEUX joueurs déjà présents.
+    // Le challenger est pret:false (il doit choisir son deck).
+    // La cible est pret:false aussi, ce qui lui permettra de détecter la
+    // salle via son listener global et de la rejoindre.
     _salleRef = fbDB.ref('salles/' + partieId);
     _salleRef.set({
         roles,
         etat: 'attente_deck',
         timestamp: Date.now(),
         joueurs: {
-            [monPseudo]: { pret: false, deck: null, mulligan: false }
+            [monPseudo]:   { pret: false, deck: null, mulligan: false },
+            [pseudoCible]: { pret: false, deck: null, mulligan: false }
         }
     });
 
-    // Le challenger s'inscrit immédiatement
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-
-    // Écouter la salle
     ecouterSalle(partieId);
-
-    // Demander le choix du deck
     ouvrirChoixDeckEnLigne(pseudoCible);
 
     const info = document.getElementById('multi-info');
-    if (info) info.innerText = `Défi envoyé à ${pseudoCible} — en attente qu'il rejoigne…`;
+    if (info) info.innerText = `Défi envoyé à ${pseudoCible} — en attente qu'il choisisse son deck…`;
 }
 
-/* ---------- Affichage du défi reçu (conservé pour compatibilité) ---------- */
+/* ---------- Affichage du défi reçu (conservé pour compatibilité HTML) ---------- */
 function afficherDefiRecu(defi) {
-    // Plus utilisé, mais gardé pour ne pas casser le HTML
+    // Plus utilisé — l'invitation est remplacée par la détection directe
+    // de la salle via le listener global.
 }
 
 function accepterDefi() {
@@ -204,7 +194,7 @@ function refuserDefi() {
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     if (!fbDB || !monPseudo) return;
     const partieId = _partieIdEnCours || calculerPartieId(monPseudo, pseudoAdverse);
-    console.log('[Multi] annoncerDeckChoisi — partieId =', partieId, '— cartes =', deckIds.length);
+    console.log('[Multi] 📤 annoncerDeckChoisi — partieId =', partieId, '— cartes =', deckIds.length);
 
     fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({
         pret: true, deck: deckIds, mulligan: false
@@ -215,7 +205,7 @@ function annoncerDeckChoisi(pseudoAdverse, deckIds) {
 function ecouterSalle(partieId) {
     if (_ecouteurSalle === partieId) return;
     _ecouteurSalle = partieId;
-    console.log('[Multi] ecouterSalle(', partieId, ')');
+    console.log('[Multi] 👂 ecouterSalle(', partieId, ')');
 
     const refSalle = fbDB.ref('salles/' + partieId);
 
@@ -243,7 +233,7 @@ function ecouterSalle(partieId) {
 
         // Étape 1 : les 2 decks annoncés → lancement local
         if (decksPrets && !dejaLancee) {
-            console.log('[Multi] ✅ Les deux decks sont prêts — lancement !');
+            console.log('[Multi] ✅ Les deux decks sont prêts — lancement de la partie !');
             dejaLancee = true;
             window.multiPartie = {
                 active: true,
@@ -296,7 +286,7 @@ function ecouterSalle(partieId) {
 /* ---------- Mulligan ---------- */
 function signalerMulliganPret() {
     if (!window.multiPartie || !window.multiPartie.active) return;
-    console.log('[Multi] Mulligan validé');
+    console.log('[Multi] ✅ Mulligan validé');
     window.multiPartie.refSalle.child('joueurs/' + monPseudo).update({ mulligan: true });
 }
 
