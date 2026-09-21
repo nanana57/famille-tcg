@@ -1293,7 +1293,7 @@ function finDeTour() {
         document.getElementById('tour-indicateur').innerText = 'Tour adverse';
         document.querySelector('.turn-pill').classList.add('bot');
         document.getElementById('btn-endturn').classList.add('inactif');
-        afficherAttente("Tour adverse", "L'adversaire réfléchit…");
+        fermerAttente();
         if (typeof publierEtat === 'function') publierEtat();
     } else {
         jouerTourBot();
