@@ -294,6 +294,12 @@ function ecouterSalle(partieId) {
                     document.querySelector('.turn-pill').classList.add('bot');
                     document.getElementById('btn-endturn').classList.add('inactif');
                     info('L\'adversaire commence la partie…');
+
+                    // Simuler le 1er tour adverse pour le mana
+                    prochainManaMax(B);
+                    B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
+                    piocher(B, 1);
+                    rafraichirJeu();
                 }
             }
             return;
@@ -360,7 +366,6 @@ async function traiterActionRecue(a) {
             if (partieFinie) return;
             modeAttente = false;
             tourActuel = 'joueur';
-            J.premier = false; B.premier = true;
             debutTourJoueur();
             break;
         }
