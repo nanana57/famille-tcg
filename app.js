@@ -45,18 +45,19 @@ const dbCartes = [
     C('k7','Pina','Kerkache',2,1,2,'commune','Oiseau ultra rapide : attaque dès son arrivée.',['Charge'],'🦜'),
     C('k8','Oiseau 2','Kerkache',2,1,2,'commune','Gazouille joyeusement.',['Charge'],'🕊️'),
 
-    /* --- Kadour --- */
-    C('ka1','Khaled','Kadour',6,5,5,'legendaire','Cri de guerre : donne +2/+2 aux autres Kadour alliés.',[],'👨🏽'),
-    C('ka2','Hanifa','Kadour',6,3,6,'legendaire','Cri de guerre : invoque un Bon repas 3/3.',[],'🧕'),
-    C('ka3','Safya','Kadour',4,4,4,'epique','Cri de guerre : double l\'attaque de Saad s\'il est en jeu.',[],'👩🏽'),
-    C('ka4','Saad','Kadour',4,4,4,'epique','Cri de guerre : +4 en vie si Safya est en jeu.',[],'🧔🏻'),
-    C('ka5','Naila','Kadour',3,3,4,'rare','Cri de guerre : pioche un sort de ton deck.',[],'👩🏻'),
-    C('ka6','Nassim','Kadour',3,4,3,'rare','Cri de guerre : inflige 2 dégâts à une cible ennemie.',[],'🧑🏽'),
-    C('ka7','Toufik','Kadour',4,4,5,'rare','Cri de guerre : +0/+2 à une créature alliée.',['Provocation'],'👨🏽‍🦱'),
-    C('ka8','Manel','Kadour',3,3,3,'rare','Cri de guerre : +1/+1 à une créature alliée.',[],'👩🏽‍🦰'),
-    C('ka9','Camilla','Kadour',2,3,2,'commune','Cri de guerre : +1/+1 à Kamel s\'il est en jeu.',[],'👧🏽'),
-    C('ka10','Kamel','Kadour',2,3,2,'commune','Cri de guerre : +1/+1 à Camilla si elle est en jeu.',[],'👦🏻'),
-    C('ka11','Hanna','Kadour',3,2,4,'rare','Cri de guerre : lance un dé et soigne une cible alliée de ce nombre de PV. Gagne +2/+2 si Saad et Safya sont en jeu.',[],'👧🏻'),
+  
+       /* --- Belgacemi --- */
+    C('ka1','Khaled','Belgacemi',6,5,5,'legendaire','Cri de guerre : donne +2/+2 aux autres Belgacemi alliés.',[],'👨🏽'),
+    C('ka2','Hanifa','Belgacemi',6,3,6,'legendaire','Cri de guerre : invoque un Bon repas 3/3.',[],'🧕'),
+    C('ka3','Safya','Belgacemi',4,4,4,'epique','Cri de guerre : double l\'attaque de Saad s\'il est en jeu.',[],'👩🏽'),
+    C('ka4','Saad','Belgacemi',4,4,4,'epique','Cri de guerre : +4 en vie si Safya est en jeu.',[],'🧔🏻'),
+    C('ka5','Naila','Belgacemi',3,3,4,'rare','Cri de guerre : pioche un sort de ton deck.',[],'👩🏻'),
+    C('ka6','Nassim','Belgacemi',3,4,3,'rare','Cri de guerre : inflige 2 dégâts à une cible ennemie.',[],'🧑🏽'),
+    C('ka7','Toufik','Belgacemi',4,4,5,'rare','Cri de guerre : +0/+2 à une créature alliée.',['Provocation'],'👨🏽‍🦱'),
+    C('ka8','Manel','Belgacemi',3,3,3,'rare','Cri de guerre : +1/+1 à une créature alliée.',[],'👩🏽‍🦰'),
+    C('ka9','Camilla','Belgacemi',2,3,2,'commune','Cri de guerre : +1/+1 à Kamel s\'il est en jeu.',[],'👧🏽'),
+    C('ka10','Kamel','Belgacemi',2,3,2,'commune','Cri de guerre : +1/+1 à Camilla si elle est en jeu.',[],'👦🏻'),
+    C('ka11','Hanna','Belgacemi',3,2,4,'rare','Cri de guerre : lance un dé et soigne une cible alliée de ce nombre de PV. Gagne +2/+2 si Saad et Safya sont en jeu.',[],'👧🏻'),
 
     /* --- Neutres --- */
     C('n1','Mima','Neutre',8,4,8,'legendaire','À la fin de ton tour, soigne entièrement tes créatures.',['Provocation'],'👵🏻'),
@@ -184,8 +185,9 @@ const POUVOIRS = {
     k5:{mode:'eclair',jouer:({moi})=>soinHero(moi,2)},
     k6:{mode:'infini',aura:true},
 
-    /* Kadour */
-    ka1:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source&&m.famille==='Kadour').forEach(m=>buff(m,2,2))},
+
+    /* Belgacemi */
+    ka1:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source&&m.famille==='Belgacemi').forEach(m=>buff(m,2,2))},
     ka2:{mode:'eclair',jouer:({moi})=>invoquerJeton(moi,'Bon repas',3,3,'🍲',[])},
     ka3:{mode:'eclair',jouer:({moi})=>{const s=moi.plateau.find(m=>m.id==='ka4');if(s)buff(s,s.atk,0);}},
     ka4:{mode:'eclair',jouer:({moi,source})=>{if(moi.plateau.some(m=>m.id==='ka3'))buff(source,0,4);}},
@@ -297,7 +299,7 @@ const decksPreconstruits = [
     { nom:'Meridja Aggro',   cartes:['m1','m2','m3','m4','m4','m5','m5','m6','m6','m7','m7','m8','m8','m9','m9','m10','n1','n2','m11','m12'] },
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
-    { nom:'Kadour Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
+    { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
     { nom:'Les Infiltrés',   cartes:['f1','f2','f3','f4','f5','m11','m12','ma11','ka11','n3','n4','n5','n6','n7','s31','s32','s33','s34','s35','s37'] }
 ];
 
@@ -545,7 +547,7 @@ function editerDeck(i) {
 function trierCollection(critere) {
     triCourant = critere;
     const ordreRarete = { fusion:0, legendaire:1, epique:2, rare:3, commune:4 };
-    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Kadour:4, 'Nouvelle famille':5, Neutre:6, Terrain:7, Sort:8 };
+    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, 'Nouvelle famille':5, Neutre:6, Terrain:7, Sort:8 };
     const liste = [...dbCartes];
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom));
     if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
@@ -1006,7 +1008,7 @@ function recalcAuras() {
             if (t) {
                 if (t.id === 't1' && estChat(m)) { bonusAtk += 1; bonusVie += 1; }
                 if (t.id === 't2' && m.motsCles.includes('Provocation')) bonusVie += 2;
-                if (t.id === 't4' && ['Meridja','Marouf','Kerkache','Kadour'].includes(m.famille)) bonusAtk += 1;
+                if (t.id === 't4' && ['Meridja','Marouf','Kerkache','Belgacemi'].includes(m.famille)) bonusAtk += 1;
             }
             m.auraAtk = bonusAtk;
             const delta = bonusVie - m.auraVieAppliquee;
