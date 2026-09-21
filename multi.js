@@ -1,12 +1,18 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v16 — salle directe)
+   FAMILLE TCG — Multijoueur Firebase (v18 — défi + salle)
    
-   Principe :
-   - Le CHALLENGER crée directement la salle avec les 2 joueurs
-   - L'ACCEPTANT voit la salle apparaître (listener global salles/)
-   - Les deux annoncent leur deck
-   - Les deux valident leur mulligan
-   - La partie commence
+   Combine :
+   - Système de défi avec Accepter / Refuser (notif visuelle)
+   - Salle directe avec rôles fiables (source unique : s.roles)
+   
+   Flux :
+   1. A défie B        → A écrit defis/b/
+   2. B voit la notif  → Accepter / Refuser
+   3. B accepte        → B crée la salle + écrit defis/b/ (accepte)
+   4. A voit l'accept  → A rejoint la salle
+   5. Les 2 choisissent leur deck
+   6. Les 2 valident le mulligan
+   7. La partie commence
    =========================================================== */
 
 const firebaseConfig = {
@@ -32,6 +38,8 @@ let dejaLancee = false;
 let _ecouteurSalle = null;
 let _partieIdEnCours = null;
 let _salleRef = null;
+let _ecouteurDefiEnvoye = null;   // listener sur defis/<pseudoCible>
+let _pseudoCibleEnCours = null;
 
 /* ---------- Utilitaires ---------- */
 function normaliserPseudo(p) {
@@ -71,18 +79,32 @@ function initFirebase() {
 
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // ---- Écoute GLOBALE des salles ----
-    // Dès qu'une salle apparaît où je suis présent ET que je ne suis pas
-    // déjà en train de la traiter, je la rejoins.
+    // ---- Défis entrants (notif Accepter / Refuser) ----
+    fbDB.ref('defis/' + monPseudo).on('value', snap => {
+        const d = snap.val();
+        if (!d) return;
+        // Défi reçu, en attente
+        if (d.de && d.de !== monPseudo && d.etat === 'en_attente') {
+            afficherDefiRecu(d);
+        }
+        // Si l'état devient 'accepte' ou 'refuse', on cache la notif
+        if (d.etat !== 'en_attente') {
+            const ov = document.getElementById('defi-overlay');
+            if (ov) ov.classList.remove('open');
+        }
+    });
+
+    // ---- Salles où je suis présent (fallback pour rejoindre) ----
+    // Sert si je recharge la page pendant qu'une salle m'attend.
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
             if (!s || !s.joueurs) return;
-            if (!s.joueurs[monPseudo]) return;           // pas pour moi
-            if (dejaLancee) return;                      // partie déjà lancée
-            if (_partieIdEnCours === partieId) return;   // déjà traité (créateur ou déjà rejoint)
+            if (!s.joueurs[monPseudo]) return;
+            if (dejaLancee) return;
+            if (_partieIdEnCours === partieId) return;   // déjà traité
 
-            console.log('[Multi] 🔔 Salle détectée où je suis invité :', partieId);
+            console.log('[Multi] 🔔 Salle existante détectée :', partieId);
             _partieIdEnCours = partieId;
             monRole = s.roles ? s.roles[monPseudo] : null;
 
@@ -135,59 +157,130 @@ function afficherListeJoueurs(data) {
     if (combatCount) combatCount.innerText = `${enCombat} en combat`;
 }
 
-/* ---------- Défier : le challenger crée la salle directement ---------- */
+/* ---------- Défier : le challenger envoie une notification ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo) return;
     if (!pseudoCible || pseudoCible === monPseudo) return;
-    console.log('[Multi] ⚔️ Je défie', pseudoCible);
+    console.log('[Multi] ⚔️ J\'envoie un défi à', pseudoCible);
 
-    const partieId = calculerPartieId(monPseudo, pseudoCible);
+    _pseudoCibleEnCours = pseudoCible;
+
+    // J'écris mon défi dans defis/<pseudoCible>/
+    fbDB.ref('defis/' + pseudoCible).set({
+        de: monPseudo,
+        dePseudo: J.nom || 'Anonyme',
+        deId: monId,
+        etat: 'en_attente',
+        timestamp: Date.now()
+    });
+
+    // Je surveille ce même nœud pour voir quand la cible accepte
+    if (_ecouteurDefiEnvoye) {
+        _ecouteurDefiEnvoye.off();
+        _ecouteurDefiEnvoye = null;
+    }
+    _ecouteurDefiEnvoye = fbDB.ref('defis/' + pseudoCible);
+    _ecouteurDefiEnvoye.on('value', snap => {
+        const d = snap.val();
+        if (!d) return;
+        if (d.de !== monPseudo) return;   // pas mon défi
+
+        if (d.etat === 'accepte' && d.partieId) {
+            console.log('[Multi] ✅ Mon défi a été accepté — partieId =', d.partieId);
+            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
+            setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 2000);
+
+            _partieIdEnCours = d.partieId;
+            fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
+            ecouterSalle(d.partieId);
+            ouvrirChoixDeckEnLigne(pseudoCible);
+        }
+        if (d.etat === 'refuse') {
+            console.log('[Multi] ❌ Mon défi a été refusé');
+            flashInfo(`${pseudoCible} a refusé le défi.`);
+            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
+            setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 1500);
+            const info = document.getElementById('multi-info');
+            if (info) info.innerText = 'Défi refusé.';
+        }
+    });
+
+    const info = document.getElementById('multi-info');
+    if (info) info.innerText = `Défi envoyé à ${pseudoCible}… en attente de réponse.`;
+}
+
+/* ---------- Défi reçu : afficher la notification ---------- */
+function afficherDefiRecu(defi) {
+    window._defiEnCours = defi;
+    const t = document.getElementById('defi-texte');
+    if (t) t.innerText = `${defi.dePseudo} te défie en duel !`;
+    const ov = document.getElementById('defi-overlay');
+    if (ov) ov.classList.add('open');
+}
+
+/* ---------- Accepter le défi : je crée la salle ---------- */
+function accepterDefi() {
+    const defi = window._defiEnCours;
+    if (!defi) return;
+    const pseudoAdverse = defi.de;  // pseudo (normalisé) du challenger
+    const ov = document.getElementById('defi-overlay');
+    if (ov) ov.classList.remove('open');
+    window._defiEnCours = null;
+
+    const partieId = calculerPartieId(monPseudo, pseudoAdverse);
     _partieIdEnCours = partieId;
+    console.log('[Multi] ✅ J\'accepte le défi. partieId =', partieId);
 
-    // Tirage au sort des rôles : UNE SEULE FOIS, par le challenger
+    // Tirage au sort des rôles : par celui qui accepte (une seule fois)
     const roles = Math.random() < 0.5
-        ? { [monPseudo]: 'joueur1', [pseudoCible]: 'joueur2' }
-        : { [monPseudo]: 'joueur2', [pseudoCible]: 'joueur1' };
+        ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' }
+        : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
     monRole = roles[monPseudo];
+    console.log('[Multi] Rôles tirés au sort :', roles);
 
-    // Créer la salle avec LES DEUX joueurs déjà présents.
-    // Le challenger est pret:false (il doit choisir son deck).
-    // La cible est pret:false aussi, ce qui lui permettra de détecter la
-    // salle via son listener global et de la rejoindre.
+    // Créer la salle avec LES DEUX joueurs + les rôles
     _salleRef = fbDB.ref('salles/' + partieId);
     _salleRef.set({
         roles,
         etat: 'attente_deck',
         timestamp: Date.now(),
         joueurs: {
-            [monPseudo]:   { pret: false, deck: null, mulligan: false },
-            [pseudoCible]: { pret: false, deck: null, mulligan: false }
+            [monPseudo]:    { pret: false, deck: null, mulligan: false },
+            [pseudoAdverse]:{ pret: false, deck: null, mulligan: false }
         }
     });
 
+    // Mettre à jour le nœud defis/<monPseudo> (celui où le défi a été reçu)
+    // pour que le challenger sache que c'est accepté.
+    fbDB.ref('defis/' + monPseudo).update({
+        etat: 'accepte',
+        partieId,
+        acceptePar: monPseudo
+    });
+
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
+
+    // Nettoyage différé : laisser le temps au challenger de lire
+    setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 5000);
+
     ecouterSalle(partieId);
-    ouvrirChoixDeckEnLigne(pseudoCible);
-
-    const info = document.getElementById('multi-info');
-    if (info) info.innerText = `Défi envoyé à ${pseudoCible} — en attente qu'il choisisse son deck…`;
+    ouvrirChoixDeckEnLigne(pseudoAdverse);
 }
 
-/* ---------- Affichage du défi reçu (conservé pour compatibilité HTML) ---------- */
-function afficherDefiRecu(defi) {
-    // Plus utilisé — l'invitation est remplacée par la détection directe
-    // de la salle via le listener global.
-}
-
-function accepterDefi() {
-    // Plus utilisé — le joueur cible rejoint automatiquement via le listener
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
-}
-
+/* ---------- Refuser le défi ---------- */
 function refuserDefi() {
+    const defi = window._defiEnCours;
+    if (!defi) return;
+    console.log('[Multi] ❌ Je refuse le défi de', defi.de);
+    // Mettre à jour le nœud pour prévenir le challenger
+    fbDB.ref('defis/' + monPseudo).update({
+        etat: 'refuse',
+        refusePar: monPseudo
+    });
+    setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 3000);
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.remove('open');
+    window._defiEnCours = null;
 }
 
 /* ---------- Annonce du deck ---------- */
@@ -220,7 +313,13 @@ function ecouterSalle(partieId) {
             return;
         }
 
-        const roleLocal = (s.roles && s.roles[monPseudo]) || ((monPseudo === pseudos[0]) ? 'joueur1' : 'joueur2');
+        // On exige que s.roles existe ET contienne mon pseudo
+        if (!s.roles || !s.roles[monPseudo]) {
+            console.log('[Multi] ⏳ En attente des rôles attribués…');
+            return;
+        }
+
+        const roleLocal = s.roles[monPseudo];   // source unique de vérité
         monRole = roleLocal;
         const pseudoAdverse = pseudos.find(x => x !== monPseudo);
 
@@ -233,7 +332,8 @@ function ecouterSalle(partieId) {
 
         // Étape 1 : les 2 decks annoncés → lancement local
         if (decksPrets && !dejaLancee) {
-            console.log('[Multi] ✅ Les deux decks sont prêts — lancement de la partie !');
+            console.log('[Multi] ✅ Les deux decks sont prêts — lancement de la partie');
+            console.log('[Multi]    mon rôle =', roleLocal, '— je commence =', roleLocal === 'joueur1');
             dejaLancee = true;
             window.multiPartie = {
                 active: true,
@@ -259,6 +359,7 @@ function ecouterSalle(partieId) {
                 window.multiPartie.demarrageTraite = true;
                 fermerAttente();
                 console.log('[Multi] ✅ Les 2 mulligans validés — démarrage du tour');
+                console.log('[Multi]    jeCommence =', window.multiPartie.jeCommence);
 
                 if (window.multiPartie.jeCommence) {
                     tourActuel = 'joueur';
