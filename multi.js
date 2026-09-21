@@ -1,7 +1,10 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v13)
-   Corrige : présence immédiate des deux joueurs + détection
-   robuste du "les deux decks sont prêts".
+   FAMILLE TCG — Multijoueur Firebase (v12 — salle unique)
+   Un seul nœud : salles/<partieId>
+   Chaque joueur y écrit : {pret, deck, mulligan}
+   Chacun écoute et démarre quand :
+     - les 2 ont annoncé leur deck → lance la partie locale
+     - les 2 ont validé le mulligan → démarre son 1er tour
    =========================================================== */
 
 const firebaseConfig = {
@@ -37,15 +40,6 @@ function calculerPartieId(a, b) {
     return 'p_' + [x, y].sort().join('_');
 }
 
-// Convertit un deck (array ou objet Firebase) en tableau exploitable
-function deckEnTableau(d) {
-    if (Array.isArray(d)) return d.filter(x => typeof x === 'string');
-    if (d && typeof d === 'object') {
-        return Object.keys(d).sort((a,b) => parseInt(a) - parseInt(b)).map(k => d[k]).filter(x => typeof x === 'string');
-    }
-    return null;
-}
-
 /* ---------- Init Firebase ---------- */
 function initFirebase() {
     if (typeof firebase === 'undefined') { console.error('[FB] SDK absent'); return; }
@@ -73,38 +67,44 @@ function initFirebase() {
 
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // Défis : entrant + accepté
+    // Défis entrants
     fbDB.ref('defis').on('value', snap => {
         const tout = snap.val() || {};
-
-        // Défi qui m'est adressé
-        const monDefi = tout[monPseudo];
-        if (monDefi && monDefi.de && monDefi.etat === 'en_attente') {
-            afficherDefiRecu(monDefi);
+        const d = tout[monPseudo];
+        if (d && d.de && d.etat === 'en_attente') {
+            afficherDefiRecu(d);
         }
+    });
 
-        // Défi que j'ai envoyé et qui est accepté
+    // Défis que MOI j'ai envoyés et qui sont acceptés
+    const _defisTraites = new Set();
+    fbDB.ref('defis').on('value', snap => {
+        const tout = snap.val() || {};
         Object.entries(tout).forEach(([cle, d]) => {
             if (!d) return;
             if (d.de === monPseudo && d.etat === 'accepte' && d.partieId) {
+                if (_defisTraites.has(d.partieId)) return;   // déjà traité, on évite de rouvrir l'écran
+                _defisTraites.add(d.partieId);
                 console.log('[Multi] Mon défi a été accepté — partieId =', d.partieId);
                 const pseudoAdverse = cle;
-                const tries = [monPseudo, pseudoAdverse].sort();
-                monRole = (monPseudo === tries[0]) ? 'joueur1' : 'joueur2';
+                monRole = null; // sera lu depuis salles/{id}/roles (tiré au hasard par l'acceptant)
                 fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-
-                // ⚠️ Écrire MA présence tout de suite dans la salle
-                fbDB.ref('salles/' + d.partieId + '/joueurs/' + monPseudo).update({
-                    pret: true, mulligan: false
-                });
-                // Rôles si pas déjà faits
-                fbDB.ref('salles/' + d.partieId + '/roles').update({
-                    [tries[0]]: 'joueur1',
-                    [tries[1]]: 'joueur2'
-                });
-
                 ecouterSalle(d.partieId);
+                // On demande le choix du deck
                 ouvrirChoixDeckEnLigne(pseudoAdverse);
+            }
+        });
+    });
+
+    // Salles : je surveille celles où je suis présent
+    fbDB.ref('salles').on('value', snap => {
+        const tout = snap.val() || {};
+        Object.keys(tout).forEach(partieId => {
+            const s = tout[partieId];
+            if (s && s.joueurs && s.joueurs[monPseudo]) {
+                if (_ecouteurSalle !== partieId) {
+                    ecouterSalle(partieId);
+                }
             }
         });
     });
@@ -175,36 +175,45 @@ function afficherDefiRecu(defi) {
 function accepterDefi() {
     const defi = window._defiEnCours;
     if (!defi) return;
-    const pseudoAdverse = defi.de;
+    const pseudoAdverse = defi.de;           // le pseudo du challenger
     const ov = document.getElementById('defi-overlay');
     if (ov) ov.classList.remove('open');
 
     const partieId = calculerPartieId(monPseudo, pseudoAdverse);
-    const tries = [monPseudo, pseudoAdverse].sort();
-    monRole = (monPseudo === tries[0]) ? 'joueur1' : 'joueur2';
-    console.log('[Multi] accepterDefi — partieId =', partieId);
 
-    // Rôles + ma présence
-    fbDB.ref('salles/' + partieId + '/roles').update({
-        [tries[0]]: 'joueur1',
-        [tries[1]]: 'joueur2'
+    // Demande : le premier joueur est choisi au hasard (et non par ordre alphabétique)
+    const rolesAttribues = Math.random() < 0.5
+        ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' }
+        : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
+    monRole = rolesAttribues[monPseudo];
+
+    // Créer la salle (une seule fois, par celui qui accepte)
+    fbDB.ref('salles/' + partieId).update({
+        roles: rolesAttribues,
+        etat: 'init',
+        timestamp: Date.now()
     });
-    fbDB.ref('salles/' + partieId).update({ etat: 'init', timestamp: Date.now() });
-    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({
-        pret: true, mulligan: false
+    // M'ajouter dedans
+    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).set({
+        pret: true, deck: null, mulligan: false
     });
 
-    // Notifier le défieur
-    fbDB.ref('defis/' + pseudoAdverse).update({
+    // IMPORTANT : on met à jour LE MÊME nœud que celui d'où vient le défi
+    // (defis/<mon propre pseudo>, celui que le challenger surveille), pour
+    // que les deux clients calculent bien le même partieId. Écrire ailleurs
+    // (comme sur defis/<pseudoAdverse>) créait une salle différente côté
+    // challenger et bloquait la partie pour l'un des deux joueurs.
+    fbDB.ref('defis/' + monPseudo).update({
         etat: 'accepte',
         partieId,
-        de: pseudoAdverse,
-        dePseudo: (J.nom || 'Anonyme'),
         acceptePar: monPseudo
     });
 
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-    fbDB.ref('defis/' + monPseudo).remove();
+
+    // Nettoyage différé : on laisse le temps au challenger de lire l'état 'accepte'
+    // avant de supprimer le défi (évite une course avec le listener Firebase).
+    setTimeout(() => { fbDB.ref('defis/' + monPseudo).remove(); }, 4000);
 
     ecouterSalle(partieId);
 
@@ -225,13 +234,13 @@ function refuserDefi() {
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     if (!fbDB || !monPseudo) return;
     const partieId = calculerPartieId(monPseudo, pseudoAdverse);
-    console.log('[Multi] annoncerDeckChoisi — partieId =', partieId, '— cartes =', deckIds.length);
-    // On écrit aussi ma présence (au cas où) et le deck
+    console.log('[Multi] annoncerDeckChoisi — partieId =', partieId);
     fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({
-        pret: true,
-        deck: deckIds,
-        mulligan: false
+        pret: true, deck: deckIds, mulligan: false
     });
+    // Les rôles (qui commence) sont déjà tirés au hasard et écrits une seule
+    // fois par celui qui a créé la salle (accepterDefi) : on ne les touche
+    // plus ici pour ne pas écraser ce tirage aléatoire.
 }
 
 /* ---------- Écoute de la salle ---------- */
@@ -241,9 +250,6 @@ function ecouterSalle(partieId) {
     console.log('[Multi] ecouterSalle(', partieId, ')');
 
     const refSalle = fbDB.ref('salles/' + partieId);
-
-    // Ma présence dès l'attachement de l'écouteur
-    refSalle.child('joueurs/' + monPseudo).update({ pret: true });
 
     refSalle.on('value', snap => {
         const s = snap.val();
@@ -260,17 +266,14 @@ function ecouterSalle(partieId) {
 
         const mesInfos = s.joueurs[monPseudo] || {};
         const infosAdv = s.joueurs[pseudoAdverse] || {};
-        const monDeck = deckEnTableau(mesInfos.deck);
-        const advDeck = deckEnTableau(infosAdv.deck);
-
-        console.log('[Multi] Salut — moi =', monPseudo,
-                    '— deck moi =', monDeck ? monDeck.length : 0,
-                    '— deck adverse =', advDeck ? advDeck.length : 0,
-                    '— déjà lancé =', dejaLancee);
+        const monDeck = mesInfos.deck;
+        const advDeck = infosAdv.deck;
+        const decksPrets = Array.isArray(monDeck) && monDeck.length === 20 &&
+                           Array.isArray(advDeck) && advDeck.length === 20;
 
         // Étape 1 : les 2 decks annoncés → lancement local
-        if (monDeck && monDeck.length === 20 && advDeck && advDeck.length === 20 && !dejaLancee) {
-            console.log('[Multi] Les deux decks sont prêts — lancement de la partie locale');
+        if (decksPrets && !dejaLancee) {
+            console.log('[Multi] Les deux decks sont prêts — lancement de la partie');
             dejaLancee = true;
             window.multiPartie = {
                 active: true,
@@ -282,7 +285,7 @@ function ecouterSalle(partieId) {
                 mulliganEnvoye: false,
                 demarrageTraite: false
             };
-            lancerPartieMultijoueur(pseudoAdverse, monDeck);
+            lancerPartieMultijoueur(pseudoAdverse, monDeck, advDeck);
             return;
         }
         if (!dejaLancee) return;
@@ -298,11 +301,13 @@ function ecouterSalle(partieId) {
                 console.log('[Multi] Les 2 mulligans validés — démarrage du tour');
 
                 if (window.multiPartie.jeCommence) {
+                    // Je commence
                     tourActuel = 'joueur';
                     modeAttente = false;
                     debutTourJoueur();
                     publierEtat();
                 } else {
+                    // J'attends
                     modeAttente = true;
                     tourActuel = 'attente';
                     document.getElementById('tour-indicateur').innerText = 'Attente…';
@@ -332,13 +337,19 @@ function publierEtat() {
     if (!window.multiPartie || !window.multiPartie.active) return;
     if (typeof modeAttente !== 'undefined' && modeAttente) return;
     if (tourActuel === 'attente') return;
-    window.multiPartie.refSalle.child('etat_data').set({
+    if (!monRole) return;
+    // On publie TOUJOURS sous la clé de rôle stable de chacun (et non "qui vient
+    // d'agir"), sinon le joueur1/joueur2 change de sens selon qui a joué en
+    // dernier et les deux clients finissent par mélanger leurs plateaux.
+    const roleAdverse = monRole === 'joueur1' ? 'joueur2' : 'joueur1';
+    const donnees = {
         par: monPseudo,
         tourActuel,
-        joueur1: serialiserCote(J),
-        joueur2: serialiserCote(B),
         timestamp: Date.now()
-    });
+    };
+    donnees[monRole] = serialiserCote(J);
+    donnees[roleAdverse] = serialiserCote(B);
+    window.multiPartie.refSalle.child('etat_data').set(donnees);
 }
 
 /* ---------- Sérialisation ---------- */
@@ -396,8 +407,13 @@ function deserialiserCote(side, data) {
 
 /* ---------- Application état adverse ---------- */
 function appliquerEtatAdverse(etat) {
-    deserialiserCote(J, etat.joueur1);
-    deserialiserCote(B, etat.joueur2);
+    if (!monRole) return;
+    const roleAdverse = monRole === 'joueur1' ? 'joueur2' : 'joueur1';
+    // etat[monRole] = mes propres données telles que vues/relayées par l'adversaire,
+    // etat[roleAdverse] = les données de l'adversaire. On applique donc chacune
+    // à la bonne variable locale (J = toujours moi, B = toujours l'adversaire).
+    deserialiserCote(J, etat[monRole]);
+    deserialiserCote(B, etat[roleAdverse]);
 
     if (etat.tourActuel === 'bot') {
         modeAttente = false;
