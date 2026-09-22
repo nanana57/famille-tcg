@@ -266,13 +266,9 @@ dbCartes.forEach(c => {
     if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation')) {
         POUVOIRS[c.id] = { mode:'infini', aura:true };
     }
-    if (c.motsCles.includes('Rage')) {
-        if (!POUVOIRS[c.id]) POUVOIRS[c.id] = { mode:'infini' };
-        const base = POUVOIRS[c.id].blesse;
-        POUVOIRS[c.id].blesse = (ctx) => {
-            buff(ctx.source, 2, 0);
-            if (base) base(ctx);
-        };
+    // Si la carte a "Rage", on s'assure juste qu'elle affiche le badge d'effet infini
+    if (c.motsCles.includes('Rage') && !POUVOIRS[c.id]) {
+        POUVOIRS[c.id] = { mode:'infini' };
     }
 });
 
