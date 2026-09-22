@@ -132,11 +132,11 @@ const dbCartes = [
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
     C('c3','Meriem x Safya','Cousins',3,3,4,'rare','Rage : Pioche une carte.',['Rage'],'👭'),
-    C('c4','Amina x Inès','Cousins',2,2,2,'commune','Destruction : Rend 4 patience à ton héros.',['Destruction'],'👭'),
-    C('c5','Anness x Nassim','Cousins',4,4,5,'rare','Provocation. Rage : Inflige 2 dégâts au héros adverse.',['Provocation','Rage'],'👬'),
+    C('c4','Amina x Camilla','Cousins',2,2,2,'commune','Destruction : Rend 4 patience à ton héros.',['Destruction'],'👭'),
+    C('c5','Anness x Chafik','Cousins',4,4,5,'rare','Provocation. Rage : Inflige 2 dégâts au héros adverse.',['Provocation','Rage'],'👬'),
     C('c6','Ryma x Lyna','Cousins',3,4,2,'commune','Destruction : Donne +2/+2 à une de tes créatures au hasard.',['Destruction'],'👭'),
-    C('c7','Imran x Toufik','Cousins',1,1,3,'commune','Rage : Gagne +1/+1.',['Rage'],'👬'),
-    C('c8','Asma x Hiba','Cousins',6,5,5,'epique','Destruction : Détruit la créature ennemie ayant le plus d\'attaque.',['Destruction'],'👭'),
+    C('c7','Islem x Toufik','Cousins',1,1,3,'commune','Rage : Gagne +1/+1.',['Rage'],'👬'),
+    C('c8','Asma x Zahida','Cousins',6,5,5,'epique','Destruction : Détruit la créature ennemie ayant le plus d\'attaque.',['Destruction'],'👭'),
     
     /* --- Sorts & Terrain Cousins --- */
     C('c9','Bagarre de cousins','Sort',2,0,0,'commune','Inflige 1 dégât à toutes tes créatures (déclenche la Rage). Pioche 2 cartes.',[],'🤼'),
