@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v23 — temps réel corrigé)
+   FAMILLE TCG — Multijoueur Firebase (v24 — mulligan & mana fix)
    =========================================================== */
 
 const firebaseConfig = {
@@ -51,7 +51,6 @@ function initFirebase() {
         sessionStorage.setItem('ftcg_monId', monId);
     }
     monPseudo = normaliserPseudo(J.nom || 'anonyme');
-    console.log('[Multi] init — monPseudo =', monPseudo);
 
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
@@ -65,7 +64,6 @@ function initFirebase() {
 
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // Défi reçu
     fbDB.ref('defis/' + monPseudo).on('value', snap => {
         const d = snap.val();
         if (!d) return;
@@ -78,14 +76,13 @@ function initFirebase() {
         }
     });
 
-    // Salles
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
             if (!s || !s.joueurs || !s.joueurs[monPseudo]) return;
             if (dejaLancee) return;
             if (_partieIdEnCours === partieId) return;
-            console.log('[Multi] 🔔 Salle détectée :', partieId);
+            
             _partieIdEnCours = partieId;
             monRole = s.roles ? s.roles[monPseudo] : null;
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
@@ -98,35 +95,17 @@ function initFirebase() {
 
 /* ---------- Liste joueurs ---------- */
 function rafraichirJoueurs() { if (!fbDB) initFirebase(); }
-
 function afficherListeJoueurs(data) {
-    const liste = document.getElementById('multi-liste');
-    const count = document.getElementById('multi-count');
-    const combatCount = document.getElementById('multi-combat-count');
+    const liste = document.getElementById('multi-liste'), count = document.getElementById('multi-count'), combatCount = document.getElementById('multi-combat-count');
     if (!liste) return;
     const joueurs = Object.entries(data).filter(([id]) => id !== monId);
-    let enCombat = 0;
-    liste.innerHTML = '';
-    if (joueurs.length === 0) {
-        liste.innerHTML = '<p class="hint">Aucun autre joueur connecté pour le moment.</p>';
-    }
+    let enCombat = 0; liste.innerHTML = '';
+    if (joueurs.length === 0) liste.innerHTML = '<p class="hint">Aucun autre joueur connecté pour le moment.</p>';
     joueurs.forEach(([id, j]) => {
         if (j.etat === 'en_combat') enCombat++;
-        const div = document.createElement('div');
-        div.className = 'multi-joueur';
-        const libre = j.etat === 'libre';
-        const cible = j.pseudoNorm || normaliserPseudo(j.pseudo);
-        const moiMeme = (cible === monPseudo);
-        div.innerHTML = `
-            <div>
-                <div class="mj-nom">${j.pseudo || 'Anonyme'}</div>
-                <div class="mj-etat ${libre ? 'libre' : 'en-combat'}">
-                    ${libre ? '● Disponible' : '⚔ En combat'}
-                </div>
-            </div>
-            <button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">
-                ${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}
-            </button>`;
+        const div = document.createElement('div'); div.className = 'multi-joueur';
+        const libre = j.etat === 'libre', cible = j.pseudoNorm || normaliserPseudo(j.pseudo), moiMeme = (cible === monPseudo);
+        div.innerHTML = `<div><div class="mj-nom">${j.pseudo || 'Anonyme'}</div><div class="mj-etat ${libre ? 'libre' : 'en-combat'}">${libre ? '● Disponible' : '⚔ En combat'}</div></div><button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}</button>`;
         liste.appendChild(div);
     });
     if (count) count.innerText = `${joueurs.length} joueur(s) connecté(s)`;
@@ -136,173 +115,123 @@ function afficherListeJoueurs(data) {
 /* ---------- Défier ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
-    console.log('[Multi] ⚔️ Défi à', pseudoCible);
     _pseudoCibleEnCours = pseudoCible;
-
-    fbDB.ref('defis/' + pseudoCible).set({
-        de: monPseudo, dePseudo: J.nom || 'Anonyme', deId: monId,
-        etat: 'en_attente', timestamp: Date.now()
-    });
+    fbDB.ref('defis/' + pseudoCible).set({ de: monPseudo, dePseudo: J.nom || 'Anonyme', deId: monId, etat: 'en_attente', timestamp: Date.now() });
 
     if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
     _ecouteurDefiEnvoye = fbDB.ref('defis/' + pseudoCible);
     _ecouteurDefiEnvoye.on('value', snap => {
-        const d = snap.val();
-        if (!d || d.de !== monPseudo) return;
+        const d = snap.val(); if (!d || d.de !== monPseudo) return;
         if (d.etat === 'accepte' && d.partieId) {
-            console.log('[Multi] ✅ Défi accepté, partieId =', d.partieId);
             if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 2000);
-            _partieIdEnCours = d.partieId;
-            fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-            ecouterSalle(d.partieId);
-            ouvrirChoixDeckEnLigne(pseudoCible);
+            _partieIdEnCours = d.partieId; fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
+            ecouterSalle(d.partieId); ouvrirChoixDeckEnLigne(pseudoCible);
         }
         if (d.etat === 'refuse') {
-            console.log('[Multi] ❌ Défi refusé');
             flashInfo(`${pseudoCible} a refusé le défi.`);
             if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 1500);
         }
     });
 }
-
-function afficherDefiRecu(defi) {
-    window._defiEnCours = defi;
-    const t = document.getElementById('defi-texte');
-    if (t) t.innerText = `${defi.dePseudo} te défie en duel !`;
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.add('open');
-}
-
+function afficherDefiRecu(defi) { window._defiEnCours = defi; const t = document.getElementById('defi-texte'); if (t) t.innerText = `${defi.dePseudo} te défie en duel !`; const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.add('open'); }
 function accepterDefi() {
-    const defi = window._defiEnCours;
-    if (!defi) return;
-    const pseudoAdverse = defi.de;
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
-    window._defiEnCours = null;
-
-    const partieId = calculerPartieId(monPseudo, pseudoAdverse);
-    _partieIdEnCours = partieId;
-    console.log('[Multi] ✅ J\'accepte, partieId =', partieId);
-
-    const roles = Math.random() < 0.5
-        ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' }
-        : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
+    const defi = window._defiEnCours; if (!defi) return; const pseudoAdverse = defi.de;
+    const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.remove('open'); window._defiEnCours = null;
+    const partieId = calculerPartieId(monPseudo, pseudoAdverse); _partieIdEnCours = partieId;
+    const roles = Math.random() < 0.5 ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' } : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
     monRole = roles[monPseudo];
-
     _salleRef = fbDB.ref('salles/' + partieId);
     _salleRef.set({
-        roles,
-        etat: 'attente_deck',
-        timestamp: Date.now(),
-        joueurs: {
-            [monPseudo]:    { pret: false, deck: null, mulligan: false },
-            [pseudoAdverse]:{ pret: false, deck: null, mulligan: false }
-        }
+        roles, etat: 'attente_deck', timestamp: Date.now(),
+        joueurs: { [monPseudo]: { pret: false, deck: null, mulligan: false }, [pseudoAdverse]:{ pret: false, deck: null, mulligan: false } }
     });
-
     fbDB.ref('defis/' + monPseudo).update({ etat: 'accepte', partieId, acceptePar: monPseudo });
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
     setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 5000);
-
-    ecouterSalle(partieId);
-    ouvrirChoixDeckEnLigne(pseudoAdverse);
+    ecouterSalle(partieId); ouvrirChoixDeckEnLigne(pseudoAdverse);
 }
-
 function refuserDefi() {
-    const defi = window._defiEnCours;
-    if (!defi) return;
     fbDB.ref('defis/' + monPseudo).update({ etat: 'refuse', refusePar: monPseudo });
     setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 3000);
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
-    window._defiEnCours = null;
+    const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.remove('open'); window._defiEnCours = null;
 }
-
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     if (!fbDB || !monPseudo) return;
     const partieId = _partieIdEnCours || calculerPartieId(monPseudo, pseudoAdverse);
-    console.log('[Multi] 📤 Deck annoncé :', deckIds.length, 'cartes');
-    // On valide le mulligan automatiquement pour éviter la désynchronisation réseau des mains
-    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ pret: true, deck: deckIds, mulligan: true });
+    // On met pret à true, mais mulligan à false pour laisser le joueur choisir sa main de départ
+    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ pret: true, deck: deckIds, mulligan: false });
+}
+function signalerMulliganPret() {
+    if (!window.multiPartie || !window.multiPartie.active) return;
+    window.multiPartie.refSalle.child('joueurs/' + monPseudo).update({ mulligan: true });
 }
 
 /* ---------- Écoute de la salle ---------- */
 function ecouterSalle(partieId) {
     if (_ecouteurSalle === partieId) return;
     _ecouteurSalle = partieId;
-    console.log('[Multi] 👂 ecouterSalle(', partieId, ')');
 
     const refSalle = fbDB.ref('salles/' + partieId);
-
     refSalle.on('value', snap => {
-        const s = snap.val();
-        if (!s || !s.joueurs) return;
-        const pseudos = Object.keys(s.joueurs);
-        if (pseudos.length < 2 || !s.roles || !s.roles[monPseudo]) return;
+        const s = snap.val(); if (!s || !s.joueurs) return;
+        const pseudos = Object.keys(s.joueurs); if (pseudos.length < 2 || !s.roles || !s.roles[monPseudo]) return;
 
-        const roleLocal = s.roles[monPseudo];
-        monRole = roleLocal;
+        const roleLocal = s.roles[monPseudo]; monRole = roleLocal;
         const roleAdverse = roleLocal === 'joueur1' ? 'joueur2' : 'joueur1';
         const pseudoAdverse = s.roles[roleAdverse] || pseudos.find(x => x !== monPseudo);
 
         const mesInfos = s.joueurs[monPseudo] || {};
         const infosAdv = s.joueurs[pseudoAdverse] || {};
-        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 &&
-                           Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
+        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
 
-        // ---- Étape 1 : lancement ----
+        // Étape 1 : Les deux decks sont prêts -> Lancement de l'étape de Mulligan
         if (decksPrets && !dejaLancee) {
-            console.log('[Multi] ✅ Les deux decks sont prêts — lancement !');
             dejaLancee = true;
             window.multiPartie = {
                 active: true, adversaireId: pseudoAdverse, partieId, refSalle,
                 role: roleLocal, jeCommence: (roleLocal === 'joueur1'),
                 demarrageTraite: false, timestamp: s.timestamp
             };
-            // Initialisation avec le seed commun pour les dés / pioches !
             lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp);
             return;
         }
         if (!dejaLancee) return;
 
-        // ---- Étape 2 : Lancement officiel (Mulligans validés d'office) ----
+        // Étape 2 : Lancement officiel (Une fois les Mulligans validés)
         if (!window.multiPartie.demarrageTraite) {
             const mesMull = mesInfos.mulligan === true;
             const advMull = infosAdv.mulligan === true;
             if (mesMull && advMull) {
                 window.multiPartie.demarrageTraite = true;
                 fermerAttente();
-                console.log('[Multi] ✅ Démarrage. jeCommence =', window.multiPartie.jeCommence);
-
+                
+                // --- INITIALISATION SYNCHRONISÉE DU MANA ---
                 if (window.multiPartie.jeCommence) {
-                    modeEnLigne = true;
-                    modeAttente = false;
-                    tourActuel = 'joueur';
                     J.premier = true; B.premier = false;
-                    debutTourJoueur();
+                    B.manaMax = 3; B.manaActuel = 0; // L'adversaire aura 3 de mana
+                    modeEnLigne = true; modeAttente = false; tourActuel = 'joueur';
+                    debutTourJoueur(); 
                 } else {
-                    modeEnLigne = true;
-                    modeAttente = true;
-                    tourActuel = 'attente';
                     J.premier = false; B.premier = true;
-                    // Initialiser B localement
-                    prochainManaMax(B);
-                    piocher(B, 1);
+                    J.manaMax = 3; J.manaActuel = 0; // Je suis le joueur 2, j'aurai 3 de mana
+                    modeEnLigne = true; modeAttente = true; tourActuel = 'bot';
                     
                     document.getElementById('tour-indicateur').innerText = 'Tour adverse';
                     document.querySelector('.turn-pill').classList.add('bot');
                     document.getElementById('btn-endturn').classList.add('inactif');
                     info('L\'adversaire commence la partie…');
+                    
+                    prochainManaMax(B); // Donne les 2 de mana au joueur 1
+                    piocher(B, 1);
+                    rafraichirJeu();
                 }
-                rafraichirJeu();
             }
             return;
         }
 
-        // ---- Étape 3 : traiter la queue d'actions ----
+        // Étape 3 : Traitement de la file d'attente d'actions
         const queue = s.queue || {};
         const entrees = Object.values(queue).sort((a, b) => (a.id || 0) - (b.id || 0));
         entrees.forEach(e => {
@@ -310,7 +239,6 @@ function ecouterSalle(partieId) {
             if (e.par === monPseudo) return;
             if (e.id <= _dernierIdTraite) return;
             _dernierIdTraite = e.id;
-            console.log('[Multi] 🎬 Action reçue :', e.action.type, 'de', e.par);
             traiterActionRecue(e.action);
         });
     });
@@ -321,21 +249,15 @@ async function traiterActionRecue(a) {
     switch (a.type) {
         case 'jouer': {
             const idx = B.main.findIndex(c => c.id === a.id);
-            if (idx < 0) {
-                console.warn('[Multi] ⚠️ Carte', a.id, 'introuvable dans la main adverse');
-                return;
-            }
+            if (idx < 0) return;
             const carte = B.main[idx];
             let cible = null;
-            
-            // Résolution de l'index de cible (J ↔ B inversés depuis le point de vue réseau)
             if (a.idxCible !== null && a.campCible !== null) {
                 const targetSide = (a.campCible === 'J') ? B : J;
                 cible = targetSide.plateau[a.idxCible];
             } else if (a.cibleHero) {
                 cible = (a.cibleHero === 'J') ? B : J;
             }
-
             if (carte.rarete === 'fusion') sacrifierPourFusion(B, carte.id);
             jouerCarte(B, idx, cible);
             break;
@@ -343,25 +265,19 @@ async function traiterActionRecue(a) {
         case 'attaque': {
             const attaquant = B.plateau[a.idxAttaquant];
             let cible = null;
-            
             if (a.idxCible !== null && a.campCible !== null) {
                 const targetSide = (a.campCible === 'J') ? B : J;
                 cible = targetSide.plateau[a.idxCible];
             } else if (a.cibleHero) {
                 cible = (a.cibleHero === 'J') ? B : J;
             }
-            
-            if (!attaquant || !cible) {
-                console.warn('[Multi] ⚠️ Attaquant ou cible introuvable', a);
-                return;
-            }
+            if (!attaquant || !cible) return;
             attaquant._replay = true;
             await attaquer(attaquant, cible);
             attaquant._replay = false;
             break;
         }
         case 'fin': {
-            console.log('[Multi] 🔵 Fin du tour adverse → à moi !');
             await pause(400);
             appliquerFinDeTour(B);
             B.surcout = 0;
@@ -371,27 +287,21 @@ async function traiterActionRecue(a) {
             if (partieFinie) return;
             modeAttente = false;
             tourActuel = 'joueur';
-            J.premier = false; B.premier = true;
+            // NE PAS TOUCHER A J.premier ici, sinon cela casse le calcul du mana au tour suivant !
             debutTourJoueur();
             break;
         }
-        default:
-            console.warn('[Multi] Type d\'action inconnu :', a.type);
     }
 }
 
-/* ---------- Forfait en ligne ---------- */
 function signalerForfaitEnLigne() {
     if (!window.multiPartie || !window.multiPartie.active) return;
     modeAttente = false;
-    fbDB.ref('salles/' + window.multiPartie.partieId).update({
-        etat: 'forfait', forfaitPar: monPseudo, timestamp: Date.now()
-    });
+    fbDB.ref('salles/' + window.multiPartie.partieId).update({ etat: 'forfait', forfaitPar: monPseudo, timestamp: Date.now() });
     fbDB.ref('joueurs/' + monId).update({ etat: 'libre' });
     window.multiPartie.active = false;
 }
 
-/* ---------- Nettoyage ---------- */
 window.addEventListener('beforeunload', () => {
     if (fbDB && monId) {
         fbDB.ref('joueurs/' + monId).remove();
