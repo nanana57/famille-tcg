@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Version Corrigée et Aérée)
+   FAMILLE TCG — moteur de jeu (v26 — Cousins, Rage & Destruction)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -126,8 +126,9 @@ const dbCartes = [
     C('f2','Amina x Marouane','Nouvelle famille',8,6,8,'fusion','Fusion : nécessite Amina et Marouane sur le terrain. Cri de guerre : donne +3/+3 à toutes les autres créatures alliées.',[],'💑'),
     C('f3','Ines x Islem','Nouvelle famille',9,8,8,'fusion','Fusion : nécessite Inès et Islem sur le terrain. Cri de guerre : annule le prochain sort adverse et pioche une carte.',[],'💑'),
     C('f4','Toufik x Manel','Nouvelle famille',7,5,9,'fusion','Fusion : nécessite Toufik et Manel sur le terrain. Provocation. Cri de guerre : soigne ton héros de 5 patience.',['Provocation'],'💑'),
-    C('f5','Safya x Saad','Nouvelle famille',8,7,7,'fusion','Fusion : nécessite Safya et Saad sur le terrain. Cri de guerre : invoque Hanna si elle n\'est pas en jeu.',[],'💑')
-   /* --- Famille Cousins (Rage & Destruction) --- */
+    C('f5','Safya x Saad','Nouvelle famille',8,7,7,'fusion','Fusion : nécessite Safya et Saad sur le terrain. Cri de guerre : invoque Hanna si elle n\'est pas en jeu.',[],'💑'),
+
+    /* --- Famille Cousins (Rage & Destruction) --- */
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
     C('c3','Meriem x Safya','Cousins',3,3,4,'rare','Rage : Pioche une carte.',['Rage'],'👭'),
@@ -149,6 +150,14 @@ dbCartes.forEach(c => parId[c.id] = c);
 
 function defCarte(id) { 
     return parId[id]; 
+}
+
+/* ---------- Générateur aléatoire synchronisé ---------- */
+let _syncSeed = 12345;
+function getSyncRandom() {
+    if (!modeEnLigne) return Math.random();
+    _syncSeed = (_syncSeed * 9301 + 49297) % 233280;
+    return _syncSeed / 233280;
 }
 
 /* ---------- Fusion : recettes ---------- */
@@ -254,10 +263,10 @@ const POUVOIRS = {
     s24:{mode:'eclair',cible:{camp:'tous',texte:'Échange attaque et vie'},jouer:({cible})=>{if(!cible)return;const a=cible.atk,v=cible.vie;cible.atk=Math.max(0,v);cible.vie=Math.max(1,a);cible.vieMax=cible.vie;fxSur(cible,'🔀','buff');}},
     s25:{mode:'eclair',jouer:({moi})=>{invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',[]);invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',[]);}},
     s26:{mode:'eclair',jouer:({moi,ennemi})=>{moi.terrain=null;ennemi.terrain=null;}},
-    s27:{mode:'eclair',cible:{camp:'ennemi',texte:'Endort une créature'},jouer:({cible})=>{if(cible){cible.gele=1;fxSur(cible,'💤','buff');}}},
+    s27:{mode:'eclair',cible:{camp:'ennemi',texte:'Endort une créature pour un tour'},jouer:({cible})=>{if(cible){cible.gele=1;fxSur(cible,'💤','buff');}}},
     s28:{mode:'eclair',jouer:({moi})=>moi.plateau.forEach(m=>buff(m,1,1))},
     s29:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.filter(m=>m.vie<=3).forEach(m=>fraper(m,999))},
-    s30:{mode:'eclair',cible:{camp:'allie',texte:'Transforme une créature'},jouer:({cible})=>{if(cible)transformerEn(cible,'Vase précieux',0,5,'🏺',['Provocation']);}},
+    s30:{mode:'eclair',cible:{camp:'allie',texte:'Transforme une créature alliée'},jouer:({cible})=>{if(cible)transformerEn(cible,'Vase précieux',0,5,'🏺',['Provocation']);}},
 
     s31:{mode:'eclair',cible:{camp:'tous',hero:true,texte:'Choisis un personnage'},jouer:({cible})=>{const pile=lancerPileOuFace();if(pile)soigner(cible,1);else fraper(cible,1);}},
     s32:{mode:'eclair',jouer:({moi})=>{const n=moi.plateau.some(m=>m.id==='ka10')?3:2;piocher(moi,n);}},
@@ -274,8 +283,10 @@ const POUVOIRS = {
     f2:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source).forEach(m=>buff(m,3,3))},
     f3:{mode:'eclair',jouer:({moi})=>{moi.contreSort=true;piocher(moi,1);}},
     f4:{mode:'eclair',jouer:({moi})=>{soinHero(moi,5);}},
-    f5:{mode:'eclair',jouer:({moi})=>{if(!moi.plateau.some(m=>m.id==='ka11'))invoquerJeton(moi,'Hanna',3,2,'👧🏻',[]);}}
-   c1: { mode:'infini', destruction: ({ ennemi }) => { ennemi.plateau.forEach(m => fraper(m, 3)); degatsHero(ennemi, 3); }},
+    f5:{mode:'eclair',jouer:({moi})=>{if(!moi.plateau.some(m=>m.id==='ka11'))invoquerJeton(moi,'Hanna',3,2,'👧🏻',[]);}},
+
+    /* --- Pouvoirs Cousins --- */
+    c1: { mode:'infini', destruction: ({ ennemi }) => { ennemi.plateau.forEach(m => fraper(m, 3)); degatsHero(ennemi, 3); }},
     c2: { mode:'infini', blesse: ({ source }) => { if(!source.motsCles.includes('Charge')){ source.motsCles.push('Charge'); source.malade = false; fxSur(source, 'Charge !', 'buff'); } buff(source, 2, 0); }},
     c3: { mode:'infini', blesse: ({ moi }) => { piocher(moi, 1); }},
     c4: { mode:'infini', destruction: ({ moi }) => { soinHero(moi, 4); }},
@@ -290,12 +301,12 @@ const POUVOIRS = {
     c12:{ mode:'infini', aura: true }
 };
 
+/* --- Ajout Automatique du mode "infini" pour Charge/Provoc/Rage/Destruction --- */
 dbCartes.forEach(c => {
     if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation')) {
         POUVOIRS[c.id] = { mode:'infini', aura:true };
     }
-    // Si la carte a "Rage", on s'assure juste qu'elle affiche le badge d'effet infini
-    if (c.motsCles.includes('Rage') && !POUVOIRS[c.id]) {
+    if ((c.motsCles.includes('Rage') || c.motsCles.includes('Destruction')) && !POUVOIRS[c.id]) {
         POUVOIRS[c.id] = { mode:'infini' };
     }
 });
@@ -315,15 +326,12 @@ const decksPreconstruits = [
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
-   { 
-        nom: 'Alliance des Cousins', 
-        cartes: ['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] 
-    }
     { nom:'Les Infiltrés', cartes:[
         'f1','f2','f3','f4','f5',
         'ka5','ka6', 'm4','m5', 'ma3','ma4', 'ka7','ka8', 'ka3','ka4',
         'm11','m12','ma11','ka11','n7'
-    ] }
+    ] },
+    { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] }
 ];
 
 let mesDecks = decksPreconstruits.map(d => ({ nom:d.nom, cartes:[...d.cartes], base:true }));
@@ -371,7 +379,7 @@ let _compteurAction = 0;
 let _replayEnCours = false;
 
 const autre = s => (s === J ? B : J);
-const hasard = a => (a && a.length ? a[Math.floor(Math.random() * a.length)] : null);
+const hasard = a => (a && a.length ? a[Math.floor(getSyncRandom() * a.length)] : null);
 const pause = ms => new Promise(r => setTimeout(r, ms));
 const atkTot = m => Math.max(0, m.atk + m.auraAtk);
 const estChat = m => m.motsCles.includes('Chat');
@@ -516,6 +524,8 @@ function creerHTMLCarte(c, ctx, opts) {
 
     const coutAffiche = opts.cout !== undefined ? opts.cout : c.cout;
     const classeTexte = POUVOIRS[c.id] ? 'pouvoir' : 'lore';
+    
+    // Classes CSS de la famille (Cousins a sa propre classe bg-Cousins)
     const clFamille = c.famille === 'Nouvelle famille' ? 'Nouvelle' : c.famille;
     const clRarete = c.rarete === 'fusion' ? 'fusion' : c.rarete;
 
@@ -622,7 +632,7 @@ function editerDeck(i) {
 function trierCollection(critere) {
     triCourant = critere;
     const ordreRarete = { fusion:0, legendaire:1, epique:2, rare:3, commune:4 };
-   const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, Cousins:5, 'Nouvelle famille':6, Neutre:7, Terrain:8, Sort:9 };
+    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, Cousins:5, 'Nouvelle famille':6, Neutre:7, Terrain:8, Sort:9 };
     
     const liste = [...dbCartes];
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom));
@@ -863,8 +873,6 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     B.deck = deckAdverseIds.map(id => instancier(defCarte(id), 'B'));
     melanger(B.deck);
 
-    // Initialisation basique, le tour officiel (tourActuel) 
-    // sera décidé après le Mulligan dans multi.js
     J.premier = false; B.premier = false;
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0;
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0;
@@ -882,9 +890,6 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     if (bfIn) bfIn.hidden = false;
 
     rafraichirJeu();
-    
-    // Ouvre le Mulligan. Une fois validé, il appelle signalerMulliganPret()
-    // et s'arrête. multi.js prend ensuite le relai pour lancer le T1.
     ouvrirMulligan();
 }
 
@@ -941,11 +946,6 @@ function ouvrirMulligan() {
     ajusterTextes(zone);
     document.getElementById('mulligan-overlay').classList.add('open');
     clearTimeout(_timerMulligan);
-
-    if (modeEnLigne) {
-        // Optionnel : limite de temps max. Sinon on attend la validation du joueur.
-        // Ici on le laisse manuel pour être sûr.
-    }
 }
 
 function validerMulligan(auto) {
@@ -969,8 +969,7 @@ function validerMulligan(auto) {
 
     document.getElementById('mulligan-overlay').classList.remove('open');
 
-    // EN LIGNE : On prévient Firebase qu'on a terminé notre choix
-    // Et on s'arrête ici. (multi.js prend le relais dans ecouterSalle)
+    // EN LIGNE
     if (modeEnLigne) {
         mulliganValide = true;
         info('En attente de l\'adversaire…');
@@ -980,7 +979,7 @@ function validerMulligan(auto) {
         return; 
     }
 
-    // HORS LIGNE : On lance le tour direct
+    // HORS LIGNE 
     if (tourActuel === 'joueur') debutTourJoueur();
     else jouerTourBot();
 }
@@ -1240,9 +1239,7 @@ function recalcAuras() {
 function coutEffectif(side, c) {
     let cout = c.cout;
     if (side.terrain && side.terrain.id === 't1' && estChat(c)) cout = 0;
-    // Nouvelle ligne pour le terrain Cherchell
     if (side.terrain && side.terrain.id === 'c12' && c.famille === 'Cousins') cout -= 1;
-    
     cout += side.surcout;
     return Math.max(0, cout);
 }
@@ -1598,7 +1595,6 @@ function finDeTour() {
     if (J.voitMainAdverse > 0) J.voitMainAdverse--;
 
     if (modeEnLigne) {
-        // Signaler la fin du tour à l'adversaire
         pousserAction({ type: 'fin' });
 
         modeAttente = true;
@@ -1609,7 +1605,6 @@ function finDeTour() {
         document.getElementById('btn-endturn').classList.add('inactif');
         info('L\'adversaire réfléchit...');
         
-        // Progression visuelle de l'adversaire sur ton écran
         prochainManaMax(B);
         B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
         piocher(B, 1);
