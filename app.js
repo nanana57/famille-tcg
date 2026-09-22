@@ -275,6 +275,19 @@ const POUVOIRS = {
     f3:{mode:'eclair',jouer:({moi})=>{moi.contreSort=true;piocher(moi,1);}},
     f4:{mode:'eclair',jouer:({moi})=>{soinHero(moi,5);}},
     f5:{mode:'eclair',jouer:({moi})=>{if(!moi.plateau.some(m=>m.id==='ka11'))invoquerJeton(moi,'Hanna',3,2,'👧🏻',[]);}}
+   c1: { mode:'infini', destruction: ({ ennemi }) => { ennemi.plateau.forEach(m => fraper(m, 3)); degatsHero(ennemi, 3); }},
+    c2: { mode:'infini', blesse: ({ source }) => { if(!source.motsCles.includes('Charge')){ source.motsCles.push('Charge'); source.malade = false; fxSur(source, 'Charge !', 'buff'); } buff(source, 2, 0); }},
+    c3: { mode:'infini', blesse: ({ moi }) => { piocher(moi, 1); }},
+    c4: { mode:'infini', destruction: ({ moi }) => { soinHero(moi, 4); }},
+    c5: { mode:'infini', blesse: ({ ennemi }) => { degatsHero(ennemi, 2); }},
+    c6: { mode:'infini', destruction: ({ moi }) => { const c = hasard(moi.plateau); if(c) buff(c, 2, 2); }},
+    c7: { mode:'infini', blesse: ({ source }) => { buff(source, 1, 1); }},
+    c8: { mode:'infini', destruction: ({ ennemi }) => { const cible = [...ennemi.plateau].sort((a,b) => atkTot(b) - atkTot(a))[0]; if(cible) fraper(cible, 999); }},
+    
+    c9: { mode:'eclair', jouer: ({ moi }) => { moi.plateau.forEach(m => fraper(m, 1)); piocher(moi, 2); }},
+    c10:{ mode:'eclair', jouer: ({ moi }) => { invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',['Provocation']); invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',['Provocation']); }},
+    c11:{ mode:'eclair', jouer: ({ moi, ennemi }) => { moi.plateau.forEach(m => { const p = POUVOIRS[m.id]; if(p && p.destruction && !m.silence) p.destruction({ moi, ennemi, source:m }); }); }},
+    c12:{ mode:'infini', aura: true }
 };
 
 dbCartes.forEach(c => {
@@ -302,6 +315,10 @@ const decksPreconstruits = [
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
+   { 
+        nom: 'Alliance des Cousins', 
+        cartes: ['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] 
+    }
     { nom:'Les Infiltrés', cartes:[
         'f1','f2','f3','f4','f5',
         'ka5','ka6', 'm4','m5', 'ma3','ma4', 'ka7','ka8', 'ka3','ka4',
@@ -605,7 +622,7 @@ function editerDeck(i) {
 function trierCollection(critere) {
     triCourant = critere;
     const ordreRarete = { fusion:0, legendaire:1, epique:2, rare:3, commune:4 };
-    const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, 'Nouvelle famille':5, Neutre:6, Terrain:7, Sort:8 };
+   const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, Cousins:5, 'Nouvelle famille':6, Neutre:7, Terrain:8, Sort:9 };
     
     const liste = [...dbCartes];
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom));
@@ -1223,6 +1240,9 @@ function recalcAuras() {
 function coutEffectif(side, c) {
     let cout = c.cout;
     if (side.terrain && side.terrain.id === 't1' && estChat(c)) cout = 0;
+    // Nouvelle ligne pour le terrain Cherchell
+    if (side.terrain && side.terrain.id === 'c12' && c.famille === 'Cousins') cout -= 1;
+    
     cout += side.surcout;
     return Math.max(0, cout);
 }
