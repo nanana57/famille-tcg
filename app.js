@@ -1070,7 +1070,10 @@ function appliquerDegatsCreature(m, n) {
     secouer(elOf(m.uid));
     
     const p = POUVOIRS[m.id];
-    if (p && p.blesse && !m.silence && m.vie > 0) p.blesse({ moi:coteDe(m), source:m });
+    // On ajoute "ennemi: autre(coteDe(m))" pour que la carte sache qui frapper
+    if (p && p.blesse && !m.silence && m.vie > 0) {
+        p.blesse({ moi: coteDe(m), ennemi: autre(coteDe(m)), source: m });
+    }
 }
 
 function degatsHero(side, n) {
