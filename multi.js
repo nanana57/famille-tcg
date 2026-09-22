@@ -1,8 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v22 — temps réel)
-   
-   Chaque action est poussée IMMÉDIATEMENT dans salles/<id>/queue
-   L'autre client écoute la queue et rejoue chaque action en direct
+   FAMILLE TCG — Multijoueur Firebase (v23 — temps réel corrigé)
    =========================================================== */
 
 const firebaseConfig = {
@@ -228,7 +225,8 @@ function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     if (!fbDB || !monPseudo) return;
     const partieId = _partieIdEnCours || calculerPartieId(monPseudo, pseudoAdverse);
     console.log('[Multi] 📤 Deck annoncé :', deckIds.length, 'cartes');
-    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ pret: true, deck: deckIds, mulligan: false });
+    // On valide le mulligan automatiquement pour éviter la désynchronisation réseau des mains
+    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ pret: true, deck: deckIds, mulligan: true });
 }
 
 /* ---------- Écoute de la salle ---------- */
@@ -258,19 +256,19 @@ function ecouterSalle(partieId) {
         // ---- Étape 1 : lancement ----
         if (decksPrets && !dejaLancee) {
             console.log('[Multi] ✅ Les deux decks sont prêts — lancement !');
-            console.log('[Multi]    mon rôle =', roleLocal, '— je commence =', roleLocal === 'joueur1');
             dejaLancee = true;
             window.multiPartie = {
                 active: true, adversaireId: pseudoAdverse, partieId, refSalle,
                 role: roleLocal, jeCommence: (roleLocal === 'joueur1'),
-                demarrageTraite: false
+                demarrageTraite: false, timestamp: s.timestamp
             };
-            lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck);
+            // Initialisation avec le seed commun pour les dés / pioches !
+            lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp);
             return;
         }
         if (!dejaLancee) return;
 
-        // ---- Étape 2 : mulligans validés → 1er tour ----
+        // ---- Étape 2 : Lancement officiel (Mulligans validés d'office) ----
         if (!window.multiPartie.demarrageTraite) {
             const mesMull = mesInfos.mulligan === true;
             const advMull = infosAdv.mulligan === true;
@@ -290,17 +288,16 @@ function ecouterSalle(partieId) {
                     modeAttente = true;
                     tourActuel = 'attente';
                     J.premier = false; B.premier = true;
+                    // Initialiser B localement
+                    prochainManaMax(B);
+                    piocher(B, 1);
+                    
                     document.getElementById('tour-indicateur').innerText = 'Tour adverse';
                     document.querySelector('.turn-pill').classList.add('bot');
                     document.getElementById('btn-endturn').classList.add('inactif');
                     info('L\'adversaire commence la partie…');
-
-                    // Simuler le 1er tour adverse pour le mana
-                    prochainManaMax(B);
-                    B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
-                    piocher(B, 1);
-                    rafraichirJeu();
                 }
+                rafraichirJeu();
             }
             return;
         }
@@ -330,24 +327,32 @@ async function traiterActionRecue(a) {
             }
             const carte = B.main[idx];
             let cible = null;
-            if (a.cibleUid) cible = [...J.plateau, ...B.plateau].find(m => m.uid === a.cibleUid) || null;
-            else if (a.cibleHero) cible = (a.cibleHero === 'J') ? J : B;
+            
+            // Résolution de l'index de cible (J ↔ B inversés depuis le point de vue réseau)
+            if (a.idxCible !== null && a.campCible !== null) {
+                const targetSide = (a.campCible === 'J') ? B : J;
+                cible = targetSide.plateau[a.idxCible];
+            } else if (a.cibleHero) {
+                cible = (a.cibleHero === 'J') ? B : J;
+            }
 
             if (carte.rarete === 'fusion') sacrifierPourFusion(B, carte.id);
             jouerCarte(B, idx, cible);
             break;
         }
         case 'attaque': {
-            const attaquant = B.plateau.find(m => m.uid === a.uid);
-            if (!attaquant) {
-                console.warn('[Multi] ⚠️ Attaquant introuvable :', a.uid);
-                return;
-            }
+            const attaquant = B.plateau[a.idxAttaquant];
             let cible = null;
-            if (a.cibleUid) cible = J.plateau.find(m => m.uid === a.cibleUid);
-            else if (a.cibleHero) cible = (a.cibleHero === 'J') ? J : B;
-            if (!cible) {
-                console.warn('[Multi] ⚠️ Cible introuvable');
+            
+            if (a.idxCible !== null && a.campCible !== null) {
+                const targetSide = (a.campCible === 'J') ? B : J;
+                cible = targetSide.plateau[a.idxCible];
+            } else if (a.cibleHero) {
+                cible = (a.cibleHero === 'J') ? B : J;
+            }
+            
+            if (!attaquant || !cible) {
+                console.warn('[Multi] ⚠️ Attaquant ou cible introuvable', a);
                 return;
             }
             attaquant._replay = true;
@@ -366,19 +371,13 @@ async function traiterActionRecue(a) {
             if (partieFinie) return;
             modeAttente = false;
             tourActuel = 'joueur';
+            J.premier = false; B.premier = true;
             debutTourJoueur();
             break;
         }
         default:
             console.warn('[Multi] Type d\'action inconnu :', a.type);
     }
-}
-
-/* ---------- Mulligan ---------- */
-function signalerMulliganPret() {
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    console.log('[Multi] ✅ Mulligan validé');
-    window.multiPartie.refSalle.child('joueurs/' + monPseudo).update({ mulligan: true });
 }
 
 /* ---------- Forfait en ligne ---------- */
