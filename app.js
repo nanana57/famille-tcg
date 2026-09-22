@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (v26 — Cousins, Rage & Destruction)
+   FAMILLE TCG — moteur de jeu (v27 — Correction Freeze Rage)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -132,11 +132,11 @@ const dbCartes = [
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
     C('c3','Meriem x Safya','Cousins',3,3,4,'rare','Rage : Pioche une carte.',['Rage'],'👭'),
-    C('c4','Amina x Camilla','Cousins',2,2,2,'commune','Destruction : Rend 4 patience à ton héros.',['Destruction'],'👭'),
-    C('c5','Anness x Chafik','Cousins',4,4,5,'rare','Provocation. Rage : Inflige 2 dégâts au héros adverse.',['Provocation','Rage'],'👬'),
+    C('c4','Amina x Inès','Cousins',2,2,2,'commune','Destruction : Rend 4 patience à ton héros.',['Destruction'],'👭'),
+    C('c5','Anness x Nassim','Cousins',4,4,5,'rare','Provocation. Rage : Inflige 2 dégâts au héros adverse.',['Provocation','Rage'],'👬'),
     C('c6','Ryma x Lyna','Cousins',3,4,2,'commune','Destruction : Donne +2/+2 à une de tes créatures au hasard.',['Destruction'],'👭'),
-    C('c7','Islem x Toufik','Cousins',1,1,3,'commune','Rage : Gagne +1/+1.',['Rage'],'👬'),
-    C('c8','Asma x Zahida','Cousins',6,5,5,'epique','Destruction : Détruit la créature ennemie ayant le plus d\'attaque.',['Destruction'],'👭'),
+    C('c7','Imran x Toufik','Cousins',1,1,3,'commune','Rage : Gagne +1/+1.',['Rage'],'👬'),
+    C('c8','Asma x Hiba','Cousins',6,5,5,'epique','Destruction : Détruit la créature ennemie ayant le plus d\'attaque.',['Destruction'],'👭'),
     
     /* --- Sorts & Terrain Cousins --- */
     C('c9','Bagarre de cousins','Sort',2,0,0,'commune','Inflige 1 dégât à toutes tes créatures (déclenche la Rage). Pioche 2 cartes.',[],'🤼'),
@@ -525,7 +525,6 @@ function creerHTMLCarte(c, ctx, opts) {
     const coutAffiche = opts.cout !== undefined ? opts.cout : c.cout;
     const classeTexte = POUVOIRS[c.id] ? 'pouvoir' : 'lore';
     
-    // Classes CSS de la famille (Cousins a sa propre classe bg-Cousins)
     const clFamille = c.famille === 'Nouvelle famille' ? 'Nouvelle' : c.famille;
     const clRarete = c.rarete === 'fusion' ? 'fusion' : c.rarete;
 
@@ -969,7 +968,6 @@ function validerMulligan(auto) {
 
     document.getElementById('mulligan-overlay').classList.remove('open');
 
-    // EN LIGNE
     if (modeEnLigne) {
         mulliganValide = true;
         info('En attente de l\'adversaire…');
@@ -979,7 +977,6 @@ function validerMulligan(auto) {
         return; 
     }
 
-    // HORS LIGNE 
     if (tourActuel === 'joueur') debutTourJoueur();
     else jouerTourBot();
 }
@@ -1064,13 +1061,17 @@ function fraper(cible, n) {
     else degatsHero(cible, n);
 }
 
+/* 
+ * ! LA CORRECTION EST ICI !
+ * J'ai ajouté le paramètre `ennemi: autre(coteDe(m))` pour que 
+ * la carte sache qui est son adversaire lors d'une Rage.
+ */
 function appliquerDegatsCreature(m, n) {
     m.vie -= n;
     fxSur(m, '-' + Math.min(n, 99), 'degat');
     secouer(elOf(m.uid));
     
     const p = POUVOIRS[m.id];
-    // On ajoute "ennemi: autre(coteDe(m))" pour que la carte sache qui frapper
     if (p && p.blesse && !m.silence && m.vie > 0) {
         p.blesse({ moi: coteDe(m), ennemi: autre(coteDe(m)), source: m });
     }
