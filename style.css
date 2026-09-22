@@ -226,7 +226,9 @@ body:has(#game-screen.active){
 .bg-Marouf{background:linear-gradient(150deg,#8fd3ff,#0a84d8)}
 .bg-Kerkache{background:linear-gradient(150deg,#7ff0c8,#00a878)}
 .bg-Belgacemi{background:linear-gradient(150deg,#ffe9a8,#f0a93b)}
-.bg-Cousins { background: linear-gradient(150deg, #ffc872, #e87b1c)}
+.bg-Cousins {
+    background: linear-gradient(150deg, #d63031, #0a84d8);
+}
 .bg-Neutre{background:linear-gradient(150deg,#e8eef3,#a9b7c3)}
 .bg-Sort{background:linear-gradient(150deg,#c3b6ff,#6c4bdb)}
 .bg-Terrain{background:linear-gradient(150deg,#f0a07c,#c1512a)}
