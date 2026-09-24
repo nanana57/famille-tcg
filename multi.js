@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime : Auth & Admin)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime : Sécurité anti-blocage)
    =========================================================== */
 
 const firebaseConfig = {
@@ -30,16 +30,20 @@ function normaliserPseudo(p) {
 function calculerPartieId(a, b) { return 'p_' + [normaliserPseudo(a), normaliserPseudo(b)].sort().join('_vs_'); }
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        fbDB = firebase.database();
-        
-        firebase.auth().onAuthStateChanged(user => {
-            if (user) {
-                monId = user.uid;
-                initApresAuth(user);
-            }
-        });
+    try {
+        if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+            fbDB = firebase.database();
+            
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    monId = user.uid;
+                    initApresAuth(user);
+                }
+            });
+        }
+    } catch(e) {
+        console.error("Firebase a été bloqué par le navigateur.");
     }
 
     const elLogin = document.getElementById('auth-password-login');
@@ -49,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(elReg) elReg.addEventListener('keydown', e => { if(e.key === 'Enter') creerCompte(); });
 });
 
-/* ---------- Authentification ---------- */
+/* ---------- Authentification & Fallback Hors-Ligne ---------- */
 function toggleAuthMode(mode) {
     if (mode === 'register') {
         document.getElementById('box-login').classList.add('hidden');
@@ -60,6 +64,29 @@ function toggleAuthMode(mode) {
     }
 }
 
+// Fonction de sauvetage absolu : force l'entrée dans le jeu même si Firebase plante
+function lancerModeHorsLigne(pseudoForce, emailForce) {
+    if (typeof J === 'undefined') {
+        alert("Erreur critique : le fichier app.js a mal chargé. Vide le cache de ton navigateur (Ctrl + F5).");
+        return;
+    }
+    
+    J.nom = pseudoForce || "Joueur_" + Math.floor(Math.random() * 1000);
+    monPseudo = normaliserPseudo(J.nom);
+    
+    const disp = document.getElementById('display-pseudo');
+    if(disp) disp.innerText = J.nom;
+    
+    const hero = document.getElementById('hero-name');
+    if(hero) hero.innerText = J.nom;
+    
+    const nav = document.getElementById('main-nav');
+    if(nav) nav.classList.remove('hidden');
+    
+    if (typeof chargerProgression === 'function') chargerProgression(emailForce);
+    if (typeof changerEcran === 'function') changerEcran('menu-screen');
+}
+
 function connexionCompte() {
     const err = document.getElementById('auth-error-login');
     const ident = document.getElementById('auth-ident-login').value.trim();
@@ -68,23 +95,56 @@ function connexionCompte() {
 
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
-    if (ident.includes('@')) {
-        firebase.auth().signInWithEmailAndPassword(ident, pwd)
-            .then(() => err.innerText = "Connecté ! Chargement...")
-            .catch(e => err.innerText = "Erreur : " + e.message);
-    } else {
-        const pseudoNorm = normaliserPseudo(ident);
-        fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
-            if (snap.exists() && snap.val().email) {
-                firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd)
-                    .then(() => err.innerText = "Connecté ! Chargement...")
-                    .catch(e => err.innerText = "Mot de passe incorrect.");
-            } else {
-                err.innerText = "Pseudo introuvable. As-tu créé un compte ?";
+    if (typeof firebase === 'undefined') {
+        err.innerText = "Firebase bloqué. Lancement hors ligne...";
+        setTimeout(() => lancerModeHorsLigne(ident, ident), 1500);
+        return;
+    }
+
+    // Sécurité : Si Firebase ne répond pas dans les 6 secondes, on passe hors-ligne
+    let timeout = setTimeout(() => {
+        if (err.innerText === "Connexion en cours...") {
+            err.innerText = "Le serveur ne répond pas. Passage en mode hors ligne...";
+            setTimeout(() => lancerModeHorsLigne(ident, ident), 1500);
+        }
+    }, 6000);
+
+    try {
+        if (ident.includes('@')) {
+            firebase.auth().signInWithEmailAndPassword(ident, pwd).then(() => {
+                clearTimeout(timeout);
+                err.innerText = "Connecté !";
+            }).catch(e => {
+                clearTimeout(timeout);
+                err.innerText = "Erreur : " + e.message;
+            });
+        } else {
+            const pseudoNorm = normaliserPseudo(ident);
+            if (fbDB) {
+                fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
+                    if (snap.exists() && snap.val().email) {
+                        firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).then(() => {
+                            clearTimeout(timeout);
+                            err.innerText = "Connecté !";
+                        }).catch(e => {
+                            clearTimeout(timeout);
+                            err.innerText = "Mot de passe incorrect.";
+                        });
+                    } else {
+                        clearTimeout(timeout);
+                        err.innerText = "Pseudo introuvable ou ancien compte. Inscris-toi !";
+                    }
+                }).catch(() => {
+                    clearTimeout(timeout);
+                    err.innerText = "Base de données bloquée. Lancement hors ligne...";
+                    setTimeout(() => lancerModeHorsLigne(ident, null), 1500);
+                });
             }
-        }).catch(() => {
-            err.innerText = "Base de données bloquée : Connecte-toi avec ton E-mail.";
-        });
+        }
+    } catch (e) {
+        clearTimeout(timeout);
+        err.innerText = "Erreur locale. Lancement hors ligne...";
+        setTimeout(() => lancerModeHorsLigne(ident, null), 1500);
     }
 }
 
@@ -99,53 +159,70 @@ function creerCompte() {
     if(!pseudo || !email || !pwd) { err.innerText = "Tous les champs sont requis."; return; }
     if (pwd.length < 6) { err.innerText = "Le mot de passe doit faire au moins 6 caractères."; return; }
 
-    const pseudoNorm = normaliserPseudo(pseudo);
+    if (typeof firebase === 'undefined') {
+        err.innerText = "Firebase bloqué. Lancement hors ligne...";
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+        return;
+    }
 
-    // On crée l'utilisateur. Quoi qu'il arrive avec la base de données, le joueur pourra jouer.
-    firebase.auth().createUserWithEmailAndPassword(email, pwd)
-        .then(creds => {
-            err.innerText = "Compte créé ! Lancement du jeu...";
-            // On tente d'enregistrer le pseudo sans bloquer le processus si Firebase refuse
-            fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
-            fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email }).catch(()=>{});
-            // La fonction initApresAuth prendra le relais automatiquement
-        })
-        .catch(e => { err.innerText = "Erreur : " + e.message; });
+    // Sécurité anti-chargement infini
+    let timeout = setTimeout(() => {
+        if(err.innerText === "Création du compte en cours...") {
+            err.innerText = "Le serveur ne répond pas. Passage en mode hors ligne...";
+            setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+        }
+    }, 6000);
+
+    try {
+        firebase.auth().createUserWithEmailAndPassword(email, pwd)
+            .then(creds => {
+                clearTimeout(timeout);
+                err.innerText = "Compte créé avec succès !";
+                if(fbDB) {
+                    const pseudoNorm = normaliserPseudo(pseudo);
+                    fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
+                    fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email }).catch(()=>{});
+                }
+            })
+            .catch(e => { 
+                clearTimeout(timeout);
+                err.innerText = "Erreur : " + e.message; 
+            });
+    } catch(e) {
+        clearTimeout(timeout);
+        err.innerText = "Erreur locale. Lancement hors ligne...";
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+    }
 }
 
 function initApresAuth(user) {
-    if (user.email === 'nassim57132@gmail.com') {
-        document.getElementById('nav-admin').classList.remove('hidden');
-    }
+    try {
+        if (user && user.email === 'nassim57132@gmail.com') {
+            const adminBtn = document.getElementById('nav-admin');
+            if(adminBtn) adminBtn.classList.remove('hidden');
+        }
 
-    // On débloque immédiatement l'interface utilisateur
-    document.getElementById('main-nav').classList.remove('hidden');
-    if (('ontouchstart' in window) && window.innerWidth <= 1366) {
-        const el = document.documentElement; 
-        if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    }
+        if (('ontouchstart' in window) && window.innerWidth <= 1366) {
+            const el = document.documentElement; 
+            if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        }
 
-    // On tente de lire le pseudo, si la base de données bloque, on force le passage
-    fbDB.ref('profils/' + user.uid).once('value').then(snap => {
-        let p = snap.val();
-        J.nom = (p && p.pseudo) ? p.pseudo : "Joueur_" + Math.floor(Math.random()*1000);
-        monPseudo = normaliserPseudo(J.nom);
-        document.getElementById('display-pseudo').innerText = J.nom;
-        document.getElementById('hero-name').innerText = J.nom;
-        
-        chargerProgression(user.email); 
-        changerEcran('menu-screen');
-        setupFirebaseListeners();
-    }).catch(() => {
-        // Fallback ultime : On laisse le joueur entrer même si Firebase bloque la lecture
-        J.nom = "Joueur_" + Math.floor(Math.random()*1000);
-        monPseudo = normaliserPseudo(J.nom);
-        document.getElementById('display-pseudo').innerText = J.nom;
-        document.getElementById('hero-name').innerText = J.nom;
-        
-        chargerProgression(user.email); 
-        changerEcran('menu-screen');
-    });
+        if(fbDB && user) {
+            fbDB.ref('profils/' + user.uid).once('value').then(snap => {
+                let p = snap.val();
+                let pseudo = (p && p.pseudo) ? p.pseudo : "Joueur_" + Math.floor(Math.random()*1000);
+                lancerModeHorsLigne(pseudo, user.email);
+                setupFirebaseListeners();
+            }).catch(() => {
+                lancerModeHorsLigne("Joueur_" + Math.floor(Math.random()*1000), user.email);
+            });
+        } else {
+            lancerModeHorsLigne("Joueur_" + Math.floor(Math.random()*1000), user ? user.email : null);
+        }
+    } catch (e) {
+        // Fallback de dernier recours
+        lancerModeHorsLigne("Joueur_Erreur", null);
+    }
 }
 
 function setupFirebaseListeners() {
@@ -324,12 +401,16 @@ window.addEventListener('beforeunload', () => { if (fbDB && monId) { fbDB.ref('j
    FONCTIONS ADMIN
    =========================================================== */
 function adminToutDebloquer() {
-    dbCartes.forEach(c => {
-        initColl(c.id);
-        collectionJoueur[c.id][c.rarete] = 10;
-    });
-    sauvegarderProgression();
-    alert("C'est fait, tu as 10 exemplaires de chaque carte.");
+    if (typeof collectionJoueur !== 'undefined' && typeof dbCartes !== 'undefined') {
+        dbCartes.forEach(c => {
+            if (!collectionJoueur[c.id]) {
+                collectionJoueur[c.id] = { commune: 0, rare: 0, epique: 0, legendaire: 0, fusion: 0 };
+            }
+            collectionJoueur[c.id][c.rarete] = 10;
+        });
+        sauvegarderProgression();
+        alert("C'est fait, tu as 10 exemplaires de chaque carte.");
+    }
 }
 
 function adminNettoyerSalles() {
