@@ -48,7 +48,7 @@
     </div>
 </div>
 
-<!-- Bulle de Tutoriel Interactif sans bouton terminer -->
+<!-- Bulle de Tutoriel Interactif (Bouton Terminer retiré) -->
 <div id="tuto-bubble" class="hidden">
     <div class="tuto-text" id="tuto-text"></div>
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
@@ -173,25 +173,47 @@
     </div>
 </div>
 
-<!-- ECRAN DECKBUILDER & BOUTIQUE -->
+<!-- ECRAN DECKBUILDER & BOUTIQUE REFONDU -->
 <div id="deckbuilder-screen" class="screen">
-    <div class="deckbuilder-container">
+    <div class="db-header">
+        <button id="btn-tab-boutique" class="btn-tab active" onclick="switchDbTab('boutique')">Boutique & Collection Globale</button>
+        <button id="btn-tab-decks" class="btn-tab" onclick="switchDbTab('decks')">Modifier mes Decks</button>
+        <div class="nav-pseudo" style="margin-left:auto">
+            <span id="db-coins" style="color:var(--laiton); font-weight:800;">0 💰</span>
+        </div>
+    </div>
+
+    <!-- ONGLETS BOUTIQUE -->
+    <div id="tab-boutique" class="db-tab-content active">
+        <div class="collection-area" style="padding-top:10px;">
+            <div class="sort-bar">
+                <h3>Toutes les cartes</h3>
+                <div class="sort-actions">
+                    <button class="btn-chip" onclick="afficherBoutique('cout')">Coût</button>
+                    <button class="btn-chip" onclick="afficherBoutique('rarete')">Rareté</button>
+                    <button class="btn-chip" onclick="afficherBoutique('famille')">Famille</button>
+                </div>
+            </div>
+            <div class="grid" id="boutique-grid"></div>
+        </div>
+    </div>
+
+    <!-- ONGLETS DECKS -->
+    <div id="tab-decks" class="db-tab-content deckbuilder-container hidden">
         <aside class="sidebar">
             <h3>Mes decks</h3>
             <div id="liste-decks"></div>
-            <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck</button>
         </aside>
         
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Toutes les cartes <span id="collection-count" class="hint"></span></h3>
+                <h3>Cartes possédées</h3>
                 <div class="sort-actions">
                     <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
                     <button class="btn-chip" onclick="trierCollection('rarete')">Rareté</button>
                     <button class="btn-chip" onclick="trierCollection('famille')">Famille</button>
                 </div>
             </div>
-            <!-- Grille où s'affichent toutes les cartes (possédées ou non) -->
             <div class="grid" id="collection-grid"></div>
         </section>
 
