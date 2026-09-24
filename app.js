@@ -1,14 +1,12 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime Complète)
+   FAMILLE TCG — moteur de jeu (Édition Ultime Tuto & Éco)
    =========================================================== */
 
-/* ---------- 1. Base de cartes ---------- */
 function C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji) {
     return { id, prenom, famille, cout, atk, vie, rarete, desc, motsCles: motsCles || [], emoji };
 }
 
 const dbCartes = [
-    /* --- Meridja --- */
     C('m1','Farid','Meridja',6,5,6,'legendaire','Cri de guerre : donne +2/+2 aux autres Meridja alliés.',[],'👨🏻'),
     C('m2','Bachira','Meridja',6,4,7,'legendaire','Quand elle subit des dégâts, rend 3 patience à son héros.',['Provocation'],'👩🏻'),
     C('m3','Meriem','Meridja',4,4,4,'epique','Gagne +1/+1 pour chaque Marouf adverse en jeu.',[],'👱‍♀️'),
@@ -22,7 +20,6 @@ const dbCartes = [
     C('m11','Imran','Meridja',2,2,2,'commune','Cri de guerre : lance un dé. Pair, pioche une carte. Impair, gagne 1 mana ce tour. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏽'),
     C('m12','Zacharia','Meridja',4,3,3,'epique','Cri de guerre : lance un dé et inflige ce nombre de dégâts au héros adverse. Gagne +2/+2 si Amina et Marouane sont en jeu.',[],'👦🏼'),
 
-    /* --- Marouf --- */
     C('ma1','Nourdinne','Marouf',6,4,6,'legendaire','Cri de guerre : -2 attaque à toutes les créatures ennemies.',[],'👨🏽‍🦳'),
     C('ma2','Karima','Marouf',6,3,8,'legendaire','À la fin de ton tour, pioche une carte.',['Provocation'],'🧕'),
     C('ma3','Islem','Marouf',4,4,5,'epique','Annule le prochain sort lancé par l\'adversaire.',[],'🧑🏽'),
@@ -35,7 +32,6 @@ const dbCartes = [
     C('ma10','Chat Islem','Marouf',2,2,1,'commune','Ronronne pour apaiser les tensions.',['Charge','Chat'],'🐈'),
     C('ma11','Hiba','Marouf',3,2,4,'rare','Cri de guerre : lance un dé et inflige ce nombre de dégâts à une cible ennemie. Gagne +2/+2 si Inès et Islem sont en jeu.',[],'👧🏽'),
 
-    /* --- Kerkache --- */
     C('k1','Sid Ali','Kerkache',7,5,7,'legendaire','Les créatures alliées adjacentes ne peuvent pas être ciblées par les sorts.',['Provocation'],'👴🏽'),
     C('k2','Samia','Kerkache',6,4,8,'legendaire','À la fin de ton tour, rend 3 patience à ton héros.',[],'👵🏻'),
     C('k3','Farid K.','Kerkache',5,5,6,'epique','Tant qu\'il est blessé, gagne +3 en attaque.',[],'👨🏽'),
@@ -45,7 +41,6 @@ const dbCartes = [
     C('k7','Pina','Kerkache',2,1,2,'commune','Oiseau ultra rapide : attaque dès son arrivée.',['Charge'],'🦜'),
     C('k8','Oiseau 2','Kerkache',2,1,2,'commune','Gazouille joyeusement.',['Charge'],'🕊️'),
 
-    /* --- Belgacemi --- */
     C('ka1','Khaled','Belgacemi',6,5,5,'legendaire','Cri de guerre : donne +2/+2 aux autres Belgacemi alliés.',[],'👨🏽'),
     C('ka2','Hanifa','Belgacemi',6,3,6,'legendaire','Cri de guerre : invoque un Bon repas 3/3.',[],'🧕'),
     C('ka3','Safya','Belgacemi',4,4,4,'epique','Cri de guerre : double l\'attaque de Saad s\'il est en jeu.',[],'👩🏽'),
@@ -58,7 +53,6 @@ const dbCartes = [
     C('ka10','Kamel','Belgacemi',2,3,2,'commune','Cri de guerre : +1/+1 à Camilla si elle est en jeu.',[],'👦🏻'),
     C('ka11','Hanna','Belgacemi',3,2,4,'rare','Cri de guerre : lance un dé et soigne une cible alliée de ce nombre de PV. Gagne +2/+2 si Saad et Safya sont en jeu.',[],'👧🏻'),
 
-    /* --- Neutres --- */
     C('n1','Mima','Neutre',8,4,8,'legendaire','À la fin de ton tour, soigne entièrement tes créatures.',['Provocation'],'👵🏻'),
     C('n2','Sidou','Neutre',6,6,6,'legendaire','Cri de guerre : endort une créature ennemie pendant 2 tours.',[],'👴🏻'),
     C('n3','Nounou','Neutre',4,2,5,'rare','Cri de guerre : rend 2 patience à ton héros.',[],'👩‍🍼'),
@@ -67,7 +61,6 @@ const dbCartes = [
     C('n6','Le voisin relou','Neutre',2,1,4,'commune','Provocation. Il est toujours là quand il faut pas.',['Provocation'],'👨‍🦰'),
     C('n7','Khalo Kamel','Neutre',5,3,6,'epique','Soutien : à la fin de ton tour, donne +1/+1 à une créature alliée au hasard.',[],'🧔‍♂️'),
 
-    /* --- Terrain --- */
     C('t1','Moeurs Verdey','Terrain',4,0,0,'commune','Tes chats coûtent 1 mana de moins.',[],'🌍'),
     C('t2','Villeparisis','Terrain',4,0,0,'commune','Tes créatures avec Provocation gagnent +2 en vie.',[],'🏙️'),
     C('t3','Belleville','Terrain',4,0,0,'commune','À la fin de chaque tour, rend 2 patience aux deux héros.',[],'🏡'),
@@ -77,7 +70,6 @@ const dbCartes = [
     C('t7','Pontault-Combault','Terrain',3,0,0,'commune','Cri de guerre : lance un dé. 4 ou plus, soigne ton héros de 2 PV.',[],'🏘️'),
     C('t8','Clamart','Terrain',3,0,0,'rare','Cri de guerre : pile ou face. Pile, l\'adversaire défausse une carte. Face, il ne se passe rien.',[],'🚇'),
 
-    /* --- Sorts classiques --- */
     C('s1','Va ranger ta chambre !','Sort',2,0,0,'commune','Renvoie une créature ennemie dans la main de son propriétaire.',[],'🧹'),
     C('s2','Qui a touché au thermostat ?','Sort',4,0,0,'epique','Inflige 2 dégâts à toutes les créatures.',[],'🌡️'),
     C('s3','La télécommande perdue','Sort',3,0,0,'rare','Endort une créature ennemie au hasard pendant un tour.',[],'📺'),
@@ -109,7 +101,6 @@ const dbCartes = [
     C('s29','Grand-mère a le dernier mot','Sort',6,0,0,'legendaire','Détruit toutes les créatures ennemies ayant 3 vie ou moins.',[],'👵'),
     C('s30','Cadeau de mariage moche','Sort',2,0,0,'rare','Transforme une créature alliée ciblée en Vase précieux 0/5 avec Provocation.',[],'🏺'),
 
-    /* --- Nouveaux sorts --- */
     C('s31','Un verre de thé','Sort',2,0,0,'commune','Lance une pièce. Pile : +1 vie à un personnage. Face : -1 vie à un personnage.',[],'🍵'),
     C('s32','Le PC de Kamel','Sort',3,0,0,'rare','Pioche 2 cartes. Si Kamel est en jeu, pioche 3 cartes à la place.',[],'💻'),
     C('s33','Le nounours de Hanna','Sort',2,0,0,'commune','Donne +0/+3 à une créature alliée. Si Hanna est en jeu, donne +1/+3.',[],'🧸'),
@@ -121,14 +112,12 @@ const dbCartes = [
     C('s39','La bénédiction de Mima','Sort',5,0,0,'epique','Donne +2/+2 à toutes tes créatures.',[],'🙏'),
     C('s40','La malédiction de Khaled','Sort',4,0,0,'rare','Réduit l\'attaque de toutes les créatures ennemies de 2.',[],'💀'),
 
-    /* --- Cartes Fusion --- */
     C('f1','Naila x Nassim','Nouvelle famille',8,7,7,'fusion','Fusion : nécessite Naila et Nassim. Cri de guerre : inflige 4 dégâts répartis aléatoirement entre les ennemis.',[],'💑'),
     C('f2','Amina x Marouane','Nouvelle famille',8,6,8,'fusion','Fusion : nécessite Amina et Marouane. Cri de guerre : donne +3/+3 à toutes les autres créatures alliées.',[],'💑'),
     C('f3','Ines x Islem','Nouvelle famille',9,8,8,'fusion','Fusion : nécessite Inès et Islem. Cri de guerre : annule le prochain sort adverse et pioche une carte.',[],'💑'),
     C('f4','Toufik x Manel','Nouvelle famille',7,5,9,'fusion','Fusion : nécessite Toufik et Manel. Provocation. Cri de guerre : soigne ton héros de 5 patience.',['Provocation'],'💑'),
     C('f5','Safya x Saad','Nouvelle famille',8,7,7,'fusion','Fusion : nécessite Safya et Saad. Cri de guerre : invoque Hanna si elle n\'est pas en jeu.',[],'💑'),
 
-    /* --- Famille Cousins (Rage & Destruction) --- */
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
     C('c3','Meriem x Safya','Cousins',3,3,4,'rare','Rage : Pioche une carte.',['Rage'],'👭'),
@@ -138,7 +127,6 @@ const dbCartes = [
     C('c7','Imran x Toufik','Cousins',1,1,3,'commune','Rage : Gagne +1/+1.',['Rage'],'👬'),
     C('c8','Asma x Hiba','Cousins',6,5,5,'epique','Destruction : Détruit la créature ennemie ayant le plus d\'attaque.',['Destruction'],'👭'),
     
-    /* --- Sorts & Terrain Cousins --- */
     C('c9','Bagarre de cousins','Sort',2,0,0,'commune','Inflige 1 dégât à toutes tes créatures (déclenche la Rage). Pioche 2 cartes.',[],'🤼'),
     C('c10','La table des enfants','Sort',4,0,0,'rare','Invoque deux Cousins éloignés 1/1 avec Provocation.',[],'🧒'),
     C('c11','Le grand repas','Sort',5,0,0,'epique','Déclenche l\'effet de Destruction de toutes tes créatures sans les tuer.',[],'🍽️'),
@@ -148,9 +136,7 @@ const dbCartes = [
 const parId = {};
 dbCartes.forEach(c => parId[c.id] = c);
 
-function defCarte(id) { 
-    return parId[id]; 
-}
+function defCarte(id) { return parId[id]; }
 
 /* ---------- Générateur aléatoire synchronisé ---------- */
 let _syncSeed = 12345;
@@ -297,12 +283,7 @@ function modePouvoir(carte) { const p = POUVOIRS[carte.id]; if (!p) return null;
 let collectionJoueur = {};
 let mesDecks = [];
 
-// Le profil stocke l'économie et la progression
-let profil = { 
-    coins: 0, 
-    deckStart: false, 
-    lastLogin: 0 
-};
+let profil = { coins: 0, deckStart: false, lastLogin: 0 };
 
 const decksPreconstruits = [
     { nom:'Meridja Aggro',   cartes:['m1','m2','m3','m4','m4','m5','m5','m6','m6','m7','m7','m8','m8','m9','m9','m10','n1','n2','m11','m12'] },
@@ -315,7 +296,19 @@ const decksPreconstruits = [
 
 let deckEnEdition = null, tempDeckCartes = [], triCourant = 'cout';
 
-function chargerProgression() {
+function majTopBarCoins() {
+    const el = document.getElementById('nav-coins');
+    if(el) {
+        if(profil.coins >= 999999) el.innerText = "∞ 🪙";
+        else el.innerText = profil.coins + " 🪙";
+    }
+}
+
+function chargerProgression(email) {
+    if (email === 'nassim57132@gmail.com') {
+        profil.coins = 9999999;
+    }
+
     try {
         const brut = localStorage.getItem('ftcg_save_' + (monId || 'local'));
         if (brut) {
@@ -326,70 +319,70 @@ function chargerProgression() {
         }
     } catch (e) { console.error("Erreur chargement save", e); }
 
-    // Bonus journalier
+    // Admin overwrite au cas où c'était écrasé par la sauvegarde
+    if (email === 'nassim57132@gmail.com') { profil.coins = 9999999; }
+
     const maintenant = Date.now();
-    if (maintenant - profil.lastLogin > 86400000) { // 24 heures = 86400000 ms
+    if (maintenant - profil.lastLogin > 86400000) { 
         profil.coins += 50;
         profil.lastLogin = maintenant;
         flashInfo("🎁 Bonus de connexion quotidien : +50 Kadour Coins !");
         sauvegarderProgression();
     }
 
-    // Attribution du deck de départ à la toute première connexion
-    if (!profil.deckStart) {
-        attribuerDeckDepart();
+    if (!profil.deckStart) { attribuerDeckDepart(); }
+    
+    // Si c'est un ancien joueur mais qu'il n'a pas tous les 6 decks dans mesDecks, on les crée vides
+    if (mesDecks.length === 0) {
+        decksPreconstruits.forEach(d => { mesDecks.push({ nom: d.nom, cartes:[], base:true }); });
+        sauvegarderProgression();
     }
+
+    majTopBarCoins();
 }
 
 function sauvegarderProgression() {
     const data = { profil, collectionJoueur, mesDecks };
     try { localStorage.setItem('ftcg_save_' + (monId || 'local'), JSON.stringify(data)); } catch (e) {}
-    
-    // Si on est connecté à Firebase (via multi.js), on pousse la sauvegarde
     if (typeof fbDB !== 'undefined' && fbDB && typeof monId !== 'undefined' && monId) {
         fbDB.ref('profils/' + monId + '/save').set(data);
     }
+    majTopBarCoins();
 }
 
 function attribuerDeckDepart() {
     const famillesDeBase = ['Meridja', 'Marouf', 'Kerkache', 'Belgacemi'];
-    // getSyncRandom n'est pas bon ici car on est au chargement, on utilise Math.random
     const familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)];
-    
-    // On trouve le deck préconstruit correspondant
     const precon = decksPreconstruits.find(d => d.nom.includes(familleChoisie));
     
-    // Le joueur reçoit ce deck
-    mesDecks = [{ nom: "Mon 1er Deck (" + familleChoisie + ")", cartes: [...precon.cartes], base: false }];
-    
-    // On lui donne les cartes du deck
-    precon.cartes.forEach(id => collectionJoueur[id] = (collectionJoueur[id] || 0) + 1);
-    
-    // On lui débloque TOUTES les cartes Communes de cette famille
-    dbCartes.forEach(c => {
-        if (c.famille === familleChoisie && c.rarete === 'commune') {
-            collectionJoueur[c.id] = 2; // 2 exemplaires max
+    // On initialise les 6 slots de decks
+    mesDecks = [];
+    decksPreconstruits.forEach(d => {
+        if(d.nom === precon.nom) {
+            mesDecks.push({ nom: d.nom, cartes: [...d.cartes], base: true });
+        } else {
+            mesDecks.push({ nom: d.nom, cartes: [], base: true }); // Vides pour l'instant
         }
+    });
+    
+    precon.cartes.forEach(id => collectionJoueur[id] = (collectionJoueur[id] || 0) + 1);
+    dbCartes.forEach(c => {
+        if (c.famille === familleChoisie && c.rarete === 'commune') collectionJoueur[c.id] = 2;
     });
 
     profil.deckStart = true;
-    profil.coins += 100; // Cadeau de bienvenue
+    profil.coins += 100;
     sauvegarderProgression();
-    
-    setTimeout(() => {
-        alert(`🎉 Bienvenue ! Tu as reçu le deck de départ ${familleChoisie} et 100 Kadour Coins en cadeau !`);
-    }, 500);
+    setTimeout(() => { alert(`🎉 Bienvenue ! Tu as reçu le deck de départ ${familleChoisie} et 100 Kadour Coins en cadeau !`); }, 500);
 }
 
 /* ---------- 4. État de partie ---------- */
-function nouveauCote(cle, nom) {
-    return { cle, nom, patience:20, manaActuel:0, manaMax:0, main:[], plateau:[], deck:[], terrain:null, surcout:0, contreSort:false, voitMainAdverse:0, pioceBloquee:false, numTour:0, premier:false, cimetiere:[] };
-}
+function nouveauCote(cle, nom) { return { cle, nom, patience:20, manaActuel:0, manaMax:0, main:[], plateau:[], deck:[], terrain:null, surcout:0, contreSort:false, voitMainAdverse:0, pioceBloquee:false, numTour:0, premier:false, cimetiere:[] }; }
 
 let J = nouveauCote('J', 'Toi'), B = nouveauCote('B', 'Bot');
 let tourActuel = 'joueur', timer = null, tempsRestant = 60, selection = null, ciblage = null, partieFinie = false, uidSeq = 1;
 let modeEnLigne = false, modeAttente = false, mulliganValide = false;
-let modeTuto = false, etapeTuto = 0;
+let modeTuto = false, etapeTuto = 0, currentTutoLevel = 0;
 let _dernierIdTraite = 0, _compteurAction = 0, _replayEnCours = false;
 
 const autre = s => (s === J ? B : J);
@@ -407,7 +400,6 @@ function changerEcran(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     
-    // Masquer le nav seulement sur le login
     if(id !== 'login-screen') document.getElementById('main-nav').classList.remove('hidden');
     else document.getElementById('main-nav').classList.add('hidden');
 
@@ -432,10 +424,10 @@ function enregistrerResultat(victoire) {
     stats.parties++; 
     if (victoire) {
         stats.victoires++; 
-        profil.coins += 20; // 20 Coins par victoire
+        profil.coins += 20; 
     } else {
         stats.defaites++; 
-        profil.coins += 5;  // 5 Coins par défaite
+        profil.coins += 5;  
     }
     sauvegarderStats(); 
     sauvegarderProgression();
@@ -457,43 +449,24 @@ function ajouterLog(emoji, text, side) {
     if (!log) return;
     const div = document.createElement('div');
     div.className = 'log-item ' + (side === J ? 'moi' : 'adv');
-    div.innerHTML = emoji;
-    div.title = text;
-    log.prepend(div);
+    div.innerHTML = emoji; div.title = text; log.prepend(div);
     if (log.children.length > 5) log.lastChild.remove();
 }
 
 /* --- Cimetière --- */
 function voirCimetiere(cle) {
     const arr = cle === 'J' ? J.cimetiere : B.cimetiere;
-    const grid = document.getElementById('graveyard-cards');
-    grid.innerHTML = '';
+    const grid = document.getElementById('graveyard-cards'); grid.innerHTML = '';
     document.getElementById('graveyard-title').innerText = `Cimetière de ${cle === 'J' ? 'Toi' : 'Adversaire'} (${arr.length})`;
-    arr.forEach(def => { grid.appendChild(creerHTMLCarte(def, 'collection')); });
-    ajusterTextes(grid);
+    arr.forEach(def => { grid.appendChild(creerHTMLCarte(def, 'collection')); }); ajusterTextes(grid);
     document.getElementById('graveyard-overlay').classList.add('open');
 }
 function fermerCimetiere() { document.getElementById('graveyard-overlay').classList.remove('open'); }
 
 /* --- Émotes --- */
-function toggleEmotes(cle) {
-    if (cle !== 'J') return;
-    const el = document.getElementById('emotes-J');
-    if (el) el.classList.toggle('hidden');
-}
-function jouerEmote(text) {
-    document.getElementById('emotes-J').classList.add('hidden');
-    afficherEmote(J, text);
-    if (modeEnLigne && typeof pousserAction === 'function') pousserAction({ type:'emote', text });
-}
-function afficherEmote(side, text) {
-    const el = elHero(side);
-    const bulle = document.createElement('div');
-    bulle.className = 'emote-bubble';
-    bulle.innerText = text;
-    el.appendChild(bulle);
-    setTimeout(() => bulle.remove(), 3000);
-}
+function toggleEmotes(cle) { if (cle !== 'J') return; const el = document.getElementById('emotes-J'); if (el) el.classList.toggle('hidden'); }
+function jouerEmote(text) { document.getElementById('emotes-J').classList.add('hidden'); afficherEmote(J, text); if (modeEnLigne && typeof pousserAction === 'function') pousserAction({ type:'emote', text }); }
+function afficherEmote(side, text) { const el = elHero(side); const bulle = document.createElement('div'); bulle.className = 'emote-bubble'; bulle.innerText = text; el.appendChild(bulle); setTimeout(() => bulle.remove(), 3000); }
 
 /* ---------- 6. Rendu cartes ---------- */
 function creerHTMLCarte(c, ctx, opts) {
@@ -511,23 +484,13 @@ function creerHTMLCarte(c, ctx, opts) {
     w.innerHTML = `${qty}${loupe}${tagDeck}${tagNeuf}<div class="card-inner"><div class="card bg-${clFamille} border-${clRarete}"><div class="card-head"><div class="mana-gem">${coutAffiche}</div><div class="card-name">${c.prenom}</div>${badge}</div><div class="card-art">${c.emoji}</div><div class="faction-tag">${c.famille}</div><div class="card-text ${classeTexte}">${c.desc}</div>${kw}${pied}${rarete}</div><div class="card-back">✦</div></div>`;
     return w;
 }
-function ajusterTextes(racine) {
-    (racine || document).querySelectorAll('.card-text').forEach(el => {
-        let taille = 0.62; el.style.fontSize = taille + 'em'; let garde = 0;
-        while (el.scrollHeight > el.clientHeight + 1 && taille > 0.34 && garde++ < 20) { taille -= 0.035; el.style.fontSize = taille.toFixed(3) + 'em'; }
-    });
-}
-function zoomCarte(event, id) {
-    if (event) event.stopPropagation(); const c = defCarte(id); if (!c) return;
-    const box = document.getElementById('card-zoom-container'); box.innerHTML = ''; box.appendChild(creerHTMLCarte(c, 'zoom'));
-    document.getElementById('card-zoom-overlay').classList.add('open'); ajusterTextes(box);
-}
+function ajusterTextes(racine) { (racine || document).querySelectorAll('.card-text').forEach(el => { let taille = 0.62; el.style.fontSize = taille + 'em'; let garde = 0; while (el.scrollHeight > el.clientHeight + 1 && taille > 0.34 && garde++ < 20) { taille -= 0.035; el.style.fontSize = taille.toFixed(3) + 'em'; } }); }
+function zoomCarte(event, id) { if (event) event.stopPropagation(); const c = defCarte(id); if (!c) return; const box = document.getElementById('card-zoom-container'); box.innerHTML = ''; box.appendChild(creerHTMLCarte(c, 'zoom')); document.getElementById('card-zoom-overlay').classList.add('open'); ajusterTextes(box); }
 function fermerZoom() { document.getElementById('card-zoom-overlay').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerZoom(); annulerCiblage(); fermerAide(); fermerCimetiere(); } });
 
 /* ---------- 7. Deckbuilder & BOUTIQUE ---------- */
 function chargerListeDecks() {
-    chargerProgression(); // Indispensable pour être à jour
     const list = document.getElementById('liste-decks'); list.innerHTML = '';
     mesDecks.forEach((d, i) => {
         const div = document.createElement('div'); div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '');
@@ -558,7 +521,10 @@ function trierCollection(critere) {
     const grid = document.getElementById('collection-grid'); grid.innerHTML = ''; let totalPossede = 0;
 
     const infoCoins = document.getElementById('collection-count');
-    if (infoCoins) infoCoins.innerHTML = `— <span style="color:var(--laiton)">${profil.coins} 🪙</span>`;
+    if (infoCoins) {
+        if (profil.coins >= 999999) infoCoins.innerHTML = `— <span style="color:var(--laiton)">∞ 🪙</span>`;
+        else infoCoins.innerHTML = `— <span style="color:var(--laiton)">${profil.coins} 🪙</span>`;
+    }
 
     liste.forEach(c => {
         const possede = collectionJoueur[c.id] || 0; totalPossede += possede; 
@@ -570,22 +536,14 @@ function trierCollection(critere) {
         
         el.onclick = () => {
             if (dispo <= 0) {
-                // Système d'achat à l'unité
                 const maxCopies = (c.rarete === 'legendaire' || c.rarete === 'epique' || c.rarete === 'fusion') ? 1 : 2;
-                if (possede >= maxCopies) {
-                    return flashInfo('Tu as déjà le maximum d\'exemplaires pour cette carte.');
-                }
+                if (possede >= maxCopies) { return flashInfo('Tu as déjà le maximum d\'exemplaires pour cette carte.'); }
                 const prix = { commune: 10, rare: 50, epique: 200, legendaire: 1000, fusion: 2000 }[c.rarete];
                 if (confirm(`Acheter ${c.prenom} (${c.rarete}) pour ${prix} Kadour Coins ?\nTu possèdes ${profil.coins} Coins.`)) {
                     if (profil.coins >= prix) {
-                        profil.coins -= prix;
-                        collectionJoueur[c.id] = (collectionJoueur[c.id] || 0) + 1;
-                        sauvegarderProgression();
-                        trierCollection(triCourant);
-                        flashInfo('Achat réussi !');
-                    } else {
-                        flashInfo('Pas assez de Kadour Coins.');
-                    }
+                        profil.coins -= prix; collectionJoueur[c.id] = (collectionJoueur[c.id] || 0) + 1;
+                        sauvegarderProgression(); trierCollection(triCourant); flashInfo('Achat réussi !');
+                    } else { flashInfo('Pas assez de Kadour Coins.'); }
                 }
                 return;
             }
@@ -615,8 +573,7 @@ function sauvegarderDeck() {
     if (deckEnEdition === null) return;
     mesDecks[deckEnEdition].nom = document.getElementById('deck-name-input').value.trim() || 'Sans nom'; 
     mesDecks[deckEnEdition].cartes = [...tempDeckCartes];
-    sauvegarderProgression();
-    chargerListeDecks(); 
+    sauvegarderProgression(); chargerListeDecks(); 
     flashInfo(tempDeckCartes.length === 20 ? 'Deck enregistré.' : `Deck enregistré — il manque ${20 - tempDeckCartes.length} carte(s).`);
 }
 
@@ -630,13 +587,8 @@ function flashInfo(txt) {
 
 /* ---------- 8. Boosters ---------- */
 function preparerBooster() {
-    if (profil.coins < 50) {
-        alert("Il te faut 50 Kadour Coins pour ouvrir un booster. Tu en as " + profil.coins + ".");
-        return;
-    }
-    profil.coins -= 50;
-    sauvegarderProgression();
-
+    if (profil.coins < 50) { alert("Il te faut 50 Kadour Coins pour ouvrir un booster. Tu en as " + profil.coins + "."); return; }
+    profil.coins -= 50; sauvegarderProgression();
     const pack = document.getElementById('pack'), res = document.getElementById('booster-results'), btn = document.getElementById('btn-again');
     btn.classList.add('hidden'); res.innerHTML = ''; pack.classList.add('opening');
     setTimeout(() => {
@@ -653,8 +605,7 @@ function preparerBooster() {
             };
             res.appendChild(el);
         }
-        sauvegarderProgression(); // On sauvegarde les cartes obtenues
-        ajusterTextes(res);
+        sauvegarderProgression(); ajusterTextes(res);
     }, 520);
 }
 
@@ -664,10 +615,8 @@ function initialiserPartie(botStart = false) {
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0; J.cimetiere = [];
     B.manaMax = 0; B.manaActuel = 0; B.numTour = 0; B.cimetiere = [];
     document.getElementById('action-log').innerHTML = '';
-    
     J.premier = !botStart; B.premier = botStart;
     tourActuel = botStart ? 'bot' : 'joueur';
-
     for (let k = 0; k < 4; k++) piocher(B, 1);
     for (let k = 0; k < 4; k++) if (J.deck.length) J.main.push(J.deck.shift());
 }
@@ -676,96 +625,108 @@ function lancerPartie() {
     modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false;
     const i = document.getElementById('deck-select').value;
     if (!mesDecks[i] || mesDecks[i].cartes.length !== 20) return flashInfo('Choisis un deck de 20 cartes.');
-
     J = nouveauCote('J', J.nom || 'Toi'); B = nouveauCote('B', 'Bot');
     document.getElementById('hero-name').innerText = J.nom;
     const opp = document.getElementById('opp-name'); if (opp) opp.innerText = 'Bot';
-
     J.deck = mesDecks[i].cartes.map(id => instancier(defCarte(id), 'J')); melanger(J.deck);
     B.deck = hasard(decksPreconstruits).cartes.map(id => instancier(defCarte(id), 'B')); melanger(B.deck);
-
-    initialiserPartie(Math.random() > 0.5);
-    changerEcran('game-screen');
-    rafraichirJeu(); ouvrirMulligan();
+    initialiserPartie(Math.random() > 0.5); changerEcran('game-screen'); rafraichirJeu(); ouvrirMulligan();
 }
 
 function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     modeEnLigne = true; modeAttente = false; mulliganValide = false; modeTuto = false;
     _dernierIdTraite = 0; _compteurAction = 0; _replayEnCours = false;
-
     J = nouveauCote('J', J.nom || 'Toi'); B = nouveauCote('B', pseudoAdversaire || 'Adversaire');
     document.getElementById('hero-name').innerText = J.nom;
     const opp = document.getElementById('opp-name'); if (opp) opp.innerText = pseudoAdversaire || 'Adversaire';
-
     J.deck = monDeckIds.map(id => instancier(defCarte(id), 'J')); melanger(J.deck);
     const deckAdv = (Array.isArray(advDeckIds) && advDeckIds.length === 20) ? advDeckIds : hasard(decksPreconstruits).cartes;
     B.deck = deckAdv.map(id => instancier(defCarte(id), 'B')); melanger(B.deck);
-
-    initialiserPartie(false); // Le vrai ordre est décidé par Firebase après mulligan
-    tourActuel = 'attente';
-
-    changerEcran('game-screen');
-    rafraichirJeu(); ouvrirMulligan();
+    initialiserPartie(false); tourActuel = 'attente'; changerEcran('game-screen'); rafraichirJeu(); ouvrirMulligan();
 }
 
-/* ---------- 10. Tuto Interactif ---------- */
-function lancerTuto() {
-    modeEnLigne = false; modeAttente = false; mulliganValide = true; modeTuto = true; etapeTuto = 0;
-    J = nouveauCote('J', 'Toi'); B = nouveauCote('B', 'Adversaire Tuto');
-    document.getElementById('hero-name').innerText = 'Toi'; document.getElementById('opp-name').innerText = 'Boss Tuto';
-
-    J.deck = ['m6','s22','c5'].map(id => instancier(defCarte(id), 'J'));
-    B.deck = ['m8','n6'].map(id => instancier(defCarte(id), 'B'));
+/* ---------- 10. Tuto Interactif (Séquences 1, 2, 3) ---------- */
+function lancerTuto(niveau) {
+    modeEnLigne = false; modeAttente = false; mulliganValide = true; modeTuto = true; 
+    currentTutoLevel = niveau; etapeTuto = 0;
+    
+    J = nouveauCote('J', 'Toi'); B = nouveauCote('B', 'Prof. Tuto');
+    document.getElementById('hero-name').innerText = 'Toi'; document.getElementById('opp-name').innerText = 'Professeur Tuto';
+    partieFinie = false; selection = null; ciblage = null; document.getElementById('action-log').innerHTML = '';
     
     J.premier = true; B.premier = false;
-    J.manaMax = 2; J.manaActuel = 2; J.numTour = 1; J.cimetiere = [];
-    B.manaMax = 2; B.manaActuel = 0; B.numTour = 0; B.cimetiere = [];
+    J.manaMax = 3; J.manaActuel = 3; J.numTour = 1; J.cimetiere = [];
+    B.manaMax = 3; B.manaActuel = 0; B.numTour = 0; B.cimetiere = [];
     tourActuel = 'joueur';
-    partieFinie = false; selection = null; ciblage = null;
-    document.getElementById('action-log').innerHTML = '';
 
-    J.main.push(instancier(defCarte('m8'), 'J')); // Chat charge
-    
-    changerEcran('game-screen');
-    rafraichirJeu();
-    lancerBulleTuto("Bienvenue dans Famille TCG ! Voici ton premier tour. Clique sur ton Chat dans ta main pour le jouer (il coûte 2 manas, tu en as 2).", false);
+    if(niveau === 1) {
+        J.main.push(instancier(defCarte('m6'), 'J')); 
+        J.deck = ['s1'].map(id=>instancier(defCarte(id),'J'));
+        B.deck = ['n4'].map(id=>instancier(defCarte(id),'B'));
+        changerEcran('game-screen'); rafraichirJeu();
+        lancerBulleTuto("Niveau 1 : Poser une carte. Clique sur la carte dans ta main pour l'invoquer sur le terrain. Elle coûte 2 manas, et tu en as 3 !", false);
+    } else if (niveau === 2) {
+        J.main.push(instancier(defCarte('m8'), 'J')); 
+        J.deck = ['s1'].map(id=>instancier(defCarte(id),'J'));
+        B.deck = ['n4'].map(id=>instancier(defCarte(id),'B'));
+        changerEcran('game-screen'); rafraichirJeu();
+        lancerBulleTuto("Niveau 2 : L'attaque. Cette carte possède 'Charge'. Pose-la, puis clique dessus et attaque le Professeur !", false);
+    } else if (niveau === 3) {
+        B.plateau.push(instancier(defCarte('n6'), 'B')); // Provocation
+        J.main.push(instancier(defCarte('s22'), 'J')); // Sort 3 degat
+        J.main.push(instancier(defCarte('c5'), 'J')); // Provocation Rage
+        J.manaMax = 8; J.manaActuel = 8;
+        J.deck = ['s1'].map(id=>instancier(defCarte(id),'J'));
+        B.deck = ['n4'].map(id=>instancier(defCarte(id),'B'));
+        changerEcran('game-screen'); rafraichirJeu();
+        lancerBulleTuto("Niveau 3 : La Provocation 🛡️. Tu ne peux pas attaquer le Professeur car sa carte te bloque. Joue ton sort pour la détruire, puis pose ta carte 'Rage' !", false);
+    }
 }
 
 function lancerBulleTuto(texte, showBtn) {
     const bulle = document.getElementById('tuto-bubble');
     document.getElementById('tuto-text').innerText = texte;
-    document.getElementById('btn-tuto-next').style.display = showBtn ? 'inline-block' : 'none';
+    document.getElementById('btn-tuto-next').classList.toggle('hidden', !showBtn);
+    document.getElementById('btn-tuto-finish').classList.add('hidden');
     bulle.classList.remove('hidden');
 }
 
-function etapeTutoSuivante() {
-    document.getElementById('tuto-bubble').classList.add('hidden');
-    etapeTuto++;
-    if(etapeTuto === 2) {
-        lancerBulleTuto("Parfait ! Ce Chat a la capacité 'Charge', il peut attaquer de suite. Clique sur ton Chat, puis clique sur le héros adverse pour frapper !", false);
-    } else if (etapeTuto === 4) {
-        lancerBulleTuto("Bien joué ! Tu as infligé tes premiers dégâts. Ton tour est fini, clique sur 'Fin du tour'.", false);
-    } else if (etapeTuto === 5) {
-        // Tour du bot tuto
-        B.manaMax = 2; B.manaActuel = 2;
-        const carte = instancier(defCarte('n6'), 'B'); // Le voisin relou (Provocation)
-        B.plateau.push(carte);
-        ajouterLog(carte.emoji, `${B.nom} joue ${carte.prenom}`, B);
-        rafraichirJeu();
-        setTimeout(() => {
-            J.manaMax = 3; J.manaActuel = 3;
-            J.plateau.forEach(m => { m.aAttaque = false; m.malade = false; });
-            J.main.push(instancier(defCarte('s22'), 'J')); // Sort 3 degats
-            rafraichirJeu();
-            lancerBulleTuto("Aïe ! Le Bot a posé une carte avec 'Provocation'. Tu es obligé de la détruire avant de toucher le héros. Utilise ton sort 'Machine à laver' sur elle !", false);
-        }, 1500);
-    } else if (etapeTuto === 7) {
-        profil.coins += 100; // Grosse récompense tuto
-        sauvegarderProgression();
-        lancerBulleTuto("Félicitations ! Tu as reçu 100 Kadour Coins pour avoir fini le tuto ! Tu es prêt pour l'Arène.", true);
-    } else if (etapeTuto === 8) {
-        changerEcran('menu-screen');
+function validerEtapeTuto() {
+    if(!modeTuto) return;
+    if (currentTutoLevel === 1 && etapeTuto === 0 && J.plateau.length > 0) {
+        etapeTuto = 1;
+        document.getElementById('btn-tuto-next').classList.add('hidden');
+        document.getElementById('btn-tuto-finish').classList.remove('hidden');
+        lancerBulleTuto("Parfait ! Tu as invoqué ta première créature. Clique sur Terminer pour récupérer tes 500 K-Coins.", false);
     }
+    if (currentTutoLevel === 2 && etapeTuto === 0 && J.plateau.length > 0) {
+        etapeTuto = 1;
+        lancerBulleTuto("Super ! Puisqu'elle a 'Charge', elle n'est pas endormie. Clique dessus puis sur le Professeur pour attaquer !", false);
+    }
+    if (currentTutoLevel === 2 && etapeTuto === 1 && B.patience < 20) {
+        etapeTuto = 2;
+        document.getElementById('btn-tuto-next').classList.add('hidden');
+        document.getElementById('btn-tuto-finish').classList.remove('hidden');
+        lancerBulleTuto("BOOM ! Dégâts infligés. Tu as compris l'attaque. Clique sur Terminer.", false);
+    }
+    if (currentTutoLevel === 3 && etapeTuto === 0 && B.plateau.length === 0) {
+        etapeTuto = 1;
+        lancerBulleTuto("La voie est libre ! Maintenant, pose ta créature avec Rage. La Rage s'activera si elle prend des dégâts sans mourir.", false);
+    }
+    if (currentTutoLevel === 3 && etapeTuto === 1 && J.plateau.length > 0) {
+        etapeTuto = 2;
+        document.getElementById('btn-tuto-next').classList.add('hidden');
+        document.getElementById('btn-tuto-finish').classList.remove('hidden');
+        lancerBulleTuto("Génial ! Tu maîtrises les bases stratégiques. Retourne au menu.", false);
+    }
+}
+
+function terminerTutoActuel() {
+    profil.coins += 500;
+    sauvegarderProgression();
+    document.getElementById('tuto-bubble').classList.add('hidden');
+    changerEcran('tuto-screen');
+    flashInfo("🎉 +500 Kadour Coins gagnés !");
 }
 
 /* ---------- Mulligan ---------- */
@@ -898,8 +859,6 @@ function clicCarteMain(index) {
     
     const c = J.main[index]; if (!c) return;
 
-    if (modeTuto && etapeTuto === 0 && c.id === 'm8') { etapeTutoSuivante(); }
-
     if (c.rarete === 'fusion') {
         const dispo = fusionsPossibles(J, c);
         if (!dispo.length) return info('Cartes requises manquantes (plateau ou main).');
@@ -960,9 +919,7 @@ function jouerCarte(side, index, cible) {
         if (p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible }); info(`${c.prenom} entre en jeu.`);
     }
     
-    recalcAuras(); nettoyerMorts(); setTimeout(() => { rafraichirJeu(); verifierFin(); }, 60);
-
-    if (modeTuto && etapeTuto === 5) { document.getElementById('tuto-bubble').classList.add('hidden'); etapeTutoSuivante(); setTimeout(()=>etapeTutoSuivante(), 2000); }
+    recalcAuras(); nettoyerMorts(); setTimeout(() => { rafraichirJeu(); verifierFin(); validerEtapeTuto(); }, 60);
 }
 
 function animerSort(c, apres) {
@@ -1003,13 +960,6 @@ async function attaquer(attaquant, cible) {
         pousserAction({ type:'attaque', idxAttaquant: J.plateau.indexOf(attaquant), idxCible, campCible, cibleHero: cible.uid ? null : cible.cle });
     }
 
-    if (modeTuto && etapeTuto === 2) { 
-        etapeTutoSuivante(); 
-        profil.coins += 10;
-        sauvegarderProgression();
-        flashInfo("+10 Kadour Coins !");
-    }
-
     ajouterLog('⚔', `${attaquant.prenom} attaque`, coteDe(attaquant));
 
     const elA = elOf(attaquant.uid), elC = cible.uid ? elOf(cible.uid) : elHero(cible); selection = null;
@@ -1022,7 +972,7 @@ async function attaquer(attaquant, cible) {
     attaquant.aAttaque = true;
     if (elA) { elA.style.transform = ''; await pause(140); }
     
-    recalcAuras(); nettoyerMorts(); await pause(260); rafraichirJeu(); verifierFin();
+    recalcAuras(); nettoyerMorts(); await pause(260); rafraichirJeu(); verifierFin(); validerEtapeTuto();
 }
 
 /* ---------- Tours ---------- */
@@ -1043,8 +993,6 @@ function finDeTour() {
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
     if (tourActuel !== 'joueur') return;
     
-    if (modeTuto && etapeTuto === 4) etapeTutoSuivante();
-
     annulerCiblage(); clearInterval(timer); appliquerFinDeTour(J);
     if (partieFinie) return; J.surcout = 0; if (J.voitMainAdverse > 0) J.voitMainAdverse--;
 
