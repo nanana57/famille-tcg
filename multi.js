@@ -65,27 +65,33 @@ function connexionCompte() {
     const err = document.getElementById('auth-error-login');
     const ident = document.getElementById('auth-ident-login').value.trim();
     const pwd = document.getElementById('auth-password-login').value;
-    err.innerText = "";
+    err.innerText = "Connexion en cours...";
 
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
+    // Si on utilise un Email (Passe les règles Firebase)
     if (ident.includes('@')) {
         firebase.auth().signInWithEmailAndPassword(ident, pwd).catch(e => err.innerText = "Erreur : " + e.message);
-    } else {
+    } 
+    // Si on utilise un Pseudo (Risque de blocage Firebase si règles non publiques)
+    else {
         const pseudoNorm = normaliserPseudo(ident);
         fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
             if (snap.exists()) {
                 const data = snap.val();
                 const email = typeof data === 'string' ? null : data.email;
                 if (email) {
-                    firebase.auth().signInWithEmailAndPassword(email, pwd).catch(e => err.innerText = "Erreur : " + e.message);
+                    firebase.auth().signInWithEmailAndPassword(email, pwd).catch(e => err.innerText = "Erreur mot de passe.");
                 } else {
-                    err.innerText = "Ancien compte sans mot de passe. Inscris-toi à nouveau !";
+                    err.innerText = "Ce compte utilise un ancien format. Inscris-toi à nouveau.";
                 }
             } else {
                 err.innerText = "Pseudo introuvable.";
             }
-        }).catch(() => err.innerText = "Impossible de vérifier le pseudo.");
+        }).catch(() => {
+            // Contournement d'erreur de règle de sécurité
+            err.innerText = "Base de données bloquée : Connecte-toi avec ton E-MAIL.";
+        });
     }
 }
 
@@ -94,25 +100,29 @@ function creerCompte() {
     const pseudo = document.getElementById('auth-pseudo-reg').value.trim();
     const email = document.getElementById('auth-email-reg').value.trim().toLowerCase();
     const pwd = document.getElementById('auth-password-reg').value;
-    err.innerText = "";
+    
+    err.innerText = "Création du compte en cours...";
 
     if(!pseudo || !email || !pwd) { err.innerText = "Tous les champs sont requis."; return; }
     if (pwd.length < 6) { err.innerText = "Le mot de passe doit faire au moins 6 caractères."; return; }
 
     const pseudoNorm = normaliserPseudo(pseudo);
 
-    fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
-        if (snap.exists()) {
-            err.innerText = "Ce pseudo est déjà pris. Choisis-en un autre !";
-        } else {
-            firebase.auth().createUserWithEmailAndPassword(email, pwd)
-                .then(creds => {
+    // FIX : On crée le compte d'abord pour contourner la sécurité Firebase
+    firebase.auth().createUserWithEmailAndPassword(email, pwd)
+        .then(creds => {
+            // Maintenant qu'on est identifié, Firebase nous autorise à écrire :
+            fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
+                if (snap.exists() && snap.val().uid !== creds.user.uid) {
+                    err.innerText = "Compte créé, mais pseudo déjà pris ! Tu auras un pseudo temporaire.";
+                    fbDB.ref('profils/' + creds.user.uid).set({ pseudo: "Joueur_" + Math.floor(Math.random()*1000), email: email });
+                } else {
                     fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email });
                     fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email });
-                })
-                .catch(e => { err.innerText = "Erreur : " + e.message; });
-        }
-    });
+                }
+            });
+        })
+        .catch(e => { err.innerText = "Erreur : " + e.message; });
 }
 
 function initApresAuth(user) {
@@ -134,10 +144,15 @@ function initApresAuth(user) {
             if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
         
-        // Lance le chargement et nettoie les sauvegardes corrompues
         chargerProgression(user.email); 
         changerEcran('menu-screen');
         setupFirebaseListeners();
+    }).catch(() => {
+        // Au cas où la base de données plante, on force le passage
+        J.nom = "Joueur_" + Math.floor(Math.random()*1000);
+        document.getElementById('main-nav').classList.remove('hidden');
+        chargerProgression(user.email); 
+        changerEcran('menu-screen');
     });
 }
 
@@ -317,7 +332,10 @@ window.addEventListener('beforeunload', () => { if (fbDB && monId) { fbDB.ref('j
    FONCTIONS ADMIN
    =========================================================== */
 function adminToutDebloquer() {
-    dbCartes.forEach(c => collectionJoueur[c.id] = 10);
+    dbCartes.forEach(c => {
+        initColl(c.id);
+        collectionJoueur[c.id][c.rarete] = 10;
+    });
     sauvegarderProgression();
     alert("C'est fait, tu as 10 exemplaires de chaque carte.");
 }
