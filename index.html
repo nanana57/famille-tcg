@@ -22,6 +22,7 @@
 <div id="fx-layer"></div>
 <div id="motd-banner" class="motd-banner hidden"></div>
 
+<!-- Guide du jeu -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
         <h2>📖 Guide du jeu</h2>
@@ -32,7 +33,7 @@
                 <li><strong>Provocation</strong> 🛡️ : Doit être attaquée en priorité.</li>
                 <li><strong>Rage</strong> 🔥 : Effet déclenché si blessée sans mourir.</li>
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
-                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes (terrain ou main).</li>
+                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -47,12 +48,13 @@
     </div>
 </div>
 
+<!-- Bulle de Tutoriel Interactif sans bouton terminer -->
 <div id="tuto-bubble" class="hidden">
     <div class="tuto-text" id="tuto-text"></div>
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
-    <button id="btn-tuto-finish" class="hidden" onclick="terminerTutoActuel()">Terminer</button>
 </div>
 
+<!-- Défis & Attente -->
 <div id="defi-overlay">
     <div class="defi-box">
         <h3 id="defi-titre">Défi reçu</h3>
@@ -85,13 +87,13 @@
     <div id="card-zoom-container"></div>
 </div>
 
-<!-- NAVIGATION -->
+<!-- NAVIGATION PRINCIPALE -->
 <nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
-        <button onclick="changerEcran('tuto-screen')">🎓 Tutoriel</button>
+        <button onclick="changerEcran('tuto-screen')">🎓 Académie</button>
         <button onclick="changerEcran('menu-screen')">Arène</button>
-        <button onclick="changerEcran('deckbuilder-screen')">Collection &amp; decks</button>
+        <button onclick="changerEcran('deckbuilder-screen')">Boutique & Decks</button>
         <button onclick="changerEcran('booster-screen')">Boosters</button>
         <button onclick="changerEcran('multi-screen')">Multijoueur</button>
         <button onclick="changerEcran('profil-screen')">Profil</button>
@@ -99,17 +101,16 @@
         <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">Forfait</button>
     </div>
     <div class="nav-pseudo">
-        <span id="nav-coins" style="color:var(--laiton); margin-right:10px;">0 🪙</span>
+        <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
         <span id="display-pseudo"></span>
     </div>
 </nav>
 
-<!-- ECRAN CONNEXION -->
+<!-- ECRAN CONNEXION / INSCRIPTION -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
         
-        <!-- CONNEXION -->
         <div class="box login-box" id="box-login">
             <h1 class="title-hero">Famille TCG</h1>
             <p class="subtitle">Connexion</p>
@@ -120,7 +121,6 @@
             <p class="hint" style="margin-top:15px; cursor:pointer; text-decoration:underline;" onclick="toggleAuthMode('register')">Créer un nouveau compte</p>
         </div>
 
-        <!-- INSCRIPTION -->
         <div class="box login-box hidden" id="box-register">
             <h1 class="title-hero">Inscription</h1>
             <p class="subtitle">Rejoins la famille</p>
@@ -134,14 +134,16 @@
     </div>
 </div>
 
-<!-- ECRAN TUTORIELS -->
+<!-- ECRAN ACADEMIE (Tuto) -->
 <div id="tuto-screen" class="screen">
     <div class="box menu-box" style="max-width:550px">
         <h2>Académie de la Famille</h2>
         <p class="subtitle">Apprends les bases et gagne des K-Coins !</p>
-        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Poser une carte (Gain: 500 🪙)</button>
-        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. Attaquer l'adversaire (Gain: 500 🪙)</button>
-        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. Provocation & Rage (Gain: 500 🪙)</button>
+        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Poser une carte (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. L'Attaque (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. La Provocation (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. La Rage (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Fusion (Gain: 500 💰)</button>
     </div>
 </div>
 
@@ -149,7 +151,7 @@
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
-        <label for="deck-select">Deck</label>
+        <label for="deck-select">Choisis ton deck (Complet uniquement)</label>
         <select id="deck-select" class="deck-dropdown"></select>
         <button class="btn-large" onclick="lancerPartie()">Affronter le bot</button>
     </div>
@@ -171,7 +173,7 @@
     </div>
 </div>
 
-<!-- ECRAN DECKBUILDER -->
+<!-- ECRAN DECKBUILDER & BOUTIQUE -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -179,20 +181,23 @@
             <div id="liste-decks"></div>
             <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck</button>
         </aside>
+        
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Boutique & Collection <span id="collection-count" class="hint"></span></h3>
+                <h3>Toutes les cartes <span id="collection-count" class="hint"></span></h3>
                 <div class="sort-actions">
                     <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
                     <button class="btn-chip" onclick="trierCollection('rarete')">Rareté</button>
                     <button class="btn-chip" onclick="trierCollection('famille')">Famille</button>
                 </div>
             </div>
+            <!-- Grille où s'affichent toutes les cartes (possédées ou non) -->
             <div class="grid" id="collection-grid"></div>
         </section>
+
         <aside class="deck-area">
             <input type="text" id="deck-name-input" placeholder="Nom du deck">
-            <h3>Cartes <span id="deck-count">0</span>/20</h3>
+            <h3>Cartes du deck <span id="deck-count">0</span>/20</h3>
             <div class="mana-curve" id="mana-curve"></div>
             <div id="deck-grid" class="deck-list"></div>
             <button class="btn-large" onclick="sauvegarderDeck()">Enregistrer le deck</button>
@@ -236,7 +241,7 @@
         <div class="pack" id="pack" onclick="preparerBooster()">
             <div class="pack-inner">
                 <div class="pack-seal">FT</div>
-                <div class="pack-label">Ouvrir un paquet<br><small>5 cartes (50 Coins)</small></div>
+                <div class="pack-label">Ouvrir un paquet<br><small>5 cartes (50 💰)</small></div>
             </div>
         </div>
         <div class="grid booster-grid" id="booster-results"></div>
