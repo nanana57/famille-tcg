@@ -1,14 +1,14 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime Sécurisée)
+   FAMILLE TCG — moteur de jeu (Édition Ultime Correction Crash)
    =========================================================== */
 
-/* Déclaration globale stricte pour éviter le blocage entre fichiers */
+/* Déclaration globale pour éviter les conflits */
 var collectionJoueur = {}; 
 var mesDecks = [];
 var profil = { coins: 0, deckStart: false, lastLogin: 0 };
 var deckEnEdition = null;
 var tempDeckCartes = [];
-var triCourant = 'famille'; // Filtre par défaut demandé
+var triCourant = 'famille';
 
 var tourActuel = 'joueur', timer = null, tempsRestant = 60, selection = null, ciblage = null, partieFinie = false, uidSeq = 1;
 var modeEnLigne = false, modeAttente = false, mulliganValide = false;
@@ -275,7 +275,7 @@ var POUVOIRS = {
     c10:{ mode:'eclair', jouer: ({ moi }) => { invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',['Provocation']); invoquerJeton(moi,'Cousin éloigné',1,1,'🧒',['Provocation']); }},
     c11:{ mode:'eclair', jouer: ({ moi, ennemi }) => { moi.plateau.forEach(m => { const p = POUVOIRS[m.id]; if(p && p.destruction && !m.silence) p.destruction({ moi, ennemi, source:m }); }); }},
     c12:{ mode:'infini', aura: true }
-};
+];
 
 dbCartes.forEach(function(c) {
     if (!POUVOIRS[c.id] && c.motsCles.some(k => k === 'Charge' || k === 'Provocation')) POUVOIRS[c.id] = { mode:'infini', aura:true };
@@ -309,10 +309,12 @@ function initColl(id) {
         collectionJoueur[id][defR] = oldQty;
     }
 }
+
 function getTot(id) {
     initColl(id);
     return collectionJoueur[id].commune + collectionJoueur[id].rare + collectionJoueur[id].epique + collectionJoueur[id].legendaire + collectionJoueur[id].fusion;
 }
+
 function getHighRarity(id) {
     initColl(id);
     const o = ['fusion','legendaire','epique','rare','commune'];
@@ -329,13 +331,14 @@ function majTopBarCoins() {
     if(elDb) elDb.innerText = formatCoins(profil.coins) + " 💰";
 }
 
-/* ANTI-PLANTAGE SAUVEGARDE */
+/* ANTI-PLANTAGE SAUVEGARDE & VERIFICATION DES DECKS */
 function sanitizeSave() {
     if (typeof collectionJoueur === 'object' && collectionJoueur !== null) {
         for (let id in collectionJoueur) {
             if (typeof collectionJoueur[id] === 'number') {
                 let oldVal = collectionJoueur[id];
-                let defR = defCarte(id) ? defCarte(id).rarete : 'commune';
+                let cDef = defCarte(id);
+                let defR = cDef ? cDef.rarete : 'commune';
                 collectionJoueur[id] = { commune:0, rare:0, epique:0, legendaire:0, fusion:0 };
                 collectionJoueur[id][defR] = oldVal;
             }
@@ -359,16 +362,20 @@ function sanitizeSave() {
             return null;
         }).filter(c => c !== null);
     });
+}
 
+function verifierDecksDeBase() {
     decksPreconstruits.forEach(dp => {
         if (!mesDecks.some(md => md.nom === dp.nom && md.base === true)) {
-            mesDecks.unshift({ nom: dp.nom, cartes: dp.cartes.map(c=>({...c})), base: true });
+            mesDecks.push(JSON.parse(JSON.stringify(dp)));
+            mesDecks[mesDecks.length - 1].base = true;
         }
     });
 }
 
 function chargerProgression(email) {
     if (email === 'nassim57132@gmail.com') profil.coins = 9999999;
+    
     try {
         const brut = localStorage.getItem('ftcg_save_' + (typeof monId !== 'undefined' ? monId : 'local'));
         if (brut) {
@@ -377,9 +384,29 @@ function chargerProgression(email) {
             if (data.collectionJoueur) collectionJoueur = data.collectionJoueur;
             if (data.mesDecks) mesDecks = data.mesDecks;
         }
-    } catch (e) { console.error("Erreur chargement save", e); }
+    } catch (e) { console.error(e); }
 
-    sanitizeSave();
+    // On récupère depuis Firebase si dispo, sinon on continue en local
+    if (typeof fbDB !== 'undefined' && fbDB && typeof monId !== 'undefined' && monId) {
+        fbDB.ref('profils/' + monId + '/save').once('value').then(snap => {
+            if(snap.exists()) {
+                const data = snap.val();
+                if (data.profil) profil = data.profil;
+                if (data.collectionJoueur) collectionJoueur = data.collectionJoueur;
+                if (data.mesDecks) mesDecks = data.mesDecks;
+            }
+            finaliserChargement(email);
+        }).catch(() => finaliserChargement(email));
+    } else {
+        finaliserChargement(email);
+    }
+}
+
+function finaliserChargement(email) {
+    try { sanitizeSave(); } catch(e) { console.error(e); }
+    
+    verifierDecksDeBase(); // Force la présence des 6 decks
+
     if (email === 'nassim57132@gmail.com') profil.coins = 9999999;
 
     const maintenant = Date.now();
@@ -389,11 +416,15 @@ function chargerProgression(email) {
         flashInfo("🎁 Bonus quotidien : +50 💰 !");
     }
 
-    if (!profil.deckStart && email !== 'nassim57132@gmail.com') attribuerDeckDepart();
-    
-    sauvegarderProgression();
-    majTopBarCoins();
-    majTutoUI();
+    if (!profil.deckStart && email !== 'nassim57132@gmail.com') {
+        attribuerDeckDepart();
+    } else {
+        sauvegarderProgression();
+        majTopBarCoins();
+        majTutoUI();
+        if(document.getElementById('deckbuilder-screen').classList.contains('active')) chargerListeDecks();
+        if(document.getElementById('menu-screen').classList.contains('active')) chargerDropdownDecks();
+    }
 }
 
 function sauvegarderProgression() {
@@ -411,26 +442,47 @@ function attribuerDeckDepart() {
     const familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)];
     const precon = decksPreconstruits.find(d => d.nom.includes(familleChoisie));
     
+    // On débloque toutes les cartes EXACTES du deck préconstruit
     precon.cartes.forEach(c => {
         initColl(c.id);
-        collectionJoueur[c.id].commune = 2; 
+        collectionJoueur[c.id][c.rarete] = (collectionJoueur[c.id][c.rarete] || 0) + 1;
+    });
+
+    // Et on donne 2 copies de toutes les cartes communes de la famille en bonus
+    dbCartes.forEach(c => {
+        if (c.famille === familleChoisie && c.rarete === 'commune') {
+            initColl(c.id);
+            collectionJoueur[c.id].commune = 2; 
+        }
     });
 
     profil.deckStart = true;
     profil.coins += 100;
     sauvegarderProgression();
-    setTimeout(() => { alert(`🎉 La famille ${familleChoisie} t'adopte !\nTu as débloqué ses cartes de base et reçu 100 💰 en cadeau !`); }, 500);
+    
+    alert(`🎉 La famille ${familleChoisie} t'adopte !\nTu as débloqué son deck complet et reçu 100 💰 en cadeau !`);
+    majTopBarCoins();
+    majTutoUI();
+    chargerListeDecks();
+    chargerDropdownDecks();
 }
 
+/* FIX DU CRASH DES DECKS : On protège la copie temporaire */
 function calculerCartesPossedeesPourDeck(cartesDeck) {
     let owned = 0; 
     let tempColl = JSON.parse(JSON.stringify(collectionJoueur));
     cartesDeck.forEach(c => { 
         const id = typeof c === 'string' ? c : c.id;
         const r = typeof c === 'string' ? defCarte(id).rarete : c.rarete;
-        initColl(id);
-        if (tempColl[id][r] && tempColl[id][r] > 0) { 
-            owned++; tempColl[id][r]--; 
+        
+        // Protection si la carte n'existe pas encore dans la sauvegarde
+        if (!tempColl[id]) {
+            tempColl[id] = { commune:0, rare:0, epique:0, legendaire:0, fusion:0 };
+        }
+        
+        if (tempColl[id][r] > 0) { 
+            owned++; 
+            tempColl[id][r]--; 
         } 
     });
     return owned;
@@ -503,7 +555,7 @@ function ajusterTextes(racine) { (racine || document).querySelectorAll('.card-te
 function zoomCarte(event, id) { if (event) event.stopPropagation(); const c = defCarte(id); if (!c) return; const box = document.getElementById('card-zoom-container'); box.innerHTML = ''; box.appendChild(creerHTMLCarte(c, 'zoom', {overrideRarete: getHighRarity(id)})); document.getElementById('card-zoom-overlay').classList.add('open'); ajusterTextes(box); }
 function fermerZoom() { document.getElementById('card-zoom-overlay').classList.remove('open'); }
 
-/* ---------- 7. DECKBUILDER & BOUTIQUE SÉPARÉS ---------- */
+/* ---------- 7. DECKBUILDER & BOUTIQUE ---------- */
 
 function afficherBoutique(critere) {
     triCourant = critere;
@@ -528,8 +580,10 @@ function afficherBoutique(critere) {
 }
 
 function chargerListeDecks() {
-    chargerProgression(); 
-    const list = document.getElementById('liste-decks'); list.innerHTML = '';
+    const list = document.getElementById('liste-decks'); 
+    if(!list) return;
+    list.innerHTML = '';
+    
     mesDecks.forEach((d, i) => {
         const owned = calculerCartesPossedeesPourDeck(d.cartes);
         const isComplete = owned === 20;
@@ -577,11 +631,13 @@ function trierDeckbuilder(critere) {
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom)); if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
     if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout); if (critere === 'famille') liste.sort((a, b) => ordreFamille[a.famille] - ordreFamille[b.famille] || a.cout - b.cout);
     
-    const grid = document.getElementById('deckbuilder-grid'); grid.innerHTML = '';
+    const grid = document.getElementById('deckbuilder-grid'); 
+    if(!grid) return;
+    grid.innerHTML = '';
     
     liste.forEach(c => {
         const total = getTot(c.id);
-        if(total <= 0) return; // Ne montre que ce qu'on possède dans le deckbuilder
+        if(total <= 0) return; // Dans mes decks, on ne voit que ce qu'on a.
 
         const dansDeck = tempDeckCartes.filter(x => x.id === c.id).length;
         const highestRarity = getHighRarity(c.id);
@@ -596,7 +652,6 @@ function trierDeckbuilder(critere) {
     ajusterTextes(grid);
 }
 
-/* MODALE ACHAT / VENTE / DECK */
 function ouvrirDetailCarte(idCarte, modeDeckbuilder) {
     const c = defCarte(idCarte);
     const content = document.getElementById('card-detail-content');
@@ -695,12 +750,12 @@ function ouvrirDetailCarte(idCarte, modeDeckbuilder) {
     };
 
     render();
-    document.getElementById('card-detail-overlay').classList.add('open');
+    document.getElementById('card-detail-overlay').style.display = 'flex';
 }
 
 function fermerDetailCarte() { 
     const m = document.getElementById('card-detail-overlay');
-    if (m) m.classList.remove('open');
+    if (m) m.style.display = 'none';
 }
 window.fermerDetailCarte = fermerDetailCarte;
 
@@ -732,7 +787,7 @@ function afficherDeckEnCours() {
     });
     const curve = document.getElementById('mana-curve'), seuils = [0,1,2,3,4,5,6,7,8];
     const vals = seuils.map(s => tempDeckCartes.filter(c => (s === 8 ? defCarte(c.id).cout >= 8 : defCarte(c.id).cout === s)).length), max = Math.max(1, ...vals);
-    curve.innerHTML = seuils.map((s, i) => `<div class="curve-col"><div class="curve-bar" style="height:${(vals[i] / max) * 38}px"></div>${s === 8 ? '8+' : s}</div>`).join('');
+    if(curve) curve.innerHTML = seuils.map((s, i) => `<div class="curve-col"><div class="curve-bar" style="height:${(vals[i] / max) * 38}px"></div>${s === 8 ? '8+' : s}</div>`).join('');
 }
 
 function sauvegarderDeck() {
@@ -744,7 +799,9 @@ function sauvegarderDeck() {
 }
 
 function chargerDropdownDecks() {
-    const sel = document.getElementById('deck-select'); sel.innerHTML = '';
+    const sel = document.getElementById('deck-select'); 
+    if(!sel) return;
+    sel.innerHTML = '';
     mesDecks.forEach((d, i) => { 
         const owned = calculerCartesPossedeesPourDeck(d.cartes);
         const o = document.createElement('option'); o.value = i; 
@@ -1269,7 +1326,8 @@ async function jouerTourBot() {
         }
     }
     await pause(300);
-    for (const m of [...B.plateau]) {
+    for (let i = 0; i < B.plateau.length; i++) {
+        const m = B.plateau[i];
         if (partieFinie) break;
         if (m.aAttaque || m.malade || m.gele > 0 || atkTot(m) <= 0) continue;
         const provocations = J.plateau.filter(x => x.motsCles.includes('Provocation')); let cible;
@@ -1355,7 +1413,7 @@ function ajusterChevauchementMain() {
 }
 window.addEventListener('resize', () => { if (document.getElementById('game-screen').classList.contains('active')) ajusterChevauchementMain(); });
 
-/* ---------- DÉMARRAGE SÉCURISÉ ---------- */
+/* ---------- DÉMARRAGE ---------- */
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const zone = document.getElementById('login-cards'); 
@@ -1363,22 +1421,20 @@ document.addEventListener('DOMContentLoaded', function() {
             ['m1','ma2','k1','ka1'].forEach(id => zone.appendChild(creerHTMLCarte(defCarte(id), 'zoom'))); 
             ajusterTextes(zone);
         }
-    } catch(e) { console.error("Erreur decor", e); }
+    } catch(e) {}
     
-    try {
-        const estMobile = ('ontouchstart' in window) && (navigator.maxTouchPoints > 0) && (window.matchMedia('(pointer: coarse)').matches) && (window.innerWidth <= 1366);
-        if (estMobile) {
-            function appliquerOrientation() { const enPortrait = window.matchMedia('(orientation: portrait)').matches; document.body.classList.toggle('force-portrait', enPortrait); if (!enPortrait) setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 200); }
-            appliquerOrientation(); window.addEventListener('resize', appliquerOrientation); window.addEventListener('orientationchange', () => setTimeout(appliquerOrientation, 200)); setTimeout(appliquerOrientation, 500); setTimeout(appliquerOrientation, 1200);
-            
-            let timerAppui = null, dernierElement = null, deplacement = false, startX = 0, startY = 0; const DUREE = 500, TOLERANCE = 12;
-            function trouverIdCarte(cible) { if (!cible) return null; const wrapper = cible.closest && cible.closest('.card-wrapper'); if (wrapper) { const nom = wrapper.querySelector('.card-name'); if (nom) { const def = dbCartes.find(c => c.prenom === nom.textContent.trim()); if (def) return def.id; } } const zoomBtn = cible.closest && cible.closest('.zoom-btn'); if (zoomBtn) { const m = (zoomBtn.getAttribute('onclick') || '').match(/'([^']+)'/); if (m) return m[1]; } return null; }
-            document.addEventListener('touchstart', e => { const t = e.touches[0]; if (!t) return; deplacement = false; startX = t.clientX; startY = t.clientY; dernierElement = e.target; clearTimeout(timerAppui); timerAppui = setTimeout(() => { if (deplacement) return; const id = trouverIdCarte(dernierElement); if (id) { if (navigator.vibrate) navigator.vibrate(15); zoomCarte(null, id); } }, DUREE); }, { passive: true });
-            document.addEventListener('touchmove', e => { const t = e.touches[0]; if (!t) return; if (Math.abs(t.clientX - startX) > TOLERANCE || Math.abs(t.clientY - startY) > TOLERANCE) { deplacement = true; clearTimeout(timerAppui); } }, { passive: true });
-            document.addEventListener('touchend', () => clearTimeout(timerAppui), { passive: true }); document.addEventListener('touchcancel', () => clearTimeout(timerAppui), { passive: true });
-            document.addEventListener('contextmenu', e => { if (e.target && e.target.closest && e.target.closest('.card-wrapper')) e.preventDefault(); });
-        }
-    } catch(e) { console.error("Erreur mobile", e); }
+    const estMobile = ('ontouchstart' in window) && (navigator.maxTouchPoints > 0) && (window.matchMedia('(pointer: coarse)').matches) && (window.innerWidth <= 1366);
+    if (estMobile) {
+        function appliquerOrientation() { const enPortrait = window.matchMedia('(orientation: portrait)').matches; document.body.classList.toggle('force-portrait', enPortrait); if (!enPortrait) setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 200); }
+        appliquerOrientation(); window.addEventListener('resize', appliquerOrientation); window.addEventListener('orientationchange', () => setTimeout(appliquerOrientation, 200)); setTimeout(appliquerOrientation, 500); setTimeout(appliquerOrientation, 1200);
+        
+        let timerAppui = null, dernierElement = null, deplacement = false, startX = 0, startY = 0; const DUREE = 500, TOLERANCE = 12;
+        function trouverIdCarte(cible) { if (!cible) return null; const wrapper = cible.closest && cible.closest('.card-wrapper'); if (wrapper) { const nom = wrapper.querySelector('.card-name'); if (nom) { const def = dbCartes.find(c => c.prenom === nom.textContent.trim()); if (def) return def.id; } } const zoomBtn = cible.closest && cible.closest('.zoom-btn'); if (zoomBtn) { const m = (zoomBtn.getAttribute('onclick') || '').match(/'([^']+)'/); if (m) return m[1]; } return null; }
+        document.addEventListener('touchstart', e => { const t = e.touches[0]; if (!t) return; deplacement = false; startX = t.clientX; startY = t.clientY; dernierElement = e.target; clearTimeout(timerAppui); timerAppui = setTimeout(() => { if (deplacement) return; const id = trouverIdCarte(dernierElement); if (id) { if (navigator.vibrate) navigator.vibrate(15); zoomCarte(null, id); } }, DUREE); }, { passive: true });
+        document.addEventListener('touchmove', e => { const t = e.touches[0]; if (!t) return; if (Math.abs(t.clientX - startX) > TOLERANCE || Math.abs(t.clientY - startY) > TOLERANCE) { deplacement = true; clearTimeout(timerAppui); } }, { passive: true });
+        document.addEventListener('touchend', () => clearTimeout(timerAppui), { passive: true }); document.addEventListener('touchcancel', () => clearTimeout(timerAppui), { passive: true });
+        document.addEventListener('contextmenu', e => { if (e.target && e.target.closest && e.target.closest('.card-wrapper')) e.preventDefault(); });
+    }
 });
 
 function declarerForfait() {
