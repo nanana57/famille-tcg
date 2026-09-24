@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — feuille de style (Édition Ultime)
+   FAMILLE TCG — feuille de style (Édition Ultime Complète)
    =========================================================== */
 
 :root{
@@ -233,6 +233,14 @@ body:has(#game-screen.active){
 
 .btn-large:active{transform:translateY(0)}
 
+.btn-large:disabled{
+    background:#22303f !important;
+    color:var(--texte-doux) !important;
+    box-shadow:none !important;
+    cursor:not-allowed !important;
+    transform:none !important;
+}
+
 .btn-action{
     background:#233346;
     border:1px solid rgba(255,255,255,.12);
@@ -246,6 +254,13 @@ body:has(#game-screen.active){
 .btn-action:hover{
     border-color:var(--laiton);
     color:var(--laiton-clair);
+}
+
+.btn-action:disabled{
+    background:#16212e;
+    color:#4a5460;
+    cursor:not-allowed;
+    border-color:rgba(255,255,255,.05);
 }
 
 .btn-action.full{width:100%;margin-top:12px}
@@ -292,7 +307,7 @@ body:has(#game-screen.active){
 .login-cards .card-wrapper:nth-child(4){transform:translateX(330px) rotate(14deg)}
 .login-box{position:relative;z-index:2}
 
-/* ---------- Deckbuilder ---------- */
+/* ---------- Deckbuilder & Collection ---------- */
 .deckbuilder-container{
     display:flex;
     width:100%;
@@ -336,10 +351,9 @@ body:has(#game-screen.active){
     box-shadow:0 0 16px rgba(217,164,65,.22);
 }
 
-/* DECK GRISÉ SI INCOMPLET */
 .deck-item.incomplete {
-    filter: grayscale(0.9);
-    opacity: 0.65;
+    filter: grayscale(0.8);
+    opacity: 0.75;
 }
 
 .deck-item small{
@@ -547,10 +561,6 @@ body:has(#game-screen.active){
 }
 
 .card-wrapper:hover .card{filter:brightness(1.05)}
-
-/* Gérer les cartes manquantes */
-.card-wrapper.missing .card { filter: grayscale(1) brightness(0.4); opacity: 0.8; }
-.card-wrapper.missing:hover .card { filter: grayscale(1) brightness(0.5); }
 
 /* Classes de Familles */
 .bg-Meridja{background:linear-gradient(150deg,#ff9a8b,#d63031)}
@@ -766,7 +776,7 @@ body:has(#game-screen.active){
 }
 
 .card-wrapper.in-deck .card{
-    box-shadow:0 0 1.6em var(--menthe), 0 .5em 1.4em rgba(0,0,0,.6);
+    box-shadow:0 0 1.6em var(--laiton), 0 .5em 1.4em rgba(0,0,0,.6);
     filter:saturate(1.15) brightness(1.1);
 }
 
@@ -775,7 +785,7 @@ body:has(#game-screen.active){
     position:absolute;
     inset:-.5em;
     border-radius:1.2em;
-    border:.22em solid var(--menthe);
+    border:.22em solid var(--laiton);
     pointer-events:none;
     animation:halo 2.2s ease-in-out infinite;
 }
@@ -785,13 +795,18 @@ body:has(#game-screen.active){
     50%{opacity:1}
 }
 
-/* Modale de Détails Carte (Achat/Vente) */
+.card-wrapper.missing .card {
+    filter: grayscale(1) brightness(0.4);
+    opacity: 0.8;
+}
+
+/* Modale de Détail de Carte */
 #card-detail-overlay {
     display:none;
     position:fixed;
     inset:0;
     z-index:1100;
-    background:rgba(4,8,12,.92);
+    background:rgba(4,8,12,.95);
     backdrop-filter:blur(4px);
     align-items:center;
     justify-content:center;
@@ -805,27 +820,23 @@ body:has(#game-screen.active){
     border-radius:16px;
     padding:20px;
     gap:30px;
-    max-width:800px;
+    max-width:700px;
     width:90%;
 }
 
-.detail-visual {
+.detail-panel-left {
     display:flex;
     align-items:center;
     justify-content:center;
 }
 
-.detail-panel {
+.detail-panel-right {
     flex:1;
     display:flex;
     flex-direction:column;
-    gap:12px;
-}
-
-.detail-panel h3 {
-    margin-top:0;
-    color:var(--laiton-clair);
-    font-family:'Cinzel',serif;
+    gap:10px;
+    overflow-y:auto;
+    max-height:80vh;
 }
 
 .rarity-row {
@@ -845,27 +856,19 @@ body:has(#game-screen.active){
 .r-name.legendaire { color:var(--r-legendaire); }
 .r-name.fusion { color:var(--r-fusion); }
 
+.r-actions-col {
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
 .r-actions {
     display:flex;
     gap:6px;
+    justify-content:flex-end;
 }
 
-.r-actions button {
-    padding:6px 10px;
-    font-size:12px;
-    border-radius:6px;
-    cursor:pointer;
-    background:var(--laiton);
-    border:none;
-    font-weight:bold;
-}
-
-.r-actions button.btn-sell {
-    background:var(--braise);
-    color:white;
-}
-
-/* Zoom Overlay */
+/* Zoom Overlay simple */
 #card-zoom-overlay{
     display:none;
     position:fixed;
