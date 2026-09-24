@@ -2122,7 +2122,27 @@ function declarerForfait() {
     if (attente) attente.classList.remove('open');
     setTimeout(() => { changerEcran('menu-screen'); }, 2000);
 }
-
+function restaurerDecksOfficiels() {
+    const dejaPresents = mesDecks.filter(d => d.base).map(d => d.nom);
+    const manquants = decksPreconstruits.filter(dp => !dejaPresents.includes(dp.nom));
+    
+    if (manquants.length === 0) {
+        return flashInfo('Tous les decks officiels sont déjà présents.');
+    }
+    
+    if (!confirm(`Restaurer ${manquants.length} deck(s) officiel(s) manquant(s) ?`)) return;
+    
+    manquants.forEach(dp => {
+        mesDecks.push({
+            nom: dp.nom,
+            cartes: dp.cartes.map(c => ({ ...c })),
+            base: true
+        });
+    });
+    sauvegarderProgression();
+    chargerListeDecks();
+    flashInfo(`${manquants.length} deck(s) officiel(s) restauré(s).`);
+}
 /* ===========================================================
    TEMPLATES D'EFFETS (pour la création admin)
    =========================================================== */
