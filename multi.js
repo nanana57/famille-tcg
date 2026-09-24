@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v28 — Auth & Admin)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime : Auth & Admin)
    =========================================================== */
 
 const firebaseConfig = {
@@ -28,21 +28,26 @@ let _salleRef = null;
 let _ecouteurDefiEnvoye = null;
 let _pseudoCibleEnCours = null;
 
-function normaliserPseudo(p) { 
-    return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20); 
+/* ---------- Utilitaires ---------- */
+function normaliserPseudo(p) {
+    return (p || 'anonyme').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '_').slice(0, 20);
 }
 
-function calculerPartieId(a, b) { 
-    const x = normaliserPseudo(a), y = normaliserPseudo(b); 
-    return 'p_' + [x, y].sort().join('_vs_'); 
+function calculerPartieId(a, b) {
+    const x = normaliserPseudo(a);
+    const y = normaliserPseudo(b);
+    return 'p_' + [x, y].sort().join('_vs_');
 }
 
+/* ---------- Initialisation Firebase ---------- */
 document.addEventListener("DOMContentLoaded", () => {
     if (typeof firebase !== 'undefined' && !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
         fbDB = firebase.database();
         
-        // Ecouter l'état d'authentification
+        // Écouter l'état d'authentification
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
                 monId = user.uid;
@@ -70,6 +75,7 @@ function connexionFirebase() {
             console.log("Connecté", creds.user.uid); 
         })
         .catch(error => {
+            // Si l'utilisateur n'existe pas, on le crée
             if(error.code === 'auth/user-not-found' || error.code === 'auth/invalid-login-credentials') {
                 if(!pseudo) { 
                     err.innerText = "Nouveau compte : merci d'entrer un pseudo."; 
@@ -93,22 +99,28 @@ function initApresAuth(user) {
         document.getElementById('nav-admin').classList.remove('hidden');
     }
 
+    // Récupération du pseudo dans la DB
     fbDB.ref('profils/' + user.uid).once('value').then(snap => {
         let p = snap.val();
-        if(p && p.pseudo) J.nom = p.pseudo;
-        else J.nom = "Joueur_" + Math.floor(Math.random()*1000);
+        if(p && p.pseudo) {
+            J.nom = p.pseudo;
+        } else {
+            J.nom = "Joueur_" + Math.floor(Math.random()*1000);
+        }
         
         monPseudo = normaliserPseudo(J.nom);
         document.getElementById('display-pseudo').innerText = J.nom;
         document.getElementById('hero-name').innerText = J.nom;
         document.getElementById('main-nav').classList.remove('hidden');
         
+        // Mode plein écran sur mobile
         if (('ontouchstart' in window) && window.innerWidth <= 1366) {
             const el = document.documentElement; 
             if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); 
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
         
+        chargerProgression(); // Charge les decks, pièces, collection depuis localStorage/Firebase
         changerEcran('menu-screen');
         setupFirebaseListeners();
     });
@@ -119,12 +131,19 @@ function setupFirebaseListeners() {
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
     
+    // Si on se déconnecte, on supprime notre statut "en ligne"
     fbUserRef.onDisconnect().remove();
-    fbUserRef.set({ pseudo: J.nom, pseudoNorm: monPseudo, etat: 'libre', dernierPing: Date.now() });
+    fbUserRef.set({ 
+        pseudo: J.nom, 
+        pseudoNorm: monPseudo, 
+        etat: 'libre', 
+        dernierPing: Date.now() 
+    });
     
+    // Écoute de la liste des joueurs
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // Message of the Day (MotD) Global
+    // Écoute du Message of the Day (MotD) Global
     fbDB.ref('motd').on('value', snap => {
         const msg = snap.val();
         const banner = document.getElementById('motd-banner');
@@ -136,6 +155,7 @@ function setupFirebaseListeners() {
         }
     });
 
+    // Écoute des défis reçus
     fbDB.ref('defis/' + monPseudo).on('value', snap => {
         const d = snap.val(); 
         if (!d) return;
@@ -146,6 +166,7 @@ function setupFirebaseListeners() {
         }
     });
 
+    // Écoute des salles
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
@@ -270,7 +291,9 @@ function accepterDefi() {
     const partieId = calculerPartieId(monPseudo, pseudoAdverse); 
     _partieIdEnCours = partieId;
     
-    const roles = Math.random() < 0.5 ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' } : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' }; 
+    const roles = Math.random() < 0.5 
+        ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' } 
+        : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' }; 
     monRole = roles[monPseudo];
     
     _salleRef = fbDB.ref('salles/' + partieId);
@@ -333,7 +356,9 @@ function ecouterSalle(partieId) {
 
         const mesInfos = s.joueurs[monPseudo] || {}; 
         const infosAdv = s.joueurs[pseudoAdverse] || {};
-        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
+        
+        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 && 
+                           Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
 
         if (decksPrets && !dejaLancee) {
             dejaLancee = true;
@@ -490,8 +515,8 @@ window.addEventListener('beforeunload', () => {
 
 function adminToutDebloquer() {
     dbCartes.forEach(c => collectionJoueur[c.id] = 10);
+    sauvegarderProgression();
     alert("C'est fait, tu as 10 exemplaires de chaque carte.");
-    // Met à jour l'interface si l'utilisateur ouvre sa collection ensuite
 }
 
 function adminNettoyerSalles() {
