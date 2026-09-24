@@ -355,11 +355,20 @@ function sanitizeSave() {
         }).filter(c => c !== null);
     });
 
-    decksPreconstruits.forEach(dp => {
-        if (!mesDecks.some(md => md.nom === dp.nom && md.base === true)) {
-            mesDecks.unshift({ nom: dp.nom, cartes: dp.cartes.map(c=>({...c})), base: true });
-        }
-    });
+    // ==========================================================
+    // NETTOYAGE : on retire TOUS les decks préconstruits (base:true)
+    // et on les réinjecte depuis la liste actuelle.
+    // Ça garantit qu'il n'y a JAMAIS de vieux decks préconstruits
+    // qui traînent dans la sauvegarde.
+    // ==========================================================
+    const decksPersonnalises = mesDecks.filter(d => !d.base);
+    const decksPreconstruitsActuels = decksPreconstruits.map(dp => ({
+        nom: dp.nom,
+        cartes: dp.cartes.map(c => ({ ...c })),
+        base: true
+    }));
+    mesDecks.length = 0;
+    mesDecks.push(...decksPersonnalises, ...decksPreconstruitsActuels);
 }
 
 function chargerProgression(email) {
