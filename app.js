@@ -307,7 +307,9 @@ function formatCoins(c) { return c >= 999999 ? '∞' : c; }
 
 function majTopBarCoins() {
     const el = document.getElementById('nav-coins');
-    if(el) el.innerText = formatCoins(profil.coins) + " 🪙";
+    const elDb = document.getElementById('db-coins');
+    if(el) el.innerText = formatCoins(profil.coins) + " 💰";
+    if(elDb) elDb.innerText = formatCoins(profil.coins) + " 💰";
 }
 
 function chargerProgression(email) {
@@ -329,17 +331,17 @@ function chargerProgression(email) {
     if (maintenant - profil.lastLogin > 86400000) { 
         if (email !== 'nassim57132@gmail.com') profil.coins += 50;
         profil.lastLogin = maintenant;
-        flashInfo("🎁 Bonus quotidien : +50 🪙 !");
+        flashInfo("🎁 Bonus quotidien : +50 💰 !");
+        sauvegarderProgression();
+    }
+
+    // Initialiser les 6 decks si c'est la toute première fois
+    if (mesDecks.length === 0) {
+        decksPreconstruits.forEach(d => { mesDecks.push({ nom: d.nom, cartes:[...d.cartes], base:true }); });
         sauvegarderProgression();
     }
 
     if (!profil.deckStart) attribuerDeckDepart();
-    
-    // Initialiser les 6 decks si manquant
-    if (mesDecks.length === 0) {
-        decksPreconstruits.forEach(d => { mesDecks.push({ nom: d.nom, cartes:[], base:true }); });
-        sauvegarderProgression();
-    }
 
     majTopBarCoins();
     majTutoUI();
@@ -359,13 +361,10 @@ function attribuerDeckDepart() {
     const familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)];
     const precon = decksPreconstruits.find(d => d.nom.includes(familleChoisie));
     
-    mesDecks = [];
-    decksPreconstruits.forEach(d => {
-        if(d.nom === precon.nom) mesDecks.push({ nom: d.nom, cartes: [...d.cartes], base: true });
-        else mesDecks.push({ nom: d.nom, cartes: [], base: true });
-    });
-    
+    // Débloque les cartes du deck choisi
     precon.cartes.forEach(id => collectionJoueur[id] = (collectionJoueur[id] || 0) + 1);
+    
+    // Débloque toutes les cartes communes de cette famille
     dbCartes.forEach(c => {
         if (c.famille === familleChoisie && c.rarete === 'commune') collectionJoueur[c.id] = 2;
     });
@@ -373,7 +372,10 @@ function attribuerDeckDepart() {
     profil.deckStart = true;
     profil.coins += 100;
     sauvegarderProgression();
-    setTimeout(() => { alert(`🎉 La famille ${familleChoisie} t'adopte !\nTu as reçu son deck de base et 100 🪙 en cadeau !`); }, 500);
+    
+    setTimeout(() => { 
+        alert(`🎉 La famille ${familleChoisie} t'adopte !\nTu as débloqué ses cartes de base et reçu 100 💰 en cadeau !`); 
+    }, 500);
 }
 
 function calculerCartesPossedeesPourDeck(cartesDeck) {
@@ -411,7 +413,7 @@ function changerEcran(id) {
     if (bfNav) bfNav.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
     if (bfIn) bfIn.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
     
-    if (id === 'deckbuilder-screen') chargerListeDecks();
+    if (id === 'deckbuilder-screen') switchDbTab('boutique');
     if (id === 'menu-screen') chargerDropdownDecks();
     if (id === 'profil-screen') afficherProfil();
     if (id === 'tuto-screen') majTutoUI();
@@ -487,25 +489,82 @@ function fermerZoom() { document.getElementById('card-zoom-overlay').classList.r
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerZoom(); annulerCiblage(); fermerAide(); fermerCimetiere(); } });
 
 /* ---------- 7. Deckbuilder & BOUTIQUE ---------- */
+
+function switchDbTab(tab) {
+    document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.db-tab-content').forEach(c => c.classList.add('hidden'));
+
+    document.getElementById('btn-tab-' + tab).classList.add('active');
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+
+    if (tab === 'boutique') afficherBoutique('cout');
+    else chargerListeDecks();
+}
+
+let triBoutiqueCourant = 'cout';
+function afficherBoutique(critere) {
+    triBoutiqueCourant = critere;
+    const ordreRarete = { fusion:0, legendaire:1, epique:2, rare:3, commune:4 }, ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, Cousins:5, 'Nouvelle famille':6, Neutre:7, Terrain:8, Sort:9 };
+    const liste = [...dbCartes];
+    if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom)); if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
+    if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout); if (critere === 'famille') liste.sort((a, b) => ordreFamille[a.famille] - ordreFamille[b.famille] || a.cout - b.cout);
+    
+    const grid = document.getElementById('boutique-grid'); grid.innerHTML = '';
+    
+    const infoCoins = document.getElementById('collection-count');
+    if (infoCoins) infoCoins.innerHTML = `— <span style="color:var(--laiton)">${formatCoins(profil.coins)} 💰</span>`;
+
+    liste.forEach(c => {
+        const possede = collectionJoueur[c.id] || 0; 
+        const maxCopies = (c.rarete === 'legendaire' || c.rarete === 'epique' || c.rarete === 'fusion') ? 1 : 2;
+        
+        const el = creerHTMLCarte(c, 'collection', { qty:possede });
+        
+        if (possede === 0) el.style.filter = "grayscale(1) brightness(0.5)"; 
+        if (possede >= maxCopies) el.classList.add('in-deck'); // Illumine ceux qu'on a au max
+        
+        el.onclick = () => {
+            if (possede >= maxCopies) return flashInfo('Tu as déjà le max pour cette carte.');
+            const prix = { commune: 10, rare: 50, epique: 200, legendaire: 1000, fusion: 2000 }[c.rarete];
+            if (confirm(`Acheter ${c.prenom} (${c.rarete}) pour ${prix} 💰 ?\nTu possèdes ${formatCoins(profil.coins)} 💰.`)) {
+                if (profil.coins >= prix) {
+                    profil.coins -= prix; collectionJoueur[c.id] = (collectionJoueur[c.id] || 0) + 1;
+                    sauvegarderProgression(); afficherBoutique(triBoutiqueCourant); flashInfo('Achat réussi !');
+                } else { flashInfo('Pas assez de 💰.'); }
+            }
+        };
+        grid.appendChild(el);
+    });
+    ajusterTextes(grid);
+}
+
 function chargerListeDecks() {
     chargerProgression(); 
     const list = document.getElementById('liste-decks'); list.innerHTML = '';
     mesDecks.forEach((d, i) => {
         const owned = calculerCartesPossedeesPourDeck(d.cartes);
-        const div = document.createElement('div'); div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '');
+        const isComplete = owned === 20;
+        
+        const div = document.createElement('div'); 
+        div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '') + (!isComplete ? ' incomplete' : '');
+        
         const supprBtn = d.base ? '<span class="base-tag">Officiel</span>' : `<button class="del-btn" onclick="supprimerDeck(${i}, event)">✕</button>`;
-        const warnTag = (owned === d.cartes.length) ? '' : `<span style="color:var(--braise);font-size:10px;margin-left:5px;">(${owned}/${d.cartes.length})</span>`;
+        const warnTag = isComplete ? '' : `<span style="color:var(--braise);font-size:10px;margin-left:5px;">(${owned}/20)</span>`;
+        
         div.innerHTML = `<span class="di-texte">${d.nom}${warnTag}</span>${supprBtn}`;
         div.onclick = () => editerDeck(i); list.appendChild(div);
     });
     if (deckEnEdition === null && mesDecks.length) editerDeck(0); else { trierCollection(triCourant); afficherDeckEnCours(); }
 }
+
 function creerNouveauDeck() { mesDecks.push({ nom:'Nouveau deck', cartes:[], base:false }); editerDeck(mesDecks.length - 1); }
+
 function supprimerDeck(i, event) {
     if (event) event.stopPropagation(); if (mesDecks[i].base) return; if (!confirm(`Supprimer le deck « ${mesDecks[i].nom} » ?`)) return;
     mesDecks.splice(i, 1); if (deckEnEdition === i) deckEnEdition = null; else if (deckEnEdition !== null && deckEnEdition > i) deckEnEdition--; 
     chargerListeDecks(); sauvegarderProgression();
 }
+
 function editerDeck(i) {
     deckEnEdition = i; tempDeckCartes = [...mesDecks[i].cartes]; document.getElementById('deck-name-input').value = mesDecks[i].nom;
     const list = document.getElementById('liste-decks'); [...list.children].forEach((el, k) => el.classList.toggle('active', k === i));
@@ -518,33 +577,20 @@ function trierCollection(critere) {
     const liste = [...dbCartes];
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom)); if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
     if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout); if (critere === 'famille') liste.sort((a, b) => ordreFamille[a.famille] - ordreFamille[b.famille] || a.cout - b.cout);
-    const grid = document.getElementById('collection-grid'); grid.innerHTML = ''; let totalPossede = 0;
-
-    const infoCoins = document.getElementById('collection-count');
-    if (infoCoins) infoCoins.innerHTML = `— <span style="color:var(--laiton)">${formatCoins(profil.coins)} 🪙</span>`;
-
+    const grid = document.getElementById('collection-grid'); grid.innerHTML = '';
+    
     liste.forEach(c => {
-        const possede = collectionJoueur[c.id] || 0; totalPossede += possede; 
+        const possede = collectionJoueur[c.id] || 0; 
+        if(possede <= 0) return; // Ne montre que ce qu'on possède dans le deckbuilder
+
         const dansDeck = tempDeckCartes.filter(id => id === c.id).length, dispo = possede - dansDeck;
         const el = creerHTMLCarte(c, 'collection', { qty:possede, enDeck:dansDeck || undefined });
         
         if (dansDeck > 0) el.classList.add('in-deck'); 
-        if (possede === 0) el.style.filter = "grayscale(1) brightness(0.6)"; 
-        if (dispo <= 0 && possede > 0) el.classList.add('epuisee');
+        if (dispo <= 0) el.classList.add('epuisee');
         
         el.onclick = () => {
-            if (dispo <= 0) {
-                const maxCopies = (c.rarete === 'legendaire' || c.rarete === 'epique' || c.rarete === 'fusion') ? 1 : 2;
-                if (possede >= maxCopies) { return flashInfo('Tu as déjà le max pour cette carte.'); }
-                const prix = { commune: 10, rare: 50, epique: 200, legendaire: 1000, fusion: 2000 }[c.rarete];
-                if (confirm(`Acheter ${c.prenom} (${c.rarete}) pour ${prix} 🪙 ?\nTu possèdes ${formatCoins(profil.coins)} 🪙.`)) {
-                    if (profil.coins >= prix) {
-                        profil.coins -= prix; collectionJoueur[c.id] = (collectionJoueur[c.id] || 0) + 1;
-                        sauvegarderProgression(); trierCollection(triCourant); flashInfo('Achat réussi !');
-                    } else { flashInfo('Pas assez de 🪙.'); }
-                }
-                return;
-            }
+            if (dispo <= 0) return flashInfo('Tous tes exemplaires sont déjà dans le deck.');
             if (tempDeckCartes.length >= 20) return flashInfo('Le deck contient déjà 20 cartes.');
             tempDeckCartes.push(c.id); trierCollection(triCourant); afficherDeckEnCours();
         };
@@ -559,7 +605,6 @@ function afficherDeckEnCours() {
     Object.keys(compte).map(id => defCarte(id)).sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom)).forEach(c => {
         const div = document.createElement('div'); div.className = 'mini-card'; div.style.borderLeftColor = `var(--r-${c.rarete === 'fusion' ? 'fusion' : c.rarete})`;
         
-        // Indicateur rouge si on met une carte qu'on n'a pas (via un glitch ou un deck base non complet)
         const checkPossede = (collectionJoueur[c.id] || 0) >= compte[c.id];
         const clTextColor = checkPossede ? '' : 'color:var(--braise);';
 
@@ -596,7 +641,7 @@ function flashInfo(txt) {
 
 /* ---------- 8. Boosters ---------- */
 function preparerBooster() {
-    if (profil.coins < 50) { alert("Il te faut 50 🪙 pour ouvrir un booster. Tu en as " + profil.coins + "."); return; }
+    if (profil.coins < 50) { alert("Il te faut 50 💰 pour ouvrir un booster. Tu en as " + profil.coins + "."); return; }
     profil.coins -= 50; sauvegarderProgression();
     const pack = document.getElementById('pack'), res = document.getElementById('booster-results'), btn = document.getElementById('btn-again');
     btn.classList.add('hidden'); res.innerHTML = ''; pack.classList.add('opening');
@@ -661,7 +706,7 @@ function majTutoUI() {
         if (btn) {
             if(profil['tuto_' + lvl]) {
                 btn.style.background = 'linear-gradient(180deg, var(--menthe), #1c8f60)';
-                btn.innerText = btn.innerText.replace(' (Gain: 500 🪙)', ' ✅');
+                btn.innerText = btn.innerText.replace(' (Gain: 500 💰)', ' ✅');
             }
         }
     });
@@ -715,10 +760,10 @@ function lancerTuto(niveau) {
     changerEcran('game-screen'); rafraichirJeu();
 }
 
-function lancerBulleTuto(texte) {
+function lancerBulleTuto(texte, showBtn = false) {
     const bulle = document.getElementById('tuto-bubble');
     document.getElementById('tuto-text').innerText = texte;
-    document.getElementById('btn-tuto-next').classList.add('hidden');
+    document.getElementById('btn-tuto-next').classList.toggle('hidden', !showBtn);
     bulle.classList.remove('hidden');
 }
 
@@ -751,7 +796,7 @@ function validerEtapeTuto() {
 }
 
 function terminerTuto(niveau, gain, message) {
-    lancerBulleTuto(message + `\n\n🎉 Retour au menu...`);
+    lancerBulleTuto(message + `\n\n🎉 +${gain} 💰 ! Retour au menu...`);
     if (!profil['tuto_'+niveau]) {
         profil.coins += gain;
         profil['tuto_'+niveau] = true;
@@ -786,7 +831,6 @@ function validerMulligan(auto) {
 
 function afficherAttente(titre, texte) { const ov = document.getElementById('attente-overlay'), t = document.getElementById('attente-titre'), x = document.getElementById('attente-texte'); if (t) t.innerText = titre || 'En attente…'; if (x) x.innerText = texte || ''; if (ov) ov.classList.add('open'); }
 function fermerAttente() { const ov = document.getElementById('attente-overlay'); if (ov) ov.classList.remove('open'); }
-function melanger(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(getSyncRandom() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 
 /* ---------- Helpers ---------- */
 function elOf(uid) { return document.querySelector(`[data-uid="${uid}"]`); }
@@ -816,7 +860,7 @@ function lancerDe() { const v = 1 + Math.floor(getSyncRandom() * 6); afficherDe(
 function lancerPileOuFace() { const pile = getSyncRandom() < 0.5; afficherPiece(pile); return pile; }
 const FACES_DE = ['⚀','⚁','⚂','⚃','⚄','⚅'];
 function afficherDe(v) { const d = document.createElement('div'); d.className = 'fx-de'; d.innerHTML = `<span class="de-face">${FACES_DE[v - 1]}</span><span class="de-valeur">Résultat : ${v}</span>`; document.getElementById('fx-layer').appendChild(d); setTimeout(() => d.classList.add('disparait'), 1000); setTimeout(() => d.remove(), 1500); }
-function afficherPiece(pile) { const d = document.createElement('div'); d.className = 'fx-de'; d.innerHTML = `<span class="de-face">🪙</span><span class="de-valeur">${pile ? 'Pile !' : 'Face…'}</span>`; document.getElementById('fx-layer').appendChild(d); setTimeout(() => d.classList.add('disparait'), 1000); setTimeout(() => d.remove(), 1500); }
+function afficherPiece(pile) { const d = document.createElement('div'); d.className = 'fx-de'; d.innerHTML = `<span class="de-face">💰</span><span class="de-valeur">${pile ? 'Pile !' : 'Face…'}</span>`; document.getElementById('fx-layer').appendChild(d); setTimeout(() => d.classList.add('disparait'), 1000); setTimeout(() => d.remove(), 1500); }
 function soinCreature(m, n) { const avant = m.vie; m.vie = Math.min(m.vieMax, m.vie + n); if (m.vie > avant) fxSur(m, '+' + (m.vie - avant), 'soin'); }
 function invoquerJeton(side, nom, atk, vie, emoji, motsCles) { if (side.plateau.length >= 5) return; const faux = { id:'jeton_' + nom, prenom:nom, famille:'Neutre', cout:0, atk, vie, rarete:'commune', desc:'Jeton invoqué.', motsCles:motsCles || [], emoji }; const inst = instancier(faux, side.cle, true); inst.malade = true; side.plateau.push(inst); }
 function piocher(side, n) { for (let i = 0; i < n; i++) { if (side.pioceBloquee) { side.pioceBloquee = false; fxSurHero(side, 'Pioche bloquée', 'degat'); continue; } if (!side.deck.length) { degatsHero(side, 3); continue; } if (side.main.length >= 8) { side.deck.shift(); continue; } side.main.push(side.deck.shift()); } }
