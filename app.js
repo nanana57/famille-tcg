@@ -645,14 +645,14 @@ function chargerListeDecks() {
         const div = document.createElement('div');
         div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '');
 
-        const supprBtn = d.base
-            ? '<span class="base-tag">Officiel</span>'
-            : `<button class="del-btn" onclick="supprimerDeck(${i}, event)">✕</button>`;
+        // Bouton supprimer disponible pour TOUS les decks
+        const supprBtn = `<button class="del-btn" onclick="supprimerDeck(${i}, event)">✕</button>`;
+        const baseTag = d.base ? '<span class="base-tag">Officiel</span>' : '';
         const warnTag = isComplete
             ? '<span class="deck-ok">✓</span>'
             : `<span class="deck-warn">${owned}/20</span>`;
 
-        div.innerHTML = `<span class="di-texte">${d.nom}</span>${warnTag}${supprBtn}`;
+        div.innerHTML = `<span class="di-texte">${d.nom}</span>${warnTag}${baseTag}${supprBtn}`;
         div.onclick = () => editerDeck(i);
         list.appendChild(div);
     });
@@ -668,13 +668,22 @@ function creerNouveauDeck() {
 
 function supprimerDeck(i, event) {
     if (event) event.stopPropagation();
-    if (mesDecks[i].base) return;
-    if (!confirm(`Supprimer le deck « ${mesDecks[i].nom} » ?`)) return;
+    const deck = mesDecks[i];
+    if (!deck) return;
+
+    // Message adapté selon le type de deck
+    const message = deck.base
+        ? `⚠️ Ce deck est un deck OFFICIEL.\n\nLe supprimer ? Il sera retiré de ta liste (tu peux le récupérer en créant un nouveau compte ou en vidant ta sauvegarde).\n\nContinuer ?`
+        : `Supprimer le deck « ${deck.nom} » ?`;
+
+    if (!confirm(message)) return;
+
     mesDecks.splice(i, 1);
     if (deckEnEdition === i) deckEnEdition = null;
     else if (deckEnEdition !== null && deckEnEdition > i) deckEnEdition--;
     chargerListeDecks();
     sauvegarderProgression();
+    flashInfo(`Deck « ${deck.nom} » supprimé.`);
 }
 
 function editerDeck(i) {
