@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Version Corrigée et Aérée)
+   FAMILLE TCG — Multijoueur Firebase (v28 — Auth & Admin)
    =========================================================== */
 
 const firebaseConfig = {
@@ -28,67 +28,124 @@ let _salleRef = null;
 let _ecouteurDefiEnvoye = null;
 let _pseudoCibleEnCours = null;
 
-/* ---------- Utilitaires ---------- */
-function normaliserPseudo(p) {
-    return (p || 'anonyme').toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]/g, '_').slice(0, 20);
+function normaliserPseudo(p) { 
+    return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20); 
 }
 
-function calculerPartieId(a, b) {
-    const x = normaliserPseudo(a);
-    const y = normaliserPseudo(b);
-    return 'p_' + [x, y].sort().join('_vs_');
+function calculerPartieId(a, b) { 
+    const x = normaliserPseudo(a), y = normaliserPseudo(b); 
+    return 'p_' + [x, y].sort().join('_vs_'); 
 }
 
-/* ---------- Init Firebase ---------- */
-function initFirebase() {
-    if (typeof firebase === 'undefined') { 
-        console.error('[FB] SDK absent'); 
+document.addEventListener("DOMContentLoaded", () => {
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        fbDB = firebase.database();
+        
+        // Ecouter l'état d'authentification
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                monId = user.uid;
+                initApresAuth(user);
+            }
+        });
+    }
+});
+
+/* ---------- Authentification par E-mail ---------- */
+function connexionFirebase() {
+    const err = document.getElementById('auth-error');
+    const email = document.getElementById('auth-email').value.trim();
+    const pwd = document.getElementById('auth-password').value;
+    const pseudo = document.getElementById('auth-pseudo').value.trim();
+    err.innerText = "";
+
+    if(!email || !pwd) { 
+        err.innerText = "Email et mot de passe requis."; 
         return; 
     }
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    
-    fbDB = firebase.database();
 
-    monId = sessionStorage.getItem('ftcg_monId');
-    if (!monId) {
-        monId = 'j_' + Math.random().toString(36).slice(2, 10);
-        sessionStorage.setItem('ftcg_monId', monId);
-    }
-    
-    monPseudo = normaliserPseudo(J.nom || 'anonyme');
-    console.log('[Multi] init — monPseudo =', monPseudo);
+    firebase.auth().signInWithEmailAndPassword(email, pwd)
+        .then(creds => { 
+            console.log("Connecté", creds.user.uid); 
+        })
+        .catch(error => {
+            if(error.code === 'auth/user-not-found' || error.code === 'auth/invalid-login-credentials') {
+                if(!pseudo) { 
+                    err.innerText = "Nouveau compte : merci d'entrer un pseudo."; 
+                    return; 
+                }
+                firebase.auth().createUserWithEmailAndPassword(email, pwd)
+                    .then(creds => {
+                        fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo });
+                        console.log("Inscrit", creds.user.uid);
+                    })
+                    .catch(e => err.innerText = e.message);
+            } else { 
+                err.innerText = error.message; 
+            }
+        });
+}
 
+function initApresAuth(user) {
+    // Vérification Admin
+    if(user.email === 'nassim57132@gmail.com') {
+        document.getElementById('nav-admin').classList.remove('hidden');
+    }
+
+    fbDB.ref('profils/' + user.uid).once('value').then(snap => {
+        let p = snap.val();
+        if(p && p.pseudo) J.nom = p.pseudo;
+        else J.nom = "Joueur_" + Math.floor(Math.random()*1000);
+        
+        monPseudo = normaliserPseudo(J.nom);
+        document.getElementById('display-pseudo').innerText = J.nom;
+        document.getElementById('hero-name').innerText = J.nom;
+        document.getElementById('main-nav').classList.remove('hidden');
+        
+        if (('ontouchstart' in window) && window.innerWidth <= 1366) {
+            const el = document.documentElement; 
+            if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); 
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        }
+        
+        changerEcran('menu-screen');
+        setupFirebaseListeners();
+    });
+}
+
+/* ---------- Setup de la Base de Données ---------- */
+function setupFirebaseListeners() {
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
     
     fbUserRef.onDisconnect().remove();
-    fbUserRef.set({
-        pseudo: J.nom || 'Anonyme',
-        pseudoNorm: monPseudo,
-        etat: 'libre',
-        dernierPing: Date.now()
-    });
-
+    fbUserRef.set({ pseudo: J.nom, pseudoNorm: monPseudo, etat: 'libre', dernierPing: Date.now() });
+    
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
 
-    // Écoute des défis reçus
-    fbDB.ref('defis/' + monPseudo).on('value', snap => {
-        const d = snap.val();
-        if (!d) return;
-        if (d.de && d.de !== monPseudo && d.etat === 'en_attente') {
-            afficherDefiRecu(d);
-        }
-        if (d.etat !== 'en_attente') {
-            const ov = document.getElementById('defi-overlay');
-            if (ov) ov.classList.remove('open');
+    // Message of the Day (MotD) Global
+    fbDB.ref('motd').on('value', snap => {
+        const msg = snap.val();
+        const banner = document.getElementById('motd-banner');
+        if(msg) { 
+            banner.innerText = msg; 
+            banner.classList.remove('hidden'); 
+        } else { 
+            banner.classList.add('hidden'); 
         }
     });
 
-    // Écoute des salles
+    fbDB.ref('defis/' + monPseudo).on('value', snap => {
+        const d = snap.val(); 
+        if (!d) return;
+        if (d.de && d.de !== monPseudo && d.etat === 'en_attente') afficherDefiRecu(d);
+        if (d.etat !== 'en_attente') { 
+            const ov = document.getElementById('defi-overlay'); 
+            if (ov) ov.classList.remove('open'); 
+        }
+    });
+
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
@@ -96,14 +153,12 @@ function initFirebase() {
             if (dejaLancee) return;
             if (_partieIdEnCours === partieId) return;
             
-            console.log('[Multi] 🔔 Salle détectée :', partieId);
-            _partieIdEnCours = partieId;
+            _partieIdEnCours = partieId; 
             monRole = s.roles ? s.roles[monPseudo] : null;
-            
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-            ecouterSalle(partieId);
             
-            const pseudoAdverse = Object.keys(s.joueurs).find(x => x !== monPseudo);
+            ecouterSalle(partieId); 
+            const pseudoAdverse = Object.keys(s.joueurs).find(x => x !== monPseudo); 
             ouvrirChoixDeckEnLigne(pseudoAdverse);
         });
     });
@@ -111,7 +166,7 @@ function initFirebase() {
 
 /* ---------- Liste joueurs ---------- */
 function rafraichirJoueurs() { 
-    if (!fbDB) initFirebase(); 
+    if (!fbDB) setupFirebaseListeners(); 
 }
 
 function afficherListeJoueurs(data) {
@@ -119,20 +174,17 @@ function afficherListeJoueurs(data) {
     const count = document.getElementById('multi-count');
     const combatCount = document.getElementById('multi-combat-count');
     
-    if (!liste) return;
+    if (!liste) return; 
     
-    const joueurs = Object.entries(data).filter(([id]) => id !== monId);
-    let enCombat = 0;
-    
+    const joueurs = Object.entries(data).filter(([id]) => id !== monId); 
+    let enCombat = 0; 
     liste.innerHTML = '';
     
-    if (joueurs.length === 0) {
-        liste.innerHTML = '<p class="hint">Aucun autre joueur connecté pour le moment.</p>';
-    }
+    if (joueurs.length === 0) liste.innerHTML = '<p class="hint">Aucun autre joueur connecté pour le moment.</p>';
     
     joueurs.forEach(([id, j]) => {
         if (j.etat === 'en_combat') enCombat++;
-        const div = document.createElement('div');
+        const div = document.createElement('div'); 
         div.className = 'multi-joueur';
         
         const libre = j.etat === 'libre';
@@ -152,7 +204,7 @@ function afficherListeJoueurs(data) {
         liste.appendChild(div);
     });
     
-    if (count) count.innerText = `${joueurs.length} joueur(s) connecté(s)`;
+    if (count) count.innerText = `${joueurs.length} joueur(s) connecté(s)`; 
     if (combatCount) combatCount.innerText = `${enCombat} en combat`;
 }
 
@@ -160,15 +212,13 @@ function afficherListeJoueurs(data) {
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
     
-    console.log('[Multi] ⚔️ Défi à', pseudoCible);
     _pseudoCibleEnCours = pseudoCible;
-
-    fbDB.ref('defis/' + pseudoCible).set({
+    fbDB.ref('defis/' + pseudoCible).set({ 
         de: monPseudo, 
         dePseudo: J.nom || 'Anonyme', 
-        deId: monId,
+        deId: monId, 
         etat: 'en_attente', 
-        timestamp: Date.now()
+        timestamp: Date.now() 
     });
 
     if (_ecouteurDefiEnvoye) { 
@@ -178,331 +228,296 @@ function defierJoueur(pseudoCible) {
     
     _ecouteurDefiEnvoye = fbDB.ref('defis/' + pseudoCible);
     _ecouteurDefiEnvoye.on('value', snap => {
-        const d = snap.val();
+        const d = snap.val(); 
         if (!d || d.de !== monPseudo) return;
         
         if (d.etat === 'accepte' && d.partieId) {
-            console.log('[Multi] ✅ Défi accepté, partieId =', d.partieId);
-            
-            if (_ecouteurDefiEnvoye) { 
-                _ecouteurDefiEnvoye.off(); 
-                _ecouteurDefiEnvoye = null; 
-            }
-            
+            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 2000);
             
-            _partieIdEnCours = d.partieId;
+            _partieIdEnCours = d.partieId; 
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
             
-            ecouterSalle(d.partieId);
+            ecouterSalle(d.partieId); 
             ouvrirChoixDeckEnLigne(pseudoCible);
         }
         
         if (d.etat === 'refuse') {
-            console.log('[Multi] ❌ Défi refusé');
             flashInfo(`${pseudoCible} a refusé le défi.`);
-            
-            if (_ecouteurDefiEnvoye) { 
-                _ecouteurDefiEnvoye.off(); 
-                _ecouteurDefiEnvoye = null; 
-            }
-            
+            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 1500);
         }
     });
 }
 
-function afficherDefiRecu(defi) {
-    window._defiEnCours = defi;
-    const t = document.getElementById('defi-texte');
-    if (t) t.innerText = `${defi.dePseudo} te défie en duel !`;
-    
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.add('open');
+function afficherDefiRecu(defi) { 
+    window._defiEnCours = defi; 
+    const t = document.getElementById('defi-texte'); 
+    if (t) t.innerText = `${defi.dePseudo} te défie en duel !`; 
+    const ov = document.getElementById('defi-overlay'); 
+    if (ov) ov.classList.add('open'); 
 }
 
 function accepterDefi() {
-    const defi = window._defiEnCours;
-    if (!defi) return;
+    const defi = window._defiEnCours; 
+    if (!defi) return; 
     
     const pseudoAdverse = defi.de;
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
+    const ov = document.getElementById('defi-overlay'); 
+    if (ov) ov.classList.remove('open'); 
     window._defiEnCours = null;
-
-    const partieId = calculerPartieId(monPseudo, pseudoAdverse);
+    
+    const partieId = calculerPartieId(monPseudo, pseudoAdverse); 
     _partieIdEnCours = partieId;
     
-    console.log('[Multi] ✅ J\'accepte, partieId =', partieId);
-
-    // Distribution fixe et identique des rôles
-    const roles = Math.random() < 0.5
-        ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' }
-        : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' };
-        
+    const roles = Math.random() < 0.5 ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' } : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' }; 
     monRole = roles[monPseudo];
-
+    
     _salleRef = fbDB.ref('salles/' + partieId);
-    _salleRef.set({
-        roles,
-        etat: 'attente_deck',
-        timestamp: Date.now(),
-        joueurs: {
-            [monPseudo]:    { pret: false, deck: null, mulligan: false },
-            [pseudoAdverse]:{ pret: false, deck: null, mulligan: false }
-        }
+    _salleRef.set({ 
+        roles, 
+        etat: 'attente_deck', 
+        timestamp: Date.now(), 
+        joueurs: { 
+            [monPseudo]: { pret: false, deck: null, mulligan: false }, 
+            [pseudoAdverse]:{ pret: false, deck: null, mulligan: false } 
+        } 
     });
-
-    fbDB.ref('defis/' + monPseudo).update({ etat: 'accepte', partieId, acceptePar: monPseudo });
+    
+    fbDB.ref('defis/' + monPseudo).update({ etat: 'accepte', partieId, acceptePar: monPseudo }); 
     fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
     
     setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 5000);
-
-    ecouterSalle(partieId);
+    
+    ecouterSalle(partieId); 
     ouvrirChoixDeckEnLigne(pseudoAdverse);
 }
 
-function refuserDefi() {
-    const defi = window._defiEnCours;
-    if (!defi) return;
-    
-    fbDB.ref('defis/' + monPseudo).update({ etat: 'refuse', refusePar: monPseudo });
-    setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 3000);
-    
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
-    window._defiEnCours = null;
+function refuserDefi() { 
+    fbDB.ref('defis/' + monPseudo).update({ etat: 'refuse', refusePar: monPseudo }); 
+    setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 3000); 
+    const ov = document.getElementById('defi-overlay'); 
+    if (ov) ov.classList.remove('open'); 
+    window._defiEnCours = null; 
 }
 
-function annoncerDeckChoisi(pseudoAdverse, deckIds) {
-    if (!fbDB || !monPseudo) return;
-    
-    const partieId = _partieIdEnCours || calculerPartieId(monPseudo, pseudoAdverse);
-    console.log('[Multi] 📤 Deck annoncé :', deckIds.length, 'cartes');
-    
-    // Le joueur est prêt pour le mulligan
-    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ 
-        pret: true, 
-        deck: deckIds, 
-        mulligan: false 
-    });
+function annoncerDeckChoisi(pseudoAdverse, deckIds) { 
+    if (!fbDB || !monPseudo) return; 
+    const partieId = _partieIdEnCours || calculerPartieId(monPseudo, pseudoAdverse); 
+    fbDB.ref('salles/' + partieId + '/joueurs/' + monPseudo).update({ pret: true, deck: deckIds, mulligan: false }); 
 }
 
-function signalerMulliganPret() {
-    if (!window.multiPartie || !window.multiPartie.active) return;
-    
-    console.log('[Multi] ✅ Mulligan validé et envoyé');
-    window.multiPartie.refSalle.child('joueurs/' + monPseudo).update({ mulligan: true });
+function signalerMulliganPret() { 
+    if (!window.multiPartie || !window.multiPartie.active) return; 
+    window.multiPartie.refSalle.child('joueurs/' + monPseudo).update({ mulligan: true }); 
 }
 
 /* ---------- Écoute de la salle ---------- */
 function ecouterSalle(partieId) {
-    if (_ecouteurSalle === partieId) return;
+    if (_ecouteurSalle === partieId) return; 
     _ecouteurSalle = partieId;
-    console.log('[Multi] 👂 ecouterSalle(', partieId, ')');
-
+    
     const refSalle = fbDB.ref('salles/' + partieId);
-
+    
     refSalle.on('value', snap => {
-        const s = snap.val();
+        const s = snap.val(); 
         if (!s || !s.joueurs) return;
         
-        const pseudos = Object.keys(s.joueurs);
+        const pseudos = Object.keys(s.joueurs); 
         if (pseudos.length < 2 || !s.roles || !s.roles[monPseudo]) return;
 
-        const roleLocal = s.roles[monPseudo];
+        const roleLocal = s.roles[monPseudo]; 
         monRole = roleLocal;
         const roleAdverse = roleLocal === 'joueur1' ? 'joueur2' : 'joueur1';
         const pseudoAdverse = s.roles[roleAdverse] || pseudos.find(x => x !== monPseudo);
 
-        const mesInfos = s.joueurs[monPseudo] || {};
+        const mesInfos = s.joueurs[monPseudo] || {}; 
         const infosAdv = s.joueurs[pseudoAdverse] || {};
-        
-        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 &&
-                           Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
+        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20 && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
 
-        // ---- ÉTAPE 1 : Lancement de l'interface Mulligan ----
         if (decksPrets && !dejaLancee) {
-            console.log('[Multi] ✅ Decks prêts — Ouverture du Mulligan');
             dejaLancee = true;
-            
-            window.multiPartie = {
+            window.multiPartie = { 
                 active: true, 
                 adversaireId: pseudoAdverse, 
-                partieId: partieId, 
-                refSalle: refSalle,
+                partieId, 
+                refSalle, 
                 role: roleLocal, 
-                jeCommence: (roleLocal === 'joueur1'),
-                demarrageTraite: false
+                jeCommence: (roleLocal === 'joueur1'), 
+                demarrageTraite: false, 
+                timestamp: s.timestamp 
             };
-            
-            lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck);
+            lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp); 
+            return;
         }
         
         if (!dejaLancee) return;
 
-        // ---- ÉTAPE 2 : Début réel de la partie (après Mulligan) ----
         if (!window.multiPartie.demarrageTraite) {
-            const mesMull = mesInfos.mulligan === true;
-            const advMull = infosAdv.mulligan === true;
-            
+            const mesMull = mesInfos.mulligan === true, advMull = infosAdv.mulligan === true;
             if (mesMull && advMull) {
-                console.log('[Multi] 🚀 Démarrage officiel. jeCommence =', window.multiPartie.jeCommence);
-                window.multiPartie.demarrageTraite = true;
+                window.multiPartie.demarrageTraite = true; 
                 fermerAttente();
-
-                if (window.multiPartie.jeCommence) {
-                    // Je joue en premier
+                
+                if (window.multiPartie.jeCommence) { 
                     J.premier = true; 
-                    B.premier = false;
-                    
-                    // Visuels de base
-                    B.numTour = 0;
-                    B.manaMax = 3;
-                    B.manaActuel = 0;
-                    
-                    modeEnLigne = true;
-                    modeAttente = false;
-                    tourActuel = 'joueur';
-                    
+                    B.premier = false; 
+                    B.manaMax = 3; 
+                    B.manaActuel = 0; 
+                    modeEnLigne = true; 
+                    modeAttente = false; 
+                    tourActuel = 'joueur'; 
                     debutTourJoueur(); 
-                } else {
-                    // Je joue en second
+                } else { 
                     J.premier = false; 
-                    B.premier = true;
+                    B.premier = true; 
+                    J.manaMax = 3; 
+                    J.manaActuel = 0; 
+                    modeEnLigne = true; 
+                    modeAttente = true; 
+                    tourActuel = 'attente'; 
                     
-                    // Mes visuels de base (en attendant mon tour)
-                    J.numTour = 0;
-                    J.manaMax = 3;
-                    J.manaActuel = 0;
+                    document.getElementById('tour-indicateur').innerText = 'Tour adverse'; 
+                    document.querySelector('.turn-pill').classList.add('bot'); 
+                    document.getElementById('btn-endturn').classList.add('inactif'); 
+                    info('L\'adversaire commence la partie…'); 
                     
-                    modeEnLigne = true;
-                    modeAttente = true;
-                    tourActuel = 'attente';
-                    
-                    document.getElementById('tour-indicateur').innerText = 'Tour adverse';
-                    document.querySelector('.turn-pill').classList.add('bot');
-                    document.getElementById('btn-endturn').classList.add('inactif');
-                    info('L\'adversaire commence la partie…');
-                    
-                    // Initialisation du tour de l'adversaire
-                    prochainManaMax(B);
-                    piocher(B, 1);
-                    rafraichirJeu();
+                    prochainManaMax(B); 
+                    piocher(B, 1); 
+                    rafraichirJeu(); 
                 }
             }
+            return;
         }
 
-        // ---- ÉTAPE 3 : File d'attente d'actions en combat ----
-        if (window.multiPartie.demarrageTraite) {
-            const queue = s.queue || {};
-            const entrees = Object.values(queue).sort((a, b) => (a.id || 0) - (b.id || 0));
+        const queue = s.queue || {}; 
+        const entrees = Object.values(queue).sort((a, b) => (a.id || 0) - (b.id || 0));
+        
+        entrees.forEach(e => {
+            if (!e || !e.action) return; 
+            if (e.par === monPseudo) return; 
+            if (e.id <= _dernierIdTraite) return;
             
-            entrees.forEach(e => {
-                if (!e || !e.action) return;
-                if (e.par === monPseudo) return;
-                if (e.id <= _dernierIdTraite) return;
-                
-                _dernierIdTraite = e.id;
-                console.log('[Multi] 🎬 Action reçue :', e.action.type);
-                traiterActionRecue(e.action);
-            });
-        }
+            _dernierIdTraite = e.id; 
+            traiterActionRecue(e.action);
+        });
     });
 }
 
 /* ---------- Traiter une action reçue ---------- */
 async function traiterActionRecue(a) {
     switch (a.type) {
+        case 'emote': {
+            afficherEmote(B, a.text);
+            break;
+        }
         case 'jouer': {
             let idx = B.main.findIndex(c => c.id === a.id);
-            
-            // Protection anti-désynchronisation si la carte est manquante
-            if (idx < 0) {
-                const fausseCarte = instancier(defCarte(a.id), 'B');
-                B.main.push(fausseCarte);
-                idx = B.main.length - 1;
+            if (idx < 0) { 
+                const fausseCarte = instancier(defCarte(a.id), 'B'); 
+                B.main.push(fausseCarte); 
+                idx = B.main.length - 1; 
             }
-            
-            const carte = B.main[idx];
+            const carte = B.main[idx]; 
             let cible = null;
             
-            // Inversion des cibles : ce qui est 'J' pour lui est 'B' pour moi
-            if (a.idxCible !== null && a.campCible !== null) {
-                const targetSide = (a.campCible === 'J') ? B : J;
-                cible = targetSide.plateau[a.idxCible];
-            } else if (a.cibleHero) {
-                cible = (a.cibleHero === 'J') ? B : J;
+            if (a.idxCible !== null && a.campCible !== null) { 
+                const targetSide = (a.campCible === 'J') ? B : J; 
+                cible = targetSide.plateau[a.idxCible]; 
+            } else if (a.cibleHero) { 
+                cible = (a.cibleHero === 'J') ? B : J; 
             }
-
+            
             if (carte.rarete === 'fusion') sacrifierPourFusion(B, carte.id);
             jouerCarte(B, idx, cible);
             break;
         }
-        
         case 'attaque': {
-            const attaquant = B.plateau[a.idxAttaquant];
+            const attaquant = B.plateau[a.idxAttaquant]; 
             let cible = null;
             
-            if (a.idxCible !== null && a.campCible !== null) {
-                const targetSide = (a.campCible === 'J') ? B : J;
-                cible = targetSide.plateau[a.idxCible];
-            } else if (a.cibleHero) {
-                cible = (a.cibleHero === 'J') ? B : J;
+            if (a.idxCible !== null && a.campCible !== null) { 
+                const targetSide = (a.campCible === 'J') ? B : J; 
+                cible = targetSide.plateau[a.idxCible]; 
+            } else if (a.cibleHero) { 
+                cible = (a.cibleHero === 'J') ? B : J; 
             }
             
-            if (!attaquant || !cible) {
-                console.warn('[Multi] ⚠️ Attaquant ou cible introuvable', a);
-                return;
-            }
+            if (!attaquant || !cible) return;
             
-            attaquant._replay = true;
-            await attaquer(attaquant, cible);
+            attaquant._replay = true; 
+            await attaquer(attaquant, cible); 
             attaquant._replay = false;
             break;
         }
-        
         case 'fin': {
-            console.log('[Multi] 🔵 Fin du tour adverse → à moi !');
-            await pause(400);
-            appliquerFinDeTour(B);
-            
-            B.surcout = 0;
+            await pause(400); 
+            appliquerFinDeTour(B); 
+            B.surcout = 0; 
             if (B.voitMainAdverse > 0) B.voitMainAdverse--;
             
-            rafraichirJeu();
-            verifierFin();
+            rafraichirJeu(); 
+            verifierFin(); 
+            if (partieFinie) return; 
             
-            if (partieFinie) return;
-            
-            // À mon tour de jouer
-            modeAttente = false;
-            tourActuel = 'joueur';
+            modeAttente = false; 
+            tourActuel = 'joueur'; 
             debutTourJoueur();
             break;
         }
     }
 }
 
-/* ---------- Forfait en ligne ---------- */
+/* ---------- Forfait et Nettoyage ---------- */
 function signalerForfaitEnLigne() {
     if (!window.multiPartie || !window.multiPartie.active) return;
-    
-    modeAttente = false;
-    fbDB.ref('salles/' + window.multiPartie.partieId).update({
-        etat: 'forfait', 
-        forfaitPar: monPseudo, 
-        timestamp: Date.now()
-    });
-    
-    fbDB.ref('joueurs/' + monId).update({ etat: 'libre' });
+    modeAttente = false; 
+    fbDB.ref('salles/' + window.multiPartie.partieId).update({ etat: 'forfait', forfaitPar: monPseudo, timestamp: Date.now() });
+    fbDB.ref('joueurs/' + monId).update({ etat: 'libre' }); 
     window.multiPartie.active = false;
 }
 
-/* ---------- Nettoyage ---------- */
 window.addEventListener('beforeunload', () => {
-    if (fbDB && monId) {
-        fbDB.ref('joueurs/' + monId).remove();
-        if (window.multiPartie && window.multiPartie.active) signalerForfaitEnLigne();
+    if (fbDB && monId) { 
+        fbDB.ref('joueurs/' + monId).remove(); 
+        if (window.multiPartie && window.multiPartie.active) signalerForfaitEnLigne(); 
     }
 });
+
+/* ===========================================================
+   FONCTIONS ADMIN
+   =========================================================== */
+
+function adminToutDebloquer() {
+    dbCartes.forEach(c => collectionJoueur[c.id] = 10);
+    alert("C'est fait, tu as 10 exemplaires de chaque carte.");
+    // Met à jour l'interface si l'utilisateur ouvre sa collection ensuite
+}
+
+function adminNettoyerSalles() {
+    fbDB.ref('salles').once('value').then(snap => {
+        const salles = snap.val();
+        if(!salles) { 
+            alert("Aucune salle trouvée."); 
+            return; 
+        }
+        
+        let count = 0;
+        Object.keys(salles).forEach(id => {
+            fbDB.ref('salles/' + id).remove();
+            count++;
+        });
+        alert(count + " salle(s) nettoyée(s).");
+    });
+}
+
+function adminEnvoyerMotd() {
+    const msg = document.getElementById('admin-motd').value.trim();
+    if(msg === "") { 
+        fbDB.ref('motd').remove(); 
+        alert("Message effacé"); 
+    } else { 
+        fbDB.ref('motd').set(msg); 
+        alert("Message diffusé !"); 
+    }
+}
