@@ -42,7 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Permet d'utiliser la touche "Entrée" pour se connecter ou s'inscrire
     const elLogin = document.getElementById('auth-password-login');
     if(elLogin) elLogin.addEventListener('keydown', e => { if(e.key === 'Enter') connexionCompte(); });
     
@@ -50,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(elReg) elReg.addEventListener('keydown', e => { if(e.key === 'Enter') creerCompte(); });
 });
 
-/* ---------- Authentification (Pseudo ou Email) ---------- */
+/* ---------- Authentification ---------- */
 function toggleAuthMode(mode) {
     if (mode === 'register') {
         document.getElementById('box-login').classList.add('hidden');
@@ -69,27 +68,19 @@ function connexionCompte() {
 
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
-    // Connexion avec Email
     if (ident.includes('@')) {
         firebase.auth().signInWithEmailAndPassword(ident, pwd).catch(e => err.innerText = "Erreur : " + e.message);
-    } 
-    // Connexion avec Pseudo
-    else {
+    } else {
         const pseudoNorm = normaliserPseudo(ident);
+        // On essaye de lire si les règles Firebase l'autorisent
         fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
-            if (snap.exists()) {
-                const data = snap.val();
-                const email = typeof data === 'string' ? null : data.email;
-                if (email) {
-                    firebase.auth().signInWithEmailAndPassword(email, pwd).catch(e => err.innerText = "Erreur mot de passe.");
-                } else {
-                    err.innerText = "Ancien format de compte non sécurisé. Merci de créer un nouveau compte !";
-                }
+            if (snap.exists() && snap.val().email) {
+                firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).catch(e => err.innerText = "Mot de passe incorrect.");
             } else {
-                err.innerText = "Pseudo introuvable. As-tu créé un compte ?";
+                err.innerText = "Pseudo introuvable ou ancien compte. Inscris-toi à nouveau !";
             }
         }).catch(() => {
-            err.innerText = "Accès refusé ou impossible de lire le pseudo. Connecte-toi via ton e-mail.";
+            err.innerText = "Utilise ton adresse E-mail pour te connecter.";
         });
     }
 }
@@ -107,19 +98,16 @@ function creerCompte() {
 
     const pseudoNorm = normaliserPseudo(pseudo);
 
-    // On crée l'utilisateur d'abord, pour être autorisé à écrire dans Firebase
+    // CORRECTION : On crée l'utilisateur Firebase D'ABORD pour contourner le blocage
     firebase.auth().createUserWithEmailAndPassword(email, pwd)
         .then(creds => {
-            // On vérifie le pseudo après auth pour éviter les soucis de permissions
-            fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
-                if (snap.exists() && snap.val().uid !== creds.user.uid) {
-                    err.innerText = "Compte créé, mais pseudo déjà pris ! Tu auras un pseudo généré (Joueur_X).";
-                    fbDB.ref('profils/' + creds.user.uid).set({ pseudo: "Joueur_" + Math.floor(Math.random()*1000), email: email });
-                } else {
+            // Une fois connecté, Firebase nous laisse écrire dans la base de données
+            fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email })
+                .then(() => {
                     fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email });
-                    fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email });
-                }
-            });
+                    err.innerText = "Compte créé avec succès ! Connexion...";
+                })
+                .catch(e => { err.innerText = "Compte créé, configuration du profil..."; });
         })
         .catch(e => { err.innerText = "Erreur : " + e.message; });
 }
@@ -147,7 +135,6 @@ function initApresAuth(user) {
         changerEcran('menu-screen');
         setupFirebaseListeners();
     }).catch(() => {
-        // Fallback en cas d'erreur de la DB
         J.nom = "Joueur_" + Math.floor(Math.random()*1000);
         document.getElementById('main-nav').classList.remove('hidden');
         chargerProgression(user.email); 
