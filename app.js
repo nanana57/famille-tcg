@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime Complète)
+   FAMILLE TCG — moteur de jeu (Édition Ultime Collection & Boutique)
    =========================================================== */
 
 /* ---------- 1. Base de cartes ---------- */
@@ -335,7 +335,7 @@ function chargerProgression(email) {
         sauvegarderProgression();
     }
 
-    // Initialiser les 6 decks si c'est la toute première fois
+    // Toujours s'assurer que les 6 decks de base existent dans la liste du joueur
     if (mesDecks.length === 0) {
         decksPreconstruits.forEach(d => { mesDecks.push({ nom: d.nom, cartes:[...d.cartes], base:true }); });
         sauvegarderProgression();
@@ -358,13 +358,14 @@ function sauvegarderProgression() {
 
 function attribuerDeckDepart() {
     const famillesDeBase = ['Meridja', 'Marouf', 'Kerkache', 'Belgacemi'];
+    // Prendre une famille au hasard
     const familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)];
     const precon = decksPreconstruits.find(d => d.nom.includes(familleChoisie));
     
-    // Débloque les cartes du deck choisi
+    // Donner les cartes du deck
     precon.cartes.forEach(id => collectionJoueur[id] = (collectionJoueur[id] || 0) + 1);
     
-    // Débloque toutes les cartes communes de cette famille
+    // Donner les cartes communes de la famille
     dbCartes.forEach(c => {
         if (c.famille === familleChoisie && c.rarete === 'commune') collectionJoueur[c.id] = 2;
     });
@@ -486,17 +487,15 @@ function creerHTMLCarte(c, ctx, opts) {
 function ajusterTextes(racine) { (racine || document).querySelectorAll('.card-text').forEach(el => { let taille = 0.62; el.style.fontSize = taille + 'em'; let garde = 0; while (el.scrollHeight > el.clientHeight + 1 && taille > 0.34 && garde++ < 20) { taille -= 0.035; el.style.fontSize = taille.toFixed(3) + 'em'; } }); }
 function zoomCarte(event, id) { if (event) event.stopPropagation(); const c = defCarte(id); if (!c) return; const box = document.getElementById('card-zoom-container'); box.innerHTML = ''; box.appendChild(creerHTMLCarte(c, 'zoom')); document.getElementById('card-zoom-overlay').classList.add('open'); ajusterTextes(box); }
 function fermerZoom() { document.getElementById('card-zoom-overlay').classList.remove('open'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerZoom(); annulerCiblage(); fermerAide(); fermerCimetiere(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerZoom(); fermerDetailCarte(); annulerCiblage(); fermerAide(); fermerCimetiere(); } });
 
 /* ---------- 7. Deckbuilder & BOUTIQUE ---------- */
 
 function switchDbTab(tab) {
     document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.db-tab-content').forEach(c => c.classList.add('hidden'));
-
     document.getElementById('btn-tab-' + tab).classList.add('active');
     document.getElementById('tab-' + tab).classList.remove('hidden');
-
     if (tab === 'boutique') afficherBoutique('cout');
     else chargerListeDecks();
 }
@@ -510,29 +509,18 @@ function afficherBoutique(critere) {
     if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout); if (critere === 'famille') liste.sort((a, b) => ordreFamille[a.famille] - ordreFamille[b.famille] || a.cout - b.cout);
     
     const grid = document.getElementById('boutique-grid'); grid.innerHTML = '';
-    
     const infoCoins = document.getElementById('collection-count');
     if (infoCoins) infoCoins.innerHTML = `— <span style="color:var(--laiton)">${formatCoins(profil.coins)} 💰</span>`;
 
     liste.forEach(c => {
         const possede = collectionJoueur[c.id] || 0; 
         const maxCopies = (c.rarete === 'legendaire' || c.rarete === 'epique' || c.rarete === 'fusion') ? 1 : 2;
-        
         const el = creerHTMLCarte(c, 'collection', { qty:possede });
         
-        if (possede === 0) el.style.filter = "grayscale(1) brightness(0.5)"; 
-        if (possede >= maxCopies) el.classList.add('in-deck'); // Illumine ceux qu'on a au max
+        if (possede === 0) el.classList.add('missing'); 
+        if (possede >= maxCopies) el.classList.add('in-deck'); 
         
-        el.onclick = () => {
-            if (possede >= maxCopies) return flashInfo('Tu as déjà le max pour cette carte.');
-            const prix = { commune: 10, rare: 50, epique: 200, legendaire: 1000, fusion: 2000 }[c.rarete];
-            if (confirm(`Acheter ${c.prenom} (${c.rarete}) pour ${prix} 💰 ?\nTu possèdes ${formatCoins(profil.coins)} 💰.`)) {
-                if (profil.coins >= prix) {
-                    profil.coins -= prix; collectionJoueur[c.id] = (collectionJoueur[c.id] || 0) + 1;
-                    sauvegarderProgression(); afficherBoutique(triBoutiqueCourant); flashInfo('Achat réussi !');
-                } else { flashInfo('Pas assez de 💰.'); }
-            }
-        };
+        el.onclick = () => { ouvrirDetailCarte(c.id); };
         grid.appendChild(el);
     });
     ajusterTextes(grid);
@@ -544,27 +532,21 @@ function chargerListeDecks() {
     mesDecks.forEach((d, i) => {
         const owned = calculerCartesPossedeesPourDeck(d.cartes);
         const isComplete = owned === 20;
-        
         const div = document.createElement('div'); 
         div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '') + (!isComplete ? ' incomplete' : '');
-        
         const supprBtn = d.base ? '<span class="base-tag">Officiel</span>' : `<button class="del-btn" onclick="supprimerDeck(${i}, event)">✕</button>`;
         const warnTag = isComplete ? '' : `<span style="color:var(--braise);font-size:10px;margin-left:5px;">(${owned}/20)</span>`;
-        
         div.innerHTML = `<span class="di-texte">${d.nom}${warnTag}</span>${supprBtn}`;
         div.onclick = () => editerDeck(i); list.appendChild(div);
     });
     if (deckEnEdition === null && mesDecks.length) editerDeck(0); else { trierCollection(triCourant); afficherDeckEnCours(); }
 }
-
 function creerNouveauDeck() { mesDecks.push({ nom:'Nouveau deck', cartes:[], base:false }); editerDeck(mesDecks.length - 1); }
-
 function supprimerDeck(i, event) {
     if (event) event.stopPropagation(); if (mesDecks[i].base) return; if (!confirm(`Supprimer le deck « ${mesDecks[i].nom} » ?`)) return;
     mesDecks.splice(i, 1); if (deckEnEdition === i) deckEnEdition = null; else if (deckEnEdition !== null && deckEnEdition > i) deckEnEdition--; 
     chargerListeDecks(); sauvegarderProgression();
 }
-
 function editerDeck(i) {
     deckEnEdition = i; tempDeckCartes = [...mesDecks[i].cartes]; document.getElementById('deck-name-input').value = mesDecks[i].nom;
     const list = document.getElementById('liste-decks'); [...list.children].forEach((el, k) => el.classList.toggle('active', k === i));
@@ -589,40 +571,116 @@ function trierCollection(critere) {
         if (dansDeck > 0) el.classList.add('in-deck'); 
         if (dispo <= 0) el.classList.add('epuisee');
         
-        el.onclick = () => {
-            if (dispo <= 0) return flashInfo('Tous tes exemplaires sont déjà dans le deck.');
-            if (tempDeckCartes.length >= 20) return flashInfo('Le deck contient déjà 20 cartes.');
-            tempDeckCartes.push(c.id); trierCollection(triCourant); afficherDeckEnCours();
-        };
+        el.onclick = () => { ouvrirDetailCarte(c.id); };
         grid.appendChild(el);
     });
     ajusterTextes(grid);
 }
+
+/* Modale de Détail (Achat/Vente/Deck) */
+function ouvrirDetailCarte(idCarte) {
+    const c = defCarte(idCarte);
+    const maxCopies = (c.rarete === 'legendaire' || c.rarete === 'epique' || c.rarete === 'fusion') ? 1 : 2;
+    const prixAchat = { commune: 10, rare: 50, epique: 200, legendaire: 1000, fusion: 2000 }[c.rarete];
+    const prixVente = prixAchat / 2;
+    const content = document.getElementById('card-detail-content');
+    
+    function render() {
+        const possede = collectionJoueur[idCarte] || 0;
+        const dansDeck = tempDeckCartes.filter(x => x === idCarte).length;
+        
+        // Convert HTML Element to string
+        const wrapTmp = document.createElement('div');
+        wrapTmp.appendChild(creerHTMLCarte(c, 'collection', { qty: possede }));
+        
+        content.innerHTML = `
+            <div class="detail-visual" style="pointer-events:none;">
+                ${wrapTmp.innerHTML}
+            </div>
+            <div class="detail-panel">
+                <h3 style="font-size:24px;">${c.prenom}</h3>
+                <div class="rarity-row">
+                    <span class="r-name ${c.rarete}">${c.rarete.toUpperCase()}</span>
+                    <span>En possession : <strong>${possede}</strong></span>
+                </div>
+                
+                <div class="r-actions" style="margin-top:15px; flex-direction:column; gap:10px;">
+                    <button class="btn-large" onclick="window.acheterCarte('${c.id}', ${prixAchat})" ${profil.coins < prixAchat || possede >= maxCopies ? 'disabled' : ''}>
+                        Acheter (-${prixAchat} 💰)
+                    </button>
+                    <button class="btn-large btn-sell" onclick="window.vendreCarte('${c.id}', ${prixVente})" ${possede <= 0 ? 'disabled' : ''}>
+                        Vendre (+${prixVente} 💰)
+                    </button>
+                </div>
+
+                ${(!document.getElementById('tab-decks').classList.contains('hidden') && deckEnEdition !== null) ? `
+                <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,.1); padding-top:15px;">
+                    <h4 style="margin:0 0 10px; color:var(--laiton-clair); font-family:'Cinzel',serif;">Deck : ${mesDecks[deckEnEdition].nom}</h4>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-action" style="flex:1" onclick="window.ajouterAuDeck('${c.id}')" ${dansDeck >= possede || dansDeck >= maxCopies || tempDeckCartes.length >= 20 ? 'disabled' : ''}>+ Ajouter</button>
+                        <button class="btn-action" style="flex:1" onclick="window.retirerDuDeck('${c.id}')" ${dansDeck <= 0 ? 'disabled' : ''}>- Retirer</button>
+                    </div>
+                    <p class="hint" style="margin-top:8px; text-align:center;">Présent dans le deck : ${dansDeck}/${maxCopies}</p>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        // Ajustement du texte de la carte affichée dans la modale
+        ajusterTextes(content);
+    }
+    
+    window.acheterCarte = function(id, prix) {
+        if (profil.coins >= prix) {
+            profil.coins -= prix; collectionJoueur[id] = (collectionJoueur[id] || 0) + 1;
+            sauvegarderProgression(); render(); afficherBoutique(triBoutiqueCourant); trierCollection(triCourant);
+        }
+    };
+    
+    window.vendreCarte = function(id, prix) {
+        if ((collectionJoueur[id] || 0) > 0) {
+            const inDeckCount = tempDeckCartes.filter(x => x === id).length;
+            if (inDeckCount > 0 && collectionJoueur[id] <= inDeckCount) {
+                if(!confirm("Cette carte est dans ton deck actif. La vendre la retirera du deck. Continuer ?")) return;
+                window.retirerDuDeck(id);
+            }
+            collectionJoueur[id]--; profil.coins += prix;
+            sauvegarderProgression(); render(); afficherBoutique(triBoutiqueCourant); trierCollection(triCourant);
+        }
+    };
+    
+    window.ajouterAuDeck = function(id) {
+        if (tempDeckCartes.length < 20) {
+            tempDeckCartes.push(id); render(); afficherDeckEnCours(); trierCollection(triCourant);
+        }
+    };
+    
+    window.retirerDuDeck = function(id) {
+        const idx = tempDeckCartes.lastIndexOf(id);
+        if (idx >= 0) {
+            tempDeckCartes.splice(idx, 1); render(); afficherDeckEnCours(); trierCollection(triCourant);
+        }
+    };
+
+    render();
+    document.getElementById('card-detail-overlay').classList.add('open');
+}
+
+function fermerDetailCarte() { document.getElementById('card-detail-overlay').classList.remove('open'); }
+window.fermerDetailCarte = fermerDetailCarte;
 
 function afficherDeckEnCours() {
     const grid = document.getElementById('deck-grid'); grid.innerHTML = ''; document.getElementById('deck-count').innerText = tempDeckCartes.length;
     const compte = {}; tempDeckCartes.forEach(id => compte[id] = (compte[id] || 0) + 1);
     Object.keys(compte).map(id => defCarte(id)).sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom)).forEach(c => {
         const div = document.createElement('div'); div.className = 'mini-card'; div.style.borderLeftColor = `var(--r-${c.rarete === 'fusion' ? 'fusion' : c.rarete})`;
-        
         const checkPossede = (collectionJoueur[c.id] || 0) >= compte[c.id];
         const clTextColor = checkPossede ? '' : 'color:var(--braise);';
-
         div.innerHTML = `<span class="mc-cost">${c.cout}</span><span class="mc-name" style="${clTextColor}">${c.prenom}</span><span class="mc-qty">×${compte[c.id]}</span>`;
-        div.onclick = () => { const idx = tempDeckCartes.lastIndexOf(c.id); if (idx >= 0) tempDeckCartes.splice(idx, 1); trierCollection(triCourant); afficherDeckEnCours(); };
-        grid.appendChild(div);
+        div.onclick = () => { window.retirerDuDeck(c.id); }; grid.appendChild(div);
     });
     const curve = document.getElementById('mana-curve'), seuils = [0,1,2,3,4,5,6,7,8];
     const vals = seuils.map(s => tempDeckCartes.filter(id => (s === 8 ? defCarte(id).cout >= 8 : defCarte(id).cout === s)).length), max = Math.max(1, ...vals);
     curve.innerHTML = seuils.map((s, i) => `<div class="curve-col"><div class="curve-bar" style="height:${(vals[i] / max) * 38}px"></div>${s === 8 ? '8+' : s}</div>`).join('');
-}
-
-function sauvegarderDeck() {
-    if (deckEnEdition === null) return;
-    mesDecks[deckEnEdition].nom = document.getElementById('deck-name-input').value.trim() || 'Sans nom'; 
-    mesDecks[deckEnEdition].cartes = [...tempDeckCartes];
-    sauvegarderProgression(); chargerListeDecks(); 
-    flashInfo(tempDeckCartes.length === 20 ? 'Deck enregistré.' : `Deck incomplet (${tempDeckCartes.length}/20).`);
 }
 
 function chargerDropdownDecks() {
@@ -766,6 +824,8 @@ function lancerBulleTuto(texte, showBtn = false) {
     document.getElementById('btn-tuto-next').classList.toggle('hidden', !showBtn);
     bulle.classList.remove('hidden');
 }
+
+function etapeTutoSuivante() {}
 
 function validerEtapeTuto() {
     if(!modeTuto) return;
@@ -937,6 +997,9 @@ function clicCarteMain(index) {
     if (ciblage) return;
     
     const c = J.main[index]; if (!c) return;
+
+    if (modeTuto && etapeTuto === 0 && c.id === 'm6' && currentTutoLevel === 1) { validerEtapeTuto(); }
+    if (modeTuto && etapeTuto === 0 && c.id === 'm8' && currentTutoLevel === 2) { validerEtapeTuto(); }
 
     if (c.rarete === 'fusion') {
         const dispo = fusionsPossibles(J, c);
