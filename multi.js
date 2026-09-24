@@ -69,18 +69,21 @@ function connexionCompte() {
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
     if (ident.includes('@')) {
-        firebase.auth().signInWithEmailAndPassword(ident, pwd).catch(e => err.innerText = "Erreur : " + e.message);
+        firebase.auth().signInWithEmailAndPassword(ident, pwd)
+            .then(() => err.innerText = "Connecté ! Chargement...")
+            .catch(e => err.innerText = "Erreur : " + e.message);
     } else {
         const pseudoNorm = normaliserPseudo(ident);
-        // On essaye de lire si les règles Firebase l'autorisent
         fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
             if (snap.exists() && snap.val().email) {
-                firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).catch(e => err.innerText = "Mot de passe incorrect.");
+                firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd)
+                    .then(() => err.innerText = "Connecté ! Chargement...")
+                    .catch(e => err.innerText = "Mot de passe incorrect.");
             } else {
-                err.innerText = "Pseudo introuvable ou ancien compte. Inscris-toi à nouveau !";
+                err.innerText = "Pseudo introuvable. As-tu créé un compte ?";
             }
         }).catch(() => {
-            err.innerText = "Utilise ton adresse E-mail pour te connecter.";
+            err.innerText = "Base de données bloquée : Connecte-toi avec ton E-mail.";
         });
     }
 }
@@ -98,16 +101,14 @@ function creerCompte() {
 
     const pseudoNorm = normaliserPseudo(pseudo);
 
-    // CORRECTION : On crée l'utilisateur Firebase D'ABORD pour contourner le blocage
+    // On crée l'utilisateur. Quoi qu'il arrive avec la base de données, le joueur pourra jouer.
     firebase.auth().createUserWithEmailAndPassword(email, pwd)
         .then(creds => {
-            // Une fois connecté, Firebase nous laisse écrire dans la base de données
-            fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email })
-                .then(() => {
-                    fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email });
-                    err.innerText = "Compte créé avec succès ! Connexion...";
-                })
-                .catch(e => { err.innerText = "Compte créé, configuration du profil..."; });
+            err.innerText = "Compte créé ! Lancement du jeu...";
+            // On tente d'enregistrer le pseudo sans bloquer le processus si Firebase refuse
+            fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
+            fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email }).catch(()=>{});
+            // La fonction initApresAuth prendra le relais automatiquement
         })
         .catch(e => { err.innerText = "Erreur : " + e.message; });
 }
@@ -117,26 +118,31 @@ function initApresAuth(user) {
         document.getElementById('nav-admin').classList.remove('hidden');
     }
 
+    // On débloque immédiatement l'interface utilisateur
+    document.getElementById('main-nav').classList.remove('hidden');
+    if (('ontouchstart' in window) && window.innerWidth <= 1366) {
+        const el = document.documentElement; 
+        if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+
+    // On tente de lire le pseudo, si la base de données bloque, on force le passage
     fbDB.ref('profils/' + user.uid).once('value').then(snap => {
         let p = snap.val();
         J.nom = (p && p.pseudo) ? p.pseudo : "Joueur_" + Math.floor(Math.random()*1000);
-        
         monPseudo = normaliserPseudo(J.nom);
         document.getElementById('display-pseudo').innerText = J.nom;
         document.getElementById('hero-name').innerText = J.nom;
-        document.getElementById('main-nav').classList.remove('hidden');
-        
-        if (('ontouchstart' in window) && window.innerWidth <= 1366) {
-            const el = document.documentElement; 
-            if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        }
         
         chargerProgression(user.email); 
         changerEcran('menu-screen');
         setupFirebaseListeners();
     }).catch(() => {
+        // Fallback ultime : On laisse le joueur entrer même si Firebase bloque la lecture
         J.nom = "Joueur_" + Math.floor(Math.random()*1000);
-        document.getElementById('main-nav').classList.remove('hidden');
+        monPseudo = normaliserPseudo(J.nom);
+        document.getElementById('display-pseudo').innerText = J.nom;
+        document.getElementById('hero-name').innerText = J.nom;
+        
         chargerProgression(user.email); 
         changerEcran('menu-screen');
     });
