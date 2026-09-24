@@ -11,6 +11,7 @@
 </head>
 <body>
 
+<!-- Superposition de rotation pour mobile -->
 <div id="rotate-overlay">
     <div class="rotate-box">
         <div class="rotate-phone">📱</div>
@@ -20,11 +21,13 @@
     </div>
 </div>
 
+<!-- Couche pour les effets visuels (dégâts, soins, etc.) -->
 <div id="fx-layer"></div>
 
+<!-- Bannière Globale (Message du Jour / MotD) -->
 <div id="motd-banner" class="motd-banner hidden"></div>
 
-<!-- Guide -->
+<!-- Guide du jeu -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
         <h2>📖 Guide du jeu</h2>
@@ -55,7 +58,7 @@
     </div>
 </div>
 
-<!-- Tuto Bulle -->
+<!-- Bulle de Tutoriel Interactif -->
 <div id="tuto-bubble" class="hidden">
     <div class="tuto-text" id="tuto-text"></div>
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
@@ -73,6 +76,7 @@
     </div>
 </div>
 
+<!-- Choix du deck (Multijoueur) -->
 <div id="deck-choix-overlay">
     <div class="deck-choix-box">
         <h3>Choisis ton deck</h3>
@@ -84,6 +88,7 @@
     </div>
 </div>
 
+<!-- Attente de l'adversaire -->
 <div id="attente-overlay">
     <div class="attente-box">
         <div class="attente-spinner"></div>
@@ -92,12 +97,13 @@
     </div>
 </div>
 
+<!-- Zoom de carte -->
 <div id="card-zoom-overlay" onclick="fermerZoom()">
     <div id="card-zoom-container"></div>
     <p class="zoom-hint">Clique n'importe où pour fermer</p>
 </div>
 
-<!-- Navigation (Cachée sur le login) -->
+<!-- Barre de Navigation (Cachée sur le login) -->
 <nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
@@ -114,7 +120,7 @@
     <div class="nav-pseudo" id="display-pseudo"></div>
 </nav>
 
-<!-- ECRAN CONNEXION -->
+<!-- ÉCRAN CONNEXION (E-mail & Mot de passe) -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
@@ -122,7 +128,7 @@
             <h1 class="title-hero">Famille TCG</h1>
             <p class="subtitle">Connexion ou Inscription</p>
             <input type="email" id="auth-email" placeholder="Adresse E-mail" autocomplete="off">
-            <input type="password" id="auth-password" placeholder="Mot de passe" autocomplete="off">
+            <input type="password" id="auth-password" placeholder="Mot de passe" autocomplete="off" style="margin-top:10px">
             <input type="text" id="auth-pseudo" placeholder="Pseudo (Nouveaux joueurs)" maxlength="15" autocomplete="off" style="margin-top:14px">
             <button class="btn-large" onclick="connexionFirebase()">Entrer dans l'arène</button>
             <p id="auth-error" class="hint" style="color:var(--braise);margin-top:10px;"></p>
@@ -130,7 +136,7 @@
     </div>
 </div>
 
-<!-- ECRAN ARENE (Solo) -->
+<!-- ÉCRAN ARÈNE (Solo) -->
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
@@ -141,7 +147,7 @@
     </div>
 </div>
 
-<!-- ECRAN ADMIN -->
+<!-- ÉCRAN ADMIN -->
 <div id="admin-screen" class="screen">
     <div class="box" style="max-width:600px">
         <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
@@ -157,7 +163,7 @@
     </div>
 </div>
 
-<!-- AUTRES ECRANS (Deckbuilder, Profil, Multi, Booster) -->
+<!-- ÉCRAN DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -187,6 +193,7 @@
     </div>
 </div>
 
+<!-- ÉCRAN PROFIL -->
 <div id="profil-screen" class="screen">
     <div class="box profil-box">
         <h2>Ton profil</h2>
@@ -201,6 +208,7 @@
     </div>
 </div>
 
+<!-- ÉCRAN MULTIJOUEUR -->
 <div id="multi-screen" class="screen">
     <div class="box multi-box">
         <h2>Multijoueur</h2>
@@ -214,6 +222,7 @@
     </div>
 </div>
 
+<!-- ÉCRAN BOOSTERS -->
 <div id="booster-screen" class="screen">
     <div class="booster-wrap">
         <h2>Ouverture de booster</h2>
@@ -221,7 +230,7 @@
         <div class="pack" id="pack" onclick="preparerBooster()">
             <div class="pack-inner">
                 <div class="pack-seal">FT</div>
-                <div class="pack-label">Ouvrir un paquet<br><small>5 cartes</small></div>
+                <div class="pack-label">Ouvrir un paquet<br><small>5 cartes (50 Coins)</small></div>
             </div>
         </div>
         <div class="grid booster-grid" id="booster-results"></div>
@@ -229,7 +238,7 @@
     </div>
 </div>
 
-<!-- ECRAN DE JEU -->
+<!-- ÉCRAN DE JEU (PLATEAU) -->
 <div id="game-screen" class="screen scrollable">
 
     <div id="mulligan-overlay">
@@ -249,6 +258,7 @@
     <!-- Historique des actions -->
     <div id="action-log" class="action-log"></div>
 
+    <!-- Côté Adversaire -->
     <section class="side opponent">
         <div class="hero-panel opp">
             <div class="hero-portrait" id="opp-portrait" onclick="toggleEmotes('B')">🤖</div>
@@ -261,7 +271,7 @@
                     <button class="badge deck" onclick="voirCimetiere('B')">💀 <span id="opp-grave-count">0</span></button>
                 </div>
             </div>
-            <!-- Emotes Bot -->
+            <!-- Emotes Adversaire (Réservé au rendu réseau) -->
             <div class="emote-menu hidden" id="emotes-B"></div>
         </div>
         <div class="terrain-slot" id="opp-terrain"></div>
@@ -269,8 +279,10 @@
         <div class="opp-hand" id="opp-hand-cards"></div>
     </section>
 
+    <!-- Séparateur central -->
     <div class="board-divider"><span></span></div>
 
+    <!-- Côté Joueur -->
     <section class="side player">
         <div class="board-area" id="player-board"></div>
         <div class="terrain-slot" id="player-terrain"></div>
@@ -296,17 +308,21 @@
         </div>
     </section>
 
+    <!-- Main du joueur -->
     <div class="hand-rail">
         <div class="hand-area" id="player-hand"></div>
     </div>
 
+    <!-- Bannière de ciblage -->
     <div id="targeting-banner">Choisis une cible <button onclick="annulerCiblage()">Annuler</button></div>
 </div>
 
+<!-- Scripts Firebase (Compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
+<!-- Scripts du Jeu -->
 <script src="app.js"></script>
 <script src="multi.js"></script>
 </body>
