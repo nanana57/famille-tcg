@@ -22,7 +22,6 @@
 <div id="fx-layer"></div>
 <div id="motd-banner" class="motd-banner hidden"></div>
 
-<!-- Guide du jeu -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
         <h2>📖 Guide du jeu</h2>
@@ -68,7 +67,7 @@
 
 <div id="deck-choix-overlay">
     <div class="deck-choix-box">
-        <h3>Choisis ton deck complet</h3>
+        <h3>Choisis ton deck</h3>
         <select id="deck-choix-select" class="deck-dropdown"></select>
         <div class="deck-choix-actions">
             <button class="btn-large" onclick="validerChoixDeckEnLigne()">Valider</button>
@@ -83,13 +82,16 @@
     </div>
 </div>
 
-<!-- Détail de Carte (Achat/Vente/Deck) -->
-<div id="card-detail-overlay" onclick="fermerDetailCarte()">
-    <div class="detail-container" onclick="event.stopPropagation()" id="card-detail-content"></div>
-</div>
-
+<!-- Zoom simple -->
 <div id="card-zoom-overlay" onclick="fermerZoom()">
     <div id="card-zoom-container"></div>
+</div>
+
+<!-- Modale de Détail (Achat / Vente / Deck) -->
+<div id="card-detail-overlay" onclick="fermerDetailCarte()">
+    <div class="detail-container" id="card-detail-content" onclick="event.stopPropagation()">
+        <!-- Injecté via JS -->
+    </div>
 </div>
 
 <!-- NAVIGATION PRINCIPALE -->
@@ -143,7 +145,7 @@
 <div id="tuto-screen" class="screen">
     <div class="box menu-box" style="max-width:550px">
         <h2>Académie de la Famille</h2>
-        <p class="subtitle">Apprends les bases et gagne des Kadour Coins !</p>
+        <p class="subtitle">Apprends les bases et gagne des K-Coins !</p>
         <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Poser une carte (Gain: 500 💰)</button>
         <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. L'Attaque (Gain: 500 💰)</button>
         <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. La Provocation (Gain: 500 💰)</button>
@@ -156,7 +158,7 @@
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
-        <label for="deck-select">Choisis ton deck (Complet uniquement)</label>
+        <label for="deck-select">Choisis ton deck</label>
         <select id="deck-select" class="deck-dropdown"></select>
         <button class="btn-large" onclick="lancerPartie()">Affronter le bot</button>
     </div>
@@ -181,12 +183,14 @@
 <!-- ECRAN COLLECTION & DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
+        <!-- Sidebar : Liste des Decks -->
         <aside class="sidebar">
             <h3>Mes decks</h3>
             <div id="liste-decks"></div>
-            <button id="btn-nouveau-deck" class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck perso</button>
+            <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck perso</button>
         </aside>
         
+        <!-- Zone centrale : Collection Globale -->
         <section class="collection-area">
             <div class="sort-bar">
                 <h3>Collection globale <span id="collection-count" class="hint"></span></h3>
@@ -196,16 +200,17 @@
                     <button class="btn-chip" onclick="trierCollection('famille')">Famille</button>
                 </div>
             </div>
-            <!-- Grille où s'affichent toutes les cartes uniques -->
+            <!-- Grille des cartes -->
             <div class="grid" id="collection-grid"></div>
         </section>
 
+        <!-- Sidebar Droite : Deck en cours -->
         <aside class="deck-area">
             <input type="text" id="deck-name-input" placeholder="Nom du deck">
             <h3>Cartes du deck <span id="deck-count">0</span>/20</h3>
             <div class="mana-curve" id="mana-curve"></div>
             <div id="deck-grid" class="deck-list"></div>
-            <button id="btn-save-deck" class="btn-large" onclick="sauvegarderDeck()">Enregistrer le deck</button>
+            <button class="btn-large" onclick="sauvegarderDeck()">Enregistrer le deck</button>
         </aside>
     </div>
 </div>
