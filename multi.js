@@ -41,6 +41,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // Permet d'utiliser la touche "Entrée" pour se connecter ou s'inscrire
+    const elLogin = document.getElementById('auth-password-login');
+    if(elLogin) elLogin.addEventListener('keydown', e => { if(e.key === 'Enter') connexionCompte(); });
+    
+    const elReg = document.getElementById('auth-password-reg');
+    if(elReg) elReg.addEventListener('keydown', e => { if(e.key === 'Enter') creerCompte(); });
 });
 
 /* ---------- Authentification (Pseudo ou Email) ---------- */
@@ -62,16 +69,19 @@ function connexionCompte() {
 
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
-    // Si c'est un Email classique
     if (ident.includes('@')) {
         firebase.auth().signInWithEmailAndPassword(ident, pwd).catch(e => err.innerText = "Erreur : " + e.message);
-    } 
-    // Si c'est un Pseudo, on va chercher l'email correspondant dans Firebase
-    else {
+    } else {
         const pseudoNorm = normaliserPseudo(ident);
         fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
-            if (snap.exists() && snap.val().email) {
-                firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).catch(e => err.innerText = "Erreur : " + e.message);
+            if (snap.exists()) {
+                const data = snap.val();
+                const email = typeof data === 'string' ? null : data.email;
+                if (email) {
+                    firebase.auth().signInWithEmailAndPassword(email, pwd).catch(e => err.innerText = "Erreur : " + e.message);
+                } else {
+                    err.innerText = "Ancien compte sans mot de passe. Inscris-toi à nouveau !";
+                }
             } else {
                 err.innerText = "Pseudo introuvable.";
             }
@@ -91,15 +101,12 @@ function creerCompte() {
 
     const pseudoNorm = normaliserPseudo(pseudo);
 
-    // Vérifier si le pseudo est déjà pris
     fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
         if (snap.exists()) {
             err.innerText = "Ce pseudo est déjà pris. Choisis-en un autre !";
         } else {
-            // Pseudo libre, on crée le compte auth
             firebase.auth().createUserWithEmailAndPassword(email, pwd)
                 .then(creds => {
-                    // On réserve le pseudo et on y attache l'email pour la connexion future
                     fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email });
                     fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email });
                 })
@@ -109,7 +116,6 @@ function creerCompte() {
 }
 
 function initApresAuth(user) {
-    // Vérification Admin
     if (user.email === 'nassim57132@gmail.com') {
         document.getElementById('nav-admin').classList.remove('hidden');
     }
@@ -128,6 +134,7 @@ function initApresAuth(user) {
             if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
         
+        // Lance le chargement et nettoie les sauvegardes corrompues
         chargerProgression(user.email); 
         changerEcran('menu-screen');
         setupFirebaseListeners();
