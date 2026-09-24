@@ -22,35 +22,43 @@
 
 <div id="fx-layer"></div>
 
-<!-- Guide / Tuto -->
+<div id="motd-banner" class="motd-banner hidden"></div>
+
+<!-- Guide -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
         <h2>📖 Guide du jeu</h2>
         <div class="aide-section">
             <h3>🎯 But du jeu</h3>
-            <p>Réduis la <strong>Patience</strong> de l'adversaire de 20 à 0. Chaque famille a ses forces et ses faiblesses. Invoque des créatures, lance des sorts, et prends le contrôle du plateau.</p>
+            <p>Réduis la <strong>Patience</strong> de l'adversaire de 20 à 0. Invoque des créatures, lance des sorts, et prends le contrôle du plateau.</p>
         </div>
         <div class="aide-section">
             <h3>⚙️ Mécaniques clés</h3>
             <ul>
                 <li><strong>Charge</strong> ⚡ : La créature peut attaquer le tour où elle est jouée.</li>
                 <li><strong>Provocation</strong> 🛡️ : Les créatures adverses doivent l'attaquer en priorité.</li>
-                <li><strong>Rage</strong> 🔥 : Si la créature subit des dégâts sans mourir, elle gagne +2 en force.</li>
+                <li><strong>Rage</strong> 🔥 : Si la créature subit des dégâts sans mourir, son effet se déclenche.</li>
                 <li><strong>Destruction</strong> 💀 : Quand la créature meurt, un effet se déclenche.</li>
-                <li><strong>Fusion</strong> 💑 : Nécessite de sacrifier deux cartes spécifiques sur le terrain.</li>
+                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes spécifiques (depuis ton terrain ou ta main).</li>
             </ul>
-        </div>
-        <div class="aide-section">
-            <h3>✨ Pouvoirs des cartes</h3>
-            <p><span class="power-badge eclair">⚡</span> Effet immédiat quand la carte est jouée.</p>
-            <p><span class="power-badge infini">♾️</span> Effet permanent ou qui se répète chaque tour.</p>
-        </div>
-        <div class="aide-section">
-            <h3>🎴 Raretés</h3>
-            <p><span style="color:#8d9aa8">● Commune</span> — <span style="color:#3aa0ff">● Rare</span> — <span style="color:#a86bff">● Épique</span> — <span style="color:#ffb63d">● Légendaire</span></p>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
     </div>
+</div>
+
+<!-- Cimetière Overlay -->
+<div id="graveyard-overlay" onclick="fermerCimetiere()">
+    <div class="graveyard-box" onclick="event.stopPropagation()">
+        <h2 id="graveyard-title">Cimetière</h2>
+        <div class="grid" id="graveyard-cards"></div>
+        <button class="btn-large" onclick="fermerCimetiere()">Fermer</button>
+    </div>
+</div>
+
+<!-- Tuto Bulle -->
+<div id="tuto-bubble" class="hidden">
+    <div class="tuto-text" id="tuto-text"></div>
+    <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
 </div>
 
 <!-- Défi reçu -->
@@ -65,7 +73,6 @@
     </div>
 </div>
 
-<!-- Choix du deck en multijoueur -->
 <div id="deck-choix-overlay">
     <div class="deck-choix-box">
         <h3>Choisis ton deck</h3>
@@ -77,7 +84,6 @@
     </div>
 </div>
 
-<!-- Attente -->
 <div id="attente-overlay">
     <div class="attente-box">
         <div class="attente-spinner"></div>
@@ -86,39 +92,45 @@
     </div>
 </div>
 
-<!-- Zoom -->
 <div id="card-zoom-overlay" onclick="fermerZoom()">
     <div id="card-zoom-container"></div>
     <p class="zoom-hint">Clique n'importe où pour fermer</p>
 </div>
 
-<!-- Navigation -->
-<nav id="main-nav" hidden>
+<!-- Navigation (Cachée sur le login) -->
+<nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
+        <button onclick="lancerTuto()">🎓 Tutoriel</button>
         <button onclick="changerEcran('menu-screen')">Arène</button>
         <button onclick="changerEcran('deckbuilder-screen')">Collection &amp; decks</button>
         <button onclick="changerEcran('booster-screen')">Boosters</button>
         <button onclick="changerEcran('multi-screen')">Multijoueur</button>
         <button onclick="changerEcran('profil-screen')">Profil</button>
         <button onclick="ouvrirAide()">❓ Aide</button>
+        <button id="nav-admin" class="hidden" style="color:var(--braise)" onclick="changerEcran('admin-screen')">👑 Admin</button>
         <button id="btn-forfait" class="btn-forfait" onclick="declarerForfait()" hidden>Forfait</button>
     </div>
     <div class="nav-pseudo" id="display-pseudo"></div>
 </nav>
 
+<!-- ECRAN CONNEXION -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
         <div class="box login-box">
             <h1 class="title-hero">Famille TCG</h1>
-            <p class="subtitle">Cinq familles, une seule patience.</p>
-            <input type="text" id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
-            <button class="btn-large" onclick="connecter()">Entrer dans l'arène</button>
+            <p class="subtitle">Connexion ou Inscription</p>
+            <input type="email" id="auth-email" placeholder="Adresse E-mail" autocomplete="off">
+            <input type="password" id="auth-password" placeholder="Mot de passe" autocomplete="off">
+            <input type="text" id="auth-pseudo" placeholder="Pseudo (Nouveaux joueurs)" maxlength="15" autocomplete="off" style="margin-top:14px">
+            <button class="btn-large" onclick="connexionFirebase()">Entrer dans l'arène</button>
+            <p id="auth-error" class="hint" style="color:var(--braise);margin-top:10px;"></p>
         </div>
     </div>
 </div>
 
+<!-- ECRAN ARENE (Solo) -->
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
@@ -129,6 +141,23 @@
     </div>
 </div>
 
+<!-- ECRAN ADMIN -->
+<div id="admin-screen" class="screen">
+    <div class="box" style="max-width:600px">
+        <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
+        <div class="sort-bar" style="justify-content:center; margin-top:20px;">
+            <button class="btn-large" onclick="adminToutDebloquer()">🎁 Tout débloquer (Mon Compte)</button>
+            <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles fantômes</button>
+        </div>
+        <div style="margin-top:20px; text-align:left;">
+            <label class="hint">Annonce Globale (MotD) :</label>
+            <input type="text" id="admin-motd" placeholder="Ex: Tournoi ce soir à 21h !">
+            <button class="btn-action full" onclick="adminEnvoyerMotd()">Diffuser le message</button>
+        </div>
+    </div>
+</div>
+
+<!-- AUTRES ECRANS (Deckbuilder, Profil, Multi, Booster) -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -136,7 +165,6 @@
             <div id="liste-decks"></div>
             <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck</button>
         </aside>
-
         <section class="collection-area">
             <div class="sort-bar">
                 <h3>Collection <span id="collection-count" class="hint"></span></h3>
@@ -149,7 +177,6 @@
             </div>
             <div class="grid" id="collection-grid"></div>
         </section>
-
         <aside class="deck-area">
             <input type="text" id="deck-name-input" placeholder="Nom du deck">
             <h3>Cartes <span id="deck-count">0</span>/20</h3>
@@ -170,7 +197,7 @@
             <div class="profil-stat lose"><span class="profil-nb" id="stat-defaites">0</span><span>Défaites</span></div>
             <div class="profil-stat"><span class="profil-nb" id="stat-ratio">—</span><span>Taux de victoire</span></div>
         </div>
-        <button class="btn-action full" onclick="reinitialiserStats()">Réinitialiser les statistiques</button>
+        <button class="btn-action full" onclick="firebase.auth().signOut().then(()=>location.reload())">Déconnexion</button>
     </div>
 </div>
 
@@ -184,7 +211,6 @@
         </div>
         <div id="multi-liste" class="multi-liste"></div>
         <button class="btn-large" onclick="rafraichirJoueurs()">Rafraîchir la liste</button>
-        <p class="hint" id="multi-info">Connecte-toi avec Firebase pour voir les joueurs.</p>
     </div>
 </div>
 
@@ -203,6 +229,7 @@
     </div>
 </div>
 
+<!-- ECRAN DE JEU -->
 <div id="game-screen" class="screen scrollable">
 
     <div id="mulligan-overlay">
@@ -219,17 +246,23 @@
         <button id="btn-forfait-ingame" class="btn-forfait-ingame" onclick="declarerForfait()">Forfait</button>
     </div>
 
+    <!-- Historique des actions -->
+    <div id="action-log" class="action-log"></div>
+
     <section class="side opponent">
         <div class="hero-panel opp">
-            <div class="hero-portrait" id="opp-portrait">🤖</div>
+            <div class="hero-portrait" id="opp-portrait" onclick="toggleEmotes('B')">🤖</div>
             <div class="hero-meta">
                 <div class="hero-name" id="opp-name">Bot</div>
                 <div class="stat-line">
                     <span class="badge hp" id="opp-health">20</span>
                     <span class="badge mana" id="opp-mana">0/0</span>
                     <span class="badge deck" id="opp-hand">5</span>
+                    <button class="badge deck" onclick="voirCimetiere('B')">💀 <span id="opp-grave-count">0</span></button>
                 </div>
             </div>
+            <!-- Emotes Bot -->
+            <div class="emote-menu hidden" id="emotes-B"></div>
         </div>
         <div class="terrain-slot" id="opp-terrain"></div>
         <div class="board-area" id="opponent-board"></div>
@@ -242,15 +275,22 @@
         <div class="board-area" id="player-board"></div>
         <div class="terrain-slot" id="player-terrain"></div>
         <div class="hero-panel you">
-            <div class="hero-portrait" id="player-portrait">🧑</div>
+            <div class="hero-portrait" id="player-portrait" onclick="toggleEmotes('J')">🧑</div>
             <div class="hero-meta">
                 <div class="hero-name" id="hero-name">Toi</div>
                 <div class="stat-line">
                     <span class="badge hp" id="player-health">20</span>
                     <span class="badge mana" id="player-mana">0/0</span>
                     <span class="badge deck" id="player-deck">15</span>
+                    <button class="badge deck" onclick="voirCimetiere('J')">💀 <span id="player-grave-count">0</span></button>
                 </div>
                 <div class="crystals" id="crystals"></div>
+            </div>
+            <!-- Emotes Joueur -->
+            <div class="emote-menu hidden" id="emotes-J">
+                <button onclick="jouerEmote('Mange, tu es tout maigre !')">Mange !</button>
+                <button onclick="jouerEmote('Attends, le wifi coupe...')">Wifi...</button>
+                <button onclick="jouerEmote('Tu as triché !')">Tricheur !</button>
             </div>
             <button class="btn-endturn" id="btn-endturn" onclick="finDeTour()">Fin du tour</button>
         </div>
@@ -264,6 +304,7 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script src="app.js"></script>
