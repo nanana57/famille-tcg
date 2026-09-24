@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Famille TCG — Édition Ultime</title>
+<title>Famille TCG — Édition Premium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -32,7 +32,7 @@
                 <li><strong>Provocation</strong> 🛡️ : Doit être attaquée en priorité.</li>
                 <li><strong>Rage</strong> 🔥 : Effet déclenché si blessée sans mourir.</li>
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
-                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
+                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises (Aspire les cartes).</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -47,9 +47,10 @@
     </div>
 </div>
 
+<!-- Bulle de Tutoriel Interactif -->
 <div id="tuto-bubble" class="hidden">
     <div class="tuto-text" id="tuto-text"></div>
-    <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
+    <button id="btn-tuto-next" class="btn-large hidden" onclick="etapeTutoSuivante()">Continuer ➡️</button>
 </div>
 
 <div id="defi-overlay">
@@ -63,16 +64,6 @@
     </div>
 </div>
 
-<div id="deck-choix-overlay">
-    <div class="deck-choix-box">
-        <h3>Choisis ton deck complet</h3>
-        <select id="deck-choix-select" class="deck-dropdown"></select>
-        <div class="deck-choix-actions">
-            <button class="btn-large" onclick="validerChoixDeckEnLigne()">Valider</button>
-        </div>
-    </div>
-</div>
-
 <div id="attente-overlay">
     <div class="attente-box">
         <div class="attente-spinner"></div>
@@ -80,6 +71,7 @@
     </div>
 </div>
 
+<!-- Modale de Détail (Achat / Vente / Deck) -->
 <div id="card-detail-overlay" onclick="fermerDetailCarte()">
     <div class="detail-container" id="card-detail-content" onclick="event.stopPropagation()"></div>
 </div>
@@ -88,16 +80,17 @@
     <div id="card-zoom-container"></div>
 </div>
 
+<!-- NAVIGATION PRINCIPALE -->
 <nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
         <button onclick="changerEcran('tuto-screen')">🎓 Académie</button>
-        <button onclick="changerEcran('menu-screen')">Arène</button>
-        <button onclick="changerEcran('collection-screen')">Collection</button>
-        <button onclick="changerEcran('deckbuilder-screen')">Mes Decks</button>
-        <button onclick="changerEcran('booster-screen')">Boosters</button>
-        <button onclick="changerEcran('multi-screen')">Multijoueur</button>
-        <button onclick="changerEcran('profil-screen')">Profil</button>
+        <button onclick="changerEcran('menu-screen')">⚔️ Arène</button>
+        <button onclick="changerEcran('collection-screen')">📚 Collection</button>
+        <button onclick="changerEcran('deckbuilder-screen')">🛡️ Mes Decks</button>
+        <button onclick="changerEcran('booster-screen')">📦 Boosters</button>
+        <button onclick="changerEcran('multi-screen')">🌍 Multijoueur</button>
+        <button onclick="changerEcran('profil-screen')">👤 Profil</button>
         <button id="nav-admin" class="hidden" style="color:var(--braise)" onclick="changerEcran('admin-screen')">👑 Admin</button>
         <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">Forfait</button>
     </div>
@@ -107,18 +100,23 @@
     </div>
 </nav>
 
+<!-- ECRAN CONNEXION -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
-        <div class="login-cards" id="login-cards"></div>
+        <div class="login-cards-bg" id="login-cards-bg">
+            <!-- Rempli par JS avec des cartes flottantes -->
+        </div>
+        
         <div class="box login-box" id="box-login">
             <h1 class="title-hero">Famille TCG</h1>
-            <p class="subtitle">Connexion</p>
+            <p class="subtitle">Édition Premium</p>
             <input type="text" id="auth-ident-login" placeholder="E-mail OU Pseudo" autocomplete="off">
             <input type="password" id="auth-password-login" placeholder="Mot de passe" autocomplete="off" style="margin-top:10px">
             <button class="btn-large" onclick="connexionCompte()">Se connecter</button>
             <p id="auth-error-login" class="hint" style="color:var(--braise);margin-top:10px;"></p>
             <p class="hint" style="margin-top:15px; cursor:pointer; text-decoration:underline;" onclick="toggleAuthMode('register')">Créer un nouveau compte</p>
         </div>
+
         <div class="box login-box hidden" id="box-register">
             <h1 class="title-hero">Inscription</h1>
             <p class="subtitle">Rejoins la famille</p>
@@ -132,84 +130,73 @@
     </div>
 </div>
 
+<!-- ECRAN ACADEMIE (Tuto) -->
 <div id="tuto-screen" class="screen">
     <div class="box menu-box" style="max-width:550px">
         <h2>Académie de la Famille</h2>
-        <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
-        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Poser une carte (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. L'Attaque & Charge (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. La Provocation (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. Les Effets - Rage (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Fusion (Gain: 500 💰 + 1 carte)</button>
+        <p class="subtitle">Apprends les bases et débloque des cartes rares !</p>
+        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Le Coût en Mana (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. L'Attaque & Charge (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. Sorts & Provocation (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. La Rage (Gain: 500 💰)</button>
+        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Fusion Ultime (Gain: 1 Carte Légendaire)</button>
     </div>
 </div>
 
+<!-- ECRAN ARENE (Solo) -->
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
-        <label for="deck-select">Choisis ton deck (Complet uniquement)</label>
+        <label for="deck-select">Choisis ton deck (Seuls les complets s'affichent)</label>
         <select id="deck-select" class="deck-dropdown"></select>
         <button class="btn-large" onclick="lancerPartie()">Affronter le bot</button>
     </div>
 </div>
 
-<div id="admin-screen" class="screen">
-    <div class="box" style="max-width:820px; max-height:90vh; overflow-y:auto;">
+<!-- ECRAN ADMIN (Avec Créateur de Cartes) -->
+<div id="admin-screen" class="screen scrollable">
+    <div class="box" style="max-width:800px; margin-top:20px;">
         <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
-        <div class="admin-tabs">
-            <button class="btn-chip" onclick="adminTab('actions')">Actions</button>
-            <button class="btn-chip" onclick="adminTab('cartes')">Toutes les cartes</button>
-            <button class="btn-chip" onclick="adminTab('creation')">Créer une carte</button>
-            <button class="btn-chip" onclick="adminTab('annonces')">Annonces</button>
+        
+        <div class="sort-bar" style="justify-content:center; margin-top:20px;">
+            <button class="btn-large" onclick="adminToutDebloquer()" style="flex:1; margin-right:10px;">🎁 TOUT DÉBLOQUER</button>
+            <button class="btn-action" onclick="adminNettoyerSalles()" style="flex:1;">🧹 Nettoyer Salles</button>
         </div>
-
-        <div id="admin-tab-actions">
-            <h3>Actions rapides</h3>
-            <button class="btn-large" onclick="adminToutDebloquer(10)">🎁 10 de chaque carte & rareté</button>
-            <button class="btn-large" onclick="adminToutDebloquer(1)">🎁 1 de chaque carte</button>
-            <button class="btn-large" onclick="adminMaxCoins()">💰 1M Coins</button>
-            <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles fantômes</button>
-        </div>
-
-        <div id="admin-tab-cartes" class="hidden">
-            <h3>Collection complète — clique = +1 de chaque rareté</h3>
-            <div id="admin-cartes-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
-        </div>
-
-        <div id="admin-tab-creation" class="hidden">
-            <h3>Créer une nouvelle carte</h3>
-            <input type="text" id="new-card-prenom" placeholder="Prénom de la carte">
-            <select id="new-card-famille">
-                <option>Meridja</option><option>Marouf</option>
-                <option>Kerkache</option><option>Belgacemi</option>
-                <option>Neutre</option><option>Sort</option>
-                <option>Terrain</option><option>Cousins</option>
-                <option>Nouvelle famille</option>
-            </select>
-            <input type="number" id="new-card-cout" placeholder="Coût" value="3">
-            <input type="number" id="new-card-atk" placeholder="Attaque" value="2">
-            <input type="number" id="new-card-vie" placeholder="Vie" value="3">
-            <select id="new-card-rarete">
+        
+        <div style="margin-top:20px; text-align:left; border-top:1px solid #333; padding-top:20px;">
+            <h3 style="color:var(--laiton-clair)">🛠️ Créateur de Cartes (Local)</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <input type="text" id="cc-nom" placeholder="Nom de la carte">
+                <select id="cc-famille" class="deck-dropdown">
+                    <option value="Meridja">Meridja</option>
+                    <option value="Marouf">Marouf</option>
+                    <option value="Kerkache">Kerkache</option>
+                    <option value="Belgacemi">Belgacemi</option>
+                    <option value="Neutre">Neutre</option>
+                    <option value="Sort">Sort</option>
+                    <option value="Terrain">Terrain</option>
+                    <option value="Nouvelle famille">Fusion</option>
+                </select>
+                <input type="number" id="cc-cout" placeholder="Coût (Mana)" min="0" max="10">
+                <input type="number" id="cc-atk" placeholder="Attaque" min="0">
+                <input type="number" id="cc-vie" placeholder="Vie" min="0">
+                <input type="text" id="cc-emoji" placeholder="Emoji (ex: 🗡️)">
+            </div>
+            <select id="cc-rarete" class="deck-dropdown" style="margin-top:10px;">
                 <option value="commune">Commune</option>
                 <option value="rare">Rare</option>
                 <option value="epique">Épique</option>
                 <option value="legendaire">Légendaire</option>
-                <option value="fusion">Fusion</option>
+                <option value="fusion">Fusion (Violette)</option>
             </select>
-            <input type="text" id="new-card-emoji" placeholder="Emoji" value="🃏">
-            <textarea id="new-card-desc" placeholder="Description / effet"></textarea>
-            <input type="text" id="new-card-motscles" placeholder="Mots-clés (séparés par virgules : Charge, Provocation...)">
-            <button class="btn-large" onclick="adminCreerCarte()">✨ Créer la carte</button>
-        </div>
-
-        <div id="admin-tab-annonces" class="hidden">
-            <h3>Message global (MotD)</h3>
-            <input type="text" id="admin-motd" placeholder="Ex: Tournoi ce soir à 21h !">
-            <button class="btn-action full" onclick="adminEnvoyerMotd()">Diffuser le message</button>
+            <input type="text" id="cc-desc" placeholder="Description de la carte" style="margin-top:10px;">
+            <button class="btn-large" style="background:var(--menthe); color:#000;" onclick="creerCarteAdmin()">✨ Créer la carte !</button>
+            <p class="hint">La carte sera ajoutée à ta collection et sauvegardée sur ce navigateur.</p>
         </div>
     </div>
 </div>
 
+<!-- ECRAN COLLECTION (Boutique) -->
 <div id="collection-screen" class="screen">
     <div class="box menu-box" style="max-width:90%; padding:20px; display:flex; flex-direction:column; height:90vh; margin-top:5vh;">
         <div class="sort-bar" style="justify-content:space-between;">
@@ -224,6 +211,7 @@
     </div>
 </div>
 
+<!-- ECRAN DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -231,7 +219,7 @@
             <div id="liste-decks"></div>
             <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck perso</button>
         </aside>
-
+        
         <section class="collection-area">
             <div class="sort-bar">
                 <h3>Cartes du jeu</h3>
@@ -254,6 +242,7 @@
     </div>
 </div>
 
+<!-- ECRAN PROFIL -->
 <div id="profil-screen" class="screen">
     <div class="box profil-box">
         <h2>Ton profil</h2>
@@ -264,10 +253,11 @@
             <div class="profil-stat lose"><span class="profil-nb" id="stat-defaites">0</span><span>Défaites</span></div>
             <div class="profil-stat"><span class="profil-nb" id="stat-ratio">—</span><span>Taux de victoire</span></div>
         </div>
-        <button class="btn-action full" onclick="deconnexion()">Déconnexion</button>
+        <button class="btn-action full" onclick="firebase.auth().signOut().then(()=>location.reload())">Déconnexion</button>
     </div>
 </div>
 
+<!-- ECRAN MULTIJOUEUR -->
 <div id="multi-screen" class="screen">
     <div class="box multi-box">
         <h2>Multijoueur</h2>
@@ -281,6 +271,7 @@
     </div>
 </div>
 
+<!-- ECRAN BOOSTERS -->
 <div id="booster-screen" class="screen">
     <div class="booster-wrap">
         <h2>Ouverture de booster</h2>
@@ -295,6 +286,7 @@
     </div>
 </div>
 
+<!-- ECRAN DE JEU (PLATEAU) -->
 <div id="game-screen" class="screen scrollable">
     <div id="mulligan-overlay">
         <h2>Choisis les cartes à rejeter</h2>
@@ -341,7 +333,7 @@
                 <div class="hero-name" id="hero-name">Toi</div>
                 <div class="stat-line">
                     <span class="badge hp" id="player-health">20</span>
-                    <span class="badge mana" id="player-mana">0/0</span>
+                    <span class="badge mana" id="player-mana" class="mana-text">0/0</span>
                     <span class="badge deck" id="player-deck">15</span>
                     <button class="badge deck" onclick="voirCimetiere('J')">💀 <span id="player-grave-count">0</span></button>
                 </div>
@@ -366,7 +358,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=3"></script>
-<script src="multi.js?v=3"></script>
+<script src="app.js?v=4"></script>
+<script src="multi.js?v=4"></script>
 </body>
 </html>
