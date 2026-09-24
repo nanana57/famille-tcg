@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — feuille de style (Édition Ultime Complète)
+   FAMILLE TCG — feuille de style (Édition Ultime)
    =========================================================== */
 
 :root{
@@ -307,7 +307,7 @@ body:has(#game-screen.active){
 .login-cards .card-wrapper:nth-child(4){transform:translateX(330px) rotate(14deg)}
 .login-box{position:relative;z-index:2}
 
-/* ---------- Deckbuilder & Collection ---------- */
+/* ---------- Deckbuilder ---------- */
 .deckbuilder-container{
     display:flex;
     width:100%;
@@ -562,6 +562,10 @@ body:has(#game-screen.active){
 
 .card-wrapper:hover .card{filter:brightness(1.05)}
 
+/* Gérer les cartes manquantes */
+.card-wrapper.missing .card { filter: grayscale(1) brightness(0.4); opacity: 0.8; }
+.card-wrapper.missing:hover .card { filter: grayscale(1) brightness(0.5); }
+
 /* Classes de Familles */
 .bg-Meridja{background:linear-gradient(150deg,#ff9a8b,#d63031)}
 .bg-Marouf{background:linear-gradient(150deg,#8fd3ff,#0a84d8)}
@@ -776,7 +780,7 @@ body:has(#game-screen.active){
 }
 
 .card-wrapper.in-deck .card{
-    box-shadow:0 0 1.6em var(--laiton), 0 .5em 1.4em rgba(0,0,0,.6);
+    box-shadow:0 0 1.6em var(--menthe), 0 .5em 1.4em rgba(0,0,0,.6);
     filter:saturate(1.15) brightness(1.1);
 }
 
@@ -785,7 +789,7 @@ body:has(#game-screen.active){
     position:absolute;
     inset:-.5em;
     border-radius:1.2em;
-    border:.22em solid var(--laiton);
+    border:.22em solid var(--menthe);
     pointer-events:none;
     animation:halo 2.2s ease-in-out infinite;
 }
@@ -795,18 +799,13 @@ body:has(#game-screen.active){
     50%{opacity:1}
 }
 
-.card-wrapper.missing .card {
-    filter: grayscale(1) brightness(0.4);
-    opacity: 0.8;
-}
-
-/* Modale de Détail de Carte */
+/* Modale de Détails Carte (Achat/Vente/Deck) */
 #card-detail-overlay {
     display:none;
     position:fixed;
     inset:0;
     z-index:1100;
-    background:rgba(4,8,12,.95);
+    background:rgba(4,8,12,.92);
     backdrop-filter:blur(4px);
     align-items:center;
     justify-content:center;
@@ -820,23 +819,27 @@ body:has(#game-screen.active){
     border-radius:16px;
     padding:20px;
     gap:30px;
-    max-width:700px;
+    max-width:800px;
     width:90%;
 }
 
-.detail-panel-left {
+.detail-visual {
     display:flex;
     align-items:center;
     justify-content:center;
 }
 
-.detail-panel-right {
+.detail-panel {
     flex:1;
     display:flex;
     flex-direction:column;
-    gap:10px;
-    overflow-y:auto;
-    max-height:80vh;
+    gap:12px;
+}
+
+.detail-panel h3 {
+    margin-top:0;
+    color:var(--laiton-clair);
+    font-family:'Cinzel',serif;
 }
 
 .rarity-row {
@@ -856,16 +859,24 @@ body:has(#game-screen.active){
 .r-name.legendaire { color:var(--r-legendaire); }
 .r-name.fusion { color:var(--r-fusion); }
 
-.r-actions-col {
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-}
-
 .r-actions {
     display:flex;
     gap:6px;
-    justify-content:flex-end;
+}
+
+.r-actions button {
+    padding:6px 10px;
+    font-size:12px;
+    border-radius:6px;
+    cursor:pointer;
+    background:var(--laiton);
+    border:none;
+    font-weight:bold;
+}
+
+.r-actions button.btn-sell {
+    background:var(--braise);
+    color:white;
 }
 
 /* Zoom Overlay simple */
