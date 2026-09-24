@@ -287,11 +287,7 @@ var decksPreconstruitsBrut = [
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n1','n2','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
     { nom:'Les Infiltrés', cartes:['f1','f2','f3','f4','f5','ka5','ka6','m4','m5','ma3','ma4','ka7','ka8','ka3','ka4','m11','m12','ma11','ka11','n7'] },
-    { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] },
-    { nom:'Meridja Défense', cartes:['m1','m2','m2','m3','m3','m4','m4','m5','m5','m6','m6','m7','m7','m8','m8','n1','n2','s9','s20','s28'] },
-    { nom:'Marouf Rush',    cartes:['ma1','ma2','ma3','ma3','ma4','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma9','ma9','ma10','ma10','n3','n3','s16','s38'] },
-    { nom:'Kerkache Rage',  cartes:['k1','k2','k3','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','n3','n3','s9','s20','s34','s35'] },
-    { nom:'Belgacemi Boom', cartes:['ka1','ka2','ka3','ka3','ka4','ka4','ka5','ka5','ka6','ka6','ka9','ka9','ka10','ka10','n3','n3','s10','s22','s32','s39'] }
+    { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] }
 ];
 
 var decksPreconstruits = decksPreconstruitsBrut.map(function(d) {
@@ -436,13 +432,39 @@ function attribuerDeckDepart() {
 
 function calculerCartesPossedeesPourDeck(cartesDeck) {
     let owned = 0;
-    let tempColl = JSON.parse(JSON.stringify(collectionJoueur));
+    // Copie profonde propre
+    let tempColl = {};
+    for (let id in collectionJoueur) {
+        if (collectionJoueur[id] && typeof collectionJoueur[id] === 'object') {
+            tempColl[id] = { ...collectionJoueur[id] };
+        }
+    }
+    
     cartesDeck.forEach(c => {
         const id = typeof c === 'string' ? c : c.id;
-        const r = typeof c === 'string' ? (defCarte(id) ? defCarte(id).rarete : 'commune') : c.rarete;
+        if (!id || !defCarte(id)) return;
+        
         initColl(id);
-        if (tempColl[id] && tempColl[id][r] && tempColl[id][r] > 0) {
-            owned++; tempColl[id][r]--;
+        const rDefaut = defCarte(id).rarete;
+        const rDemande = (typeof c === 'string') ? rDefaut : (c.rarete || rDefaut);
+        
+        // 1. Essayer avec la rareté demandée
+        if (tempColl[id] && tempColl[id][rDemande] && tempColl[id][rDemande] > 0) {
+            owned++;
+            tempColl[id][rDemande]--;
+            return;
+        }
+        
+        // 2. Fallback : chercher dans n'importe quelle rareté
+        //    (utile si la rareté du deck a été modifiée ou si le joueur possède
+        //     la carte dans une autre rareté)
+        const raretes = ['commune','rare','epique','legendaire','fusion'];
+        for (const r of raretes) {
+            if (tempColl[id] && tempColl[id][r] && tempColl[id][r] > 0) {
+                owned++;
+                tempColl[id][r]--;
+                return;
+            }
         }
     });
     return owned;
