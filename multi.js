@@ -69,11 +69,11 @@ function connexionCompte() {
 
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
-    // Si on utilise un Email (Passe les règles Firebase)
+    // Connexion avec Email
     if (ident.includes('@')) {
         firebase.auth().signInWithEmailAndPassword(ident, pwd).catch(e => err.innerText = "Erreur : " + e.message);
     } 
-    // Si on utilise un Pseudo (Risque de blocage Firebase si règles non publiques)
+    // Connexion avec Pseudo
     else {
         const pseudoNorm = normaliserPseudo(ident);
         fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
@@ -83,14 +83,13 @@ function connexionCompte() {
                 if (email) {
                     firebase.auth().signInWithEmailAndPassword(email, pwd).catch(e => err.innerText = "Erreur mot de passe.");
                 } else {
-                    err.innerText = "Ce compte utilise un ancien format. Inscris-toi à nouveau.";
+                    err.innerText = "Ancien format de compte non sécurisé. Merci de créer un nouveau compte !";
                 }
             } else {
-                err.innerText = "Pseudo introuvable.";
+                err.innerText = "Pseudo introuvable. As-tu créé un compte ?";
             }
         }).catch(() => {
-            // Contournement d'erreur de règle de sécurité
-            err.innerText = "Base de données bloquée : Connecte-toi avec ton E-MAIL.";
+            err.innerText = "Accès refusé ou impossible de lire le pseudo. Connecte-toi via ton e-mail.";
         });
     }
 }
@@ -108,13 +107,13 @@ function creerCompte() {
 
     const pseudoNorm = normaliserPseudo(pseudo);
 
-    // FIX : On crée le compte d'abord pour contourner la sécurité Firebase
+    // On crée l'utilisateur d'abord, pour être autorisé à écrire dans Firebase
     firebase.auth().createUserWithEmailAndPassword(email, pwd)
         .then(creds => {
-            // Maintenant qu'on est identifié, Firebase nous autorise à écrire :
+            // On vérifie le pseudo après auth pour éviter les soucis de permissions
             fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
                 if (snap.exists() && snap.val().uid !== creds.user.uid) {
-                    err.innerText = "Compte créé, mais pseudo déjà pris ! Tu auras un pseudo temporaire.";
+                    err.innerText = "Compte créé, mais pseudo déjà pris ! Tu auras un pseudo généré (Joueur_X).";
                     fbDB.ref('profils/' + creds.user.uid).set({ pseudo: "Joueur_" + Math.floor(Math.random()*1000), email: email });
                 } else {
                     fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email });
@@ -148,7 +147,7 @@ function initApresAuth(user) {
         changerEcran('menu-screen');
         setupFirebaseListeners();
     }).catch(() => {
-        // Au cas où la base de données plante, on force le passage
+        // Fallback en cas d'erreur de la DB
         J.nom = "Joueur_" + Math.floor(Math.random()*1000);
         document.getElementById('main-nav').classList.remove('hidden');
         chargerProgression(user.email); 
