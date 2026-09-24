@@ -292,46 +292,12 @@ body:has(#game-screen.active){
 .login-cards .card-wrapper:nth-child(4){transform:translateX(330px) rotate(14deg)}
 .login-box{position:relative;z-index:2}
 
-/* ---------- Nouvel UI: Onglets Deckbuilder / Boutique ---------- */
-.db-header {
-    display:flex;
-    gap:12px;
-    padding:10px 20px;
-    background:#101a25;
-    border-bottom:1px solid rgba(217,164,65,.35);
-    align-items:center;
-}
-
-.btn-tab {
-    padding:8px 16px;
-    background:#17222f;
-    border:1px solid rgba(255,255,255,.1);
-    color:var(--texte-doux);
-    border-radius:8px;
-    cursor:pointer;
-    font-weight:700;
-}
-
-.btn-tab.active {
-    background:var(--laiton);
-    color:#231703;
-    border-color:var(--laiton-clair);
-}
-
-.db-tab-content {
-    flex:1;
-    min-height:0;
-    overflow-y:auto;
-    display:flex;
-    flex-direction:column;
-}
-
 /* ---------- Deckbuilder ---------- */
 .deckbuilder-container{
     display:flex;
-    flex-direction: row;
     width:100%;
-    height:100%;
+    height:calc(100vh - 57px);
+    min-height:0;
 }
 
 .sidebar{
@@ -370,10 +336,10 @@ body:has(#game-screen.active){
     box-shadow:0 0 16px rgba(217,164,65,.22);
 }
 
+/* DECK GRISÉ SI INCOMPLET */
 .deck-item.incomplete {
-    filter: grayscale(0.8);
-    opacity: 0.75;
-    border-color: rgba(255,92,71,.4);
+    filter: grayscale(0.9);
+    opacity: 0.65;
 }
 
 .deck-item small{
@@ -581,6 +547,10 @@ body:has(#game-screen.active){
 }
 
 .card-wrapper:hover .card{filter:brightness(1.05)}
+
+/* Gérer les cartes manquantes */
+.card-wrapper.missing .card { filter: grayscale(1) brightness(0.4); opacity: 0.8; }
+.card-wrapper.missing:hover .card { filter: grayscale(1) brightness(0.5); }
 
 /* Classes de Familles */
 .bg-Meridja{background:linear-gradient(150deg,#ff9a8b,#d63031)}
@@ -815,18 +785,94 @@ body:has(#game-screen.active){
     50%{opacity:1}
 }
 
-.card-wrapper.epuisee .card{filter:brightness(.62) saturate(.7)}
-.card-wrapper.epuisee{cursor:not-allowed}
+/* Modale de Détails Carte (Achat/Vente) */
+#card-detail-overlay {
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:1100;
+    background:rgba(4,8,12,.92);
+    backdrop-filter:blur(4px);
+    align-items:center;
+    justify-content:center;
+}
+#card-detail-overlay.open { display:flex; }
+
+.detail-container {
+    display:flex;
+    background:var(--nuit-2);
+    border:2px solid var(--laiton);
+    border-radius:16px;
+    padding:20px;
+    gap:30px;
+    max-width:800px;
+    width:90%;
+}
+
+.detail-visual {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.detail-panel {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.detail-panel h3 {
+    margin-top:0;
+    color:var(--laiton-clair);
+    font-family:'Cinzel',serif;
+}
+
+.rarity-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:#101a25;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,.1);
+}
+
+.r-name { font-weight:bold; font-size:14px; }
+.r-name.commune { color:var(--r-commune); }
+.r-name.rare { color:var(--r-rare); }
+.r-name.epique { color:var(--r-epique); }
+.r-name.legendaire { color:var(--r-legendaire); }
+.r-name.fusion { color:var(--r-fusion); }
+
+.r-actions {
+    display:flex;
+    gap:6px;
+}
+
+.r-actions button {
+    padding:6px 10px;
+    font-size:12px;
+    border-radius:6px;
+    cursor:pointer;
+    background:var(--laiton);
+    border:none;
+    font-weight:bold;
+}
+
+.r-actions button.btn-sell {
+    background:var(--braise);
+    color:white;
+}
 
 /* Zoom Overlay */
 #card-zoom-overlay{
     display:none;
     position:fixed;
     inset:0;
-    z-index:1000;
+    z-index:1200;
     cursor:zoom-out;
-    background:rgba(4,8,12,.92);
-    backdrop-filter:blur(4px);
+    background:rgba(4,8,12,.96);
     flex-direction:column;
     align-items:center;
     justify-content:center;
