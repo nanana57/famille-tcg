@@ -53,7 +53,6 @@
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
 </div>
 
-<!-- Défis & Attente -->
 <div id="defi-overlay">
     <div class="defi-box">
         <h3 id="defi-titre">Défi reçu</h3>
@@ -67,7 +66,7 @@
 
 <div id="deck-choix-overlay">
     <div class="deck-choix-box">
-        <h3>Choisis ton deck</h3>
+        <h3>Choisis ton deck complet</h3>
         <select id="deck-choix-select" class="deck-dropdown"></select>
         <div class="deck-choix-actions">
             <button class="btn-large" onclick="validerChoixDeckEnLigne()">Valider</button>
@@ -82,16 +81,13 @@
     </div>
 </div>
 
-<!-- Zoom simple -->
-<div id="card-zoom-overlay" onclick="fermerZoom()">
-    <div id="card-zoom-container"></div>
-</div>
-
 <!-- Modale de Détail (Achat / Vente / Deck) -->
 <div id="card-detail-overlay" onclick="fermerDetailCarte()">
-    <div class="detail-container" id="card-detail-content" onclick="event.stopPropagation()">
-        <!-- Injecté via JS -->
-    </div>
+    <div class="detail-container" id="card-detail-content" onclick="event.stopPropagation()"></div>
+</div>
+
+<div id="card-zoom-overlay" onclick="fermerZoom()">
+    <div id="card-zoom-container"></div>
 </div>
 
 <!-- NAVIGATION PRINCIPALE -->
@@ -100,7 +96,8 @@
     <div class="nav-links">
         <button onclick="changerEcran('tuto-screen')">🎓 Académie</button>
         <button onclick="changerEcran('menu-screen')">Arène</button>
-        <button onclick="changerEcran('deckbuilder-screen')">Collection & Decks</button>
+        <button onclick="changerEcran('collection-screen')">Collection</button>
+        <button onclick="changerEcran('deckbuilder-screen')">Mes Decks</button>
         <button onclick="changerEcran('booster-screen')">Boosters</button>
         <button onclick="changerEcran('multi-screen')">Multijoueur</button>
         <button onclick="changerEcran('profil-screen')">Profil</button>
@@ -158,7 +155,7 @@
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
-        <label for="deck-select">Choisis ton deck</label>
+        <label for="deck-select">Choisis ton deck (Complet uniquement)</label>
         <select id="deck-select" class="deck-dropdown"></select>
         <button class="btn-large" onclick="lancerPartie()">Affronter le bot</button>
     </div>
@@ -180,7 +177,22 @@
     </div>
 </div>
 
-<!-- ECRAN COLLECTION & DECKBUILDER -->
+<!-- ECRAN COLLECTION (Boutique) -->
+<div id="collection-screen" class="screen">
+    <div class="box menu-box" style="max-width:90%; padding:20px; display:flex; flex-direction:column; height:90vh; margin-top:5vh;">
+        <div class="sort-bar" style="justify-content:space-between;">
+            <h2 style="margin:0; color:var(--laiton-clair);">Collection & Boutique</h2>
+            <div class="sort-actions">
+                <button class="btn-chip" onclick="afficherBoutique('cout')">Coût</button>
+                <button class="btn-chip" onclick="afficherBoutique('rarete')">Rareté</button>
+                <button class="btn-chip" onclick="afficherBoutique('famille')">Famille</button>
+            </div>
+        </div>
+        <div class="grid" id="boutique-grid" style="overflow-y:auto; flex:1; margin-top:15px; padding:10px;"></div>
+    </div>
+</div>
+
+<!-- ECRAN DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <!-- Sidebar : Liste des Decks -->
@@ -190,18 +202,18 @@
             <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck perso</button>
         </aside>
         
-        <!-- Zone centrale : Collection Globale -->
+        <!-- Zone centrale : Cartes pour le deck -->
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Collection globale <span id="collection-count" class="hint"></span></h3>
+                <h3>Cartes du jeu</h3>
                 <div class="sort-actions">
-                    <button class="btn-chip" onclick="trierCollection('cout')">Coût</button>
-                    <button class="btn-chip" onclick="trierCollection('rarete')">Rareté</button>
-                    <button class="btn-chip" onclick="trierCollection('famille')">Famille</button>
+                    <button class="btn-chip" onclick="trierDeckbuilder('cout')">Coût</button>
+                    <button class="btn-chip" onclick="trierDeckbuilder('rarete')">Rareté</button>
+                    <button class="btn-chip" onclick="trierDeckbuilder('famille')">Famille</button>
                 </div>
             </div>
-            <!-- Grille des cartes -->
-            <div class="grid" id="collection-grid"></div>
+            <!-- Grille où s'affichent toutes les cartes (possédées/manquantes) -->
+            <div class="grid" id="deckbuilder-grid"></div>
         </section>
 
         <!-- Sidebar Droite : Deck en cours -->
