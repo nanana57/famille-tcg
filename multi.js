@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime : Sécurité anti-blocage)
+   FAMILLE TCG — Multijoueur Firebase (Sécurité Anti-Chargement Infini)
    =========================================================== */
 
 const firebaseConfig = {
@@ -18,7 +18,6 @@ let fbJoueursRef = null;
 let monId = null;
 let monPseudo = null;
 window.multiPartie = null;
-
 let monRole = null;
 let dejaLancee = false;
 let _ecouteurSalle = null;
@@ -34,26 +33,16 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof firebase !== 'undefined' && !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
             fbDB = firebase.database();
-            
-            firebase.auth().onAuthStateChanged(user => {
-                if (user) {
-                    monId = user.uid;
-                    initApresAuth(user);
-                }
-            });
+            firebase.auth().onAuthStateChanged(user => { if (user) { monId = user.uid; initApresAuth(user); } });
         }
-    } catch(e) {
-        console.error("Firebase a été bloqué par le navigateur.");
-    }
+    } catch(e) { console.error("Firebase bloqué par le navigateur."); }
 
     const elLogin = document.getElementById('auth-password-login');
     if(elLogin) elLogin.addEventListener('keydown', e => { if(e.key === 'Enter') connexionCompte(); });
-    
     const elReg = document.getElementById('auth-password-reg');
     if(elReg) elReg.addEventListener('keydown', e => { if(e.key === 'Enter') creerCompte(); });
 });
 
-/* ---------- Authentification & Fallback Hors-Ligne ---------- */
 function toggleAuthMode(mode) {
     if (mode === 'register') {
         document.getElementById('box-login').classList.add('hidden');
@@ -64,24 +53,18 @@ function toggleAuthMode(mode) {
     }
 }
 
-// Fonction de sauvetage absolu : force l'entrée dans le jeu même si Firebase plante
+// Fonction de sauvetage : Force l'entrée dans le jeu quoi qu'il arrive
 function lancerModeHorsLigne(pseudoForce, emailForce) {
     if (typeof J === 'undefined') {
-        alert("Erreur critique : le fichier app.js a mal chargé. Vide le cache de ton navigateur (Ctrl + F5).");
+        alert("Erreur critique : le fichier app_final.js a mal chargé. Vérifie le nom du fichier.");
         return;
     }
-    
     J.nom = pseudoForce || "Joueur_" + Math.floor(Math.random() * 1000);
     monPseudo = normaliserPseudo(J.nom);
     
-    const disp = document.getElementById('display-pseudo');
-    if(disp) disp.innerText = J.nom;
-    
-    const hero = document.getElementById('hero-name');
-    if(hero) hero.innerText = J.nom;
-    
-    const nav = document.getElementById('main-nav');
-    if(nav) nav.classList.remove('hidden');
+    const disp = document.getElementById('display-pseudo'); if(disp) disp.innerText = J.nom;
+    const hero = document.getElementById('hero-name'); if(hero) hero.innerText = J.nom;
+    const nav = document.getElementById('main-nav'); if(nav) nav.classList.remove('hidden');
     
     if (typeof chargerProgression === 'function') chargerProgression(emailForce);
     if (typeof changerEcran === 'function') changerEcran('menu-screen');
@@ -96,55 +79,37 @@ function connexionCompte() {
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
 
     if (typeof firebase === 'undefined') {
-        err.innerText = "Firebase bloqué. Lancement hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(ident, ident), 1500);
+        err.innerText = "Firebase bloqué. Lancement forcé...";
+        setTimeout(() => lancerModeHorsLigne(ident, ident), 1000);
         return;
     }
 
-    // Sécurité : Si Firebase ne répond pas dans les 6 secondes, on passe hors-ligne
+    // Le Kill-Switch de 3.5 secondes
     let timeout = setTimeout(() => {
-        if (err.innerText === "Connexion en cours...") {
-            err.innerText = "Le serveur ne répond pas. Passage en mode hors ligne...";
-            setTimeout(() => lancerModeHorsLigne(ident, ident), 1500);
-        }
-    }, 6000);
+        err.innerText = "Le serveur est bloqué. Mode local activé !";
+        setTimeout(() => lancerModeHorsLigne(ident, ident), 1500);
+    }, 3500);
 
     try {
         if (ident.includes('@')) {
-            firebase.auth().signInWithEmailAndPassword(ident, pwd).then(() => {
-                clearTimeout(timeout);
-                err.innerText = "Connecté !";
-            }).catch(e => {
-                clearTimeout(timeout);
-                err.innerText = "Erreur : " + e.message;
-            });
+            firebase.auth().signInWithEmailAndPassword(ident, pwd).then(() => clearTimeout(timeout)).catch(e => { clearTimeout(timeout); err.innerText = "Erreur : " + e.message; });
         } else {
-            const pseudoNorm = normaliserPseudo(ident);
             if (fbDB) {
-                fbDB.ref('pseudos_reserves/' + pseudoNorm).once('value').then(snap => {
+                fbDB.ref('pseudos_reserves/' + normaliserPseudo(ident)).once('value').then(snap => {
                     if (snap.exists() && snap.val().email) {
-                        firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).then(() => {
-                            clearTimeout(timeout);
-                            err.innerText = "Connecté !";
-                        }).catch(e => {
-                            clearTimeout(timeout);
-                            err.innerText = "Mot de passe incorrect.";
-                        });
+                        firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).then(() => clearTimeout(timeout)).catch(e => { clearTimeout(timeout); err.innerText = "Mot de passe incorrect."; });
                     } else {
-                        clearTimeout(timeout);
-                        err.innerText = "Pseudo introuvable ou ancien compte. Inscris-toi !";
+                        clearTimeout(timeout); err.innerText = "Pseudo introuvable. Inscris-toi !";
                     }
                 }).catch(() => {
-                    clearTimeout(timeout);
-                    err.innerText = "Base de données bloquée. Lancement hors ligne...";
-                    setTimeout(() => lancerModeHorsLigne(ident, null), 1500);
+                    clearTimeout(timeout); err.innerText = "Base de données bloquée. Lancement forcé...";
+                    setTimeout(() => lancerModeHorsLigne(ident, null), 1000);
                 });
             }
         }
     } catch (e) {
-        clearTimeout(timeout);
-        err.innerText = "Erreur locale. Lancement hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(ident, null), 1500);
+        clearTimeout(timeout); err.innerText = "Erreur locale. Lancement forcé...";
+        setTimeout(() => lancerModeHorsLigne(ident, null), 1000);
     }
 }
 
@@ -153,45 +118,39 @@ function creerCompte() {
     const pseudo = document.getElementById('auth-pseudo-reg').value.trim();
     const email = document.getElementById('auth-email-reg').value.trim().toLowerCase();
     const pwd = document.getElementById('auth-password-reg').value;
-    
     err.innerText = "Création du compte en cours...";
 
     if(!pseudo || !email || !pwd) { err.innerText = "Tous les champs sont requis."; return; }
     if (pwd.length < 6) { err.innerText = "Le mot de passe doit faire au moins 6 caractères."; return; }
 
     if (typeof firebase === 'undefined') {
-        err.innerText = "Firebase bloqué. Lancement hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+        err.innerText = "Firebase bloqué. Lancement forcé...";
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1000);
         return;
     }
 
-    // Sécurité anti-chargement infini
+    // Le Kill-Switch de 3.5 secondes (si ça tourne dans le vide, on force l'ouverture)
     let timeout = setTimeout(() => {
-        if(err.innerText === "Création du compte en cours...") {
-            err.innerText = "Le serveur ne répond pas. Passage en mode hors ligne...";
-            setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
-        }
-    }, 6000);
+        err.innerText = "Réseau bloqué. Mode local activé !";
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+    }, 3500);
 
     try {
-        firebase.auth().createUserWithEmailAndPassword(email, pwd)
-            .then(creds => {
-                clearTimeout(timeout);
-                err.innerText = "Compte créé avec succès !";
-                if(fbDB) {
-                    const pseudoNorm = normaliserPseudo(pseudo);
-                    fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
-                    fbDB.ref('pseudos_reserves/' + pseudoNorm).set({ uid: creds.user.uid, email: email }).catch(()=>{});
-                }
-            })
-            .catch(e => { 
-                clearTimeout(timeout);
-                err.innerText = "Erreur : " + e.message; 
-            });
+        firebase.auth().createUserWithEmailAndPassword(email, pwd).then(creds => {
+            clearTimeout(timeout);
+            err.innerText = "Compte créé avec succès !";
+            if(fbDB) {
+                fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
+                fbDB.ref('pseudos_reserves/' + normaliserPseudo(pseudo)).set({ uid: creds.user.uid, email: email }).catch(()=>{});
+            }
+        }).catch(e => { 
+            clearTimeout(timeout);
+            err.innerText = "Erreur : " + e.message; 
+        });
     } catch(e) {
         clearTimeout(timeout);
-        err.innerText = "Erreur locale. Lancement hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1500);
+        err.innerText = "Erreur locale. Lancement forcé...";
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 1000);
     }
 }
 
@@ -220,7 +179,6 @@ function initApresAuth(user) {
             lancerModeHorsLigne("Joueur_" + Math.floor(Math.random()*1000), user ? user.email : null);
         }
     } catch (e) {
-        // Fallback de dernier recours
         lancerModeHorsLigne("Joueur_Erreur", null);
     }
 }
@@ -228,12 +186,10 @@ function initApresAuth(user) {
 function setupFirebaseListeners() {
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
-    
     fbUserRef.onDisconnect().remove();
     fbUserRef.set({ pseudo: J.nom, pseudoNorm: monPseudo, etat: 'libre', dernierPing: Date.now() });
     
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
-
     fbDB.ref('motd').on('value', snap => {
         const msg = snap.val();
         const banner = document.getElementById('motd-banner');
@@ -256,7 +212,6 @@ function setupFirebaseListeners() {
             _partieIdEnCours = partieId; 
             monRole = s.roles ? s.roles[monPseudo] : null;
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
-            
             ecouterSalle(partieId); 
             const pseudoAdverse = Object.keys(s.joueurs).find(x => x !== monPseudo); 
             ouvrirChoixDeckEnLigne(pseudoAdverse);
@@ -282,31 +237,32 @@ function afficherListeJoueurs(data) {
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
     fbDB.ref('defis/' + pseudoCible).set({ de: monPseudo, dePseudo: J.nom, deId: monId, etat: 'en_attente', timestamp: Date.now() });
-    if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
-    _ecouteurDefiEnvoye = fbDB.ref('defis/' + pseudoCible);
-    _ecouteurDefiEnvoye.on('value', snap => {
+    if (window._ecouteurDefiEnvoye) { window._ecouteurDefiEnvoye.off(); window._ecouteurDefiEnvoye = null; }
+    window._ecouteurDefiEnvoye = fbDB.ref('defis/' + pseudoCible);
+    window._ecouteurDefiEnvoye.on('value', snap => {
         const d = snap.val(); if (!d || d.de !== monPseudo) return;
         if (d.etat === 'accepte' && d.partieId) {
-            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
+            window._ecouteurDefiEnvoye.off(); window._ecouteurDefiEnvoye = null;
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 2000);
             _partieIdEnCours = d.partieId; fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
             ecouterSalle(d.partieId); ouvrirChoixDeckEnLigne(pseudoCible);
         }
         if (d.etat === 'refuse') {
             alert(`${pseudoCible} a refusé le défi.`);
-            if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
+            window._ecouteurDefiEnvoye.off(); window._ecouteurDefiEnvoye = null;
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 1500);
         }
     });
 }
+
 function afficherDefiRecu(defi) { window._defiEnCours = defi; document.getElementById('defi-texte').innerText = `${defi.dePseudo} te défie en duel !`; document.getElementById('defi-overlay').classList.add('open'); }
 function accepterDefi() {
     const defi = window._defiEnCours; if (!defi) return; const pseudoAdverse = defi.de;
     document.getElementById('defi-overlay').classList.remove('open'); window._defiEnCours = null;
     const partieId = calculerPartieId(monPseudo, pseudoAdverse); _partieIdEnCours = partieId;
     const roles = Math.random() < 0.5 ? { [monPseudo]: 'joueur1', [pseudoAdverse]: 'joueur2' } : { [monPseudo]: 'joueur2', [pseudoAdverse]: 'joueur1' }; monRole = roles[monPseudo];
-    _salleRef = fbDB.ref('salles/' + partieId);
-    _salleRef.set({ roles, etat: 'attente_deck', timestamp: Date.now(), joueurs: { [monPseudo]: { pret: false, deck: null, mulligan: false }, [pseudoAdverse]:{ pret: false, deck: null, mulligan: false } } });
+    window._salleRef = fbDB.ref('salles/' + partieId);
+    window._salleRef.set({ roles, etat: 'attente_deck', timestamp: Date.now(), joueurs: { [monPseudo]: { pret: false, deck: null, mulligan: false }, [pseudoAdverse]:{ pret: false, deck: null, mulligan: false } } });
     fbDB.ref('defis/' + monPseudo).update({ etat: 'accepte', partieId, acceptePar: monPseudo }); fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
     setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 5000);
     ecouterSalle(partieId); ouvrirChoixDeckEnLigne(pseudoAdverse);
@@ -403,9 +359,7 @@ window.addEventListener('beforeunload', () => { if (fbDB && monId) { fbDB.ref('j
 function adminToutDebloquer() {
     if (typeof collectionJoueur !== 'undefined' && typeof dbCartes !== 'undefined') {
         dbCartes.forEach(c => {
-            if (!collectionJoueur[c.id]) {
-                collectionJoueur[c.id] = { commune: 0, rare: 0, epique: 0, legendaire: 0, fusion: 0 };
-            }
+            if (!collectionJoueur[c.id]) { collectionJoueur[c.id] = { commune: 0, rare: 0, epique: 0, legendaire: 0, fusion: 0 }; }
             collectionJoueur[c.id][c.rarete] = 10;
         });
         sauvegarderProgression();
