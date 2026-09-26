@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v4)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v5)
    =========================================================== */
 
 const firebaseConfig = {
@@ -25,6 +25,7 @@ let _ecouteurSalle = null;
 let _partieIdEnCours = null;
 let _ecouteurDefiEnvoye = null;
 let _salleRef = null;
+let _ecouteurDemandesAmis = null;
 
 function normaliserPseudo(p) {
     return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20);
@@ -178,6 +179,8 @@ function initApresAuth(user) {
                 lancerModeHorsLigne(pseudo, user.email);
                 setupFirebaseListeners();
                 chargerCartesBannies();
+                demarrerEcouteDemandesAmis();
+                demarrerEcouteMessagesPrives();
             }).catch(() => {
                 lancerModeHorsLigne("Joueur_" + Math.floor(Math.random()*1000), user.email);
                 setupFirebaseListeners();
@@ -188,11 +191,60 @@ function initApresAuth(user) {
     } catch (e) { lancerModeHorsLigne("Joueur_Erreur", null); }
 }
 
-/* Charge la liste des cartes bannies depuis Firebase */
 function chargerCartesBannies() {
     if (!fbDB) return;
     fbDB.ref('cartesBannies').on('value', snap => {
         window.cartesBannies = snap.val() || [];
+    });
+}
+
+/* ---------- Écoute des demandes d'amis (temps réel) ---------- */
+function demarrerEcouteDemandesAmis() {
+    if (!fbDB || !monId) return;
+    if (_ecouteurDemandesAmis) _ecouteurDemandesAmis.off();
+
+    _ecouteurDemandesAmis = fbDB.ref('demandesAmis/' + monId);
+    _ecouteurDemandesAmis.on('value', snap => {
+        const data = snap.val() || {};
+        const arr = Object.entries(data).map(([k, v]) => ({ id: k, code: v.deCode, pseudo: v.dePseudo, deUid: v.deUid }));
+        if (!profil.demandesAmisRecues) profil.demandesAmisRecues = [];
+        // Met à jour la liste locale
+        profil.demandesAmisRecues = arr;
+        if (typeof afficherDemandesAmis === 'function') afficherDemandesAmis();
+
+        // Pop-up immédiate si pas déjà en train de voir le profil
+        if (arr.length > 0 && !document.getElementById('profil-screen').classList.contains('active')) {
+            flashInfo(`👋 ${arr.length} demande(s) d'ami !`);
+        }
+    });
+}
+
+/* ---------- Écoute des messages privés (notification) ---------- */
+function demarrerEcouteMessagesPrives() {
+    if (!fbDB || !monId || !profil.codeAmi) return;
+    // On ne peut pas filtrer par code directement ; on charge la fiche publique de soi-même
+    // puis on écoute les conversations où on est impliqué
+    fbDB.ref('profils/' + monId + '/public').once('value').then(snap => {
+        const pub = snap.val() || {};
+        const monCode = pub.codeAmi || profil.codeAmi;
+        if (!monCode) return;
+
+        // Écoute globale des conversations — Firebase ne supporte pas le "contains"
+        // On va donc stocker les messages sous messagesPrives/<cleTriee> et écouter
+        // les clés qui contiennent mon code
+        fbDB.ref('messagesPrives').on('child_added', child => {
+            const cle = child.key;
+            if (!cle.includes(monCode)) return;
+            const msg = child.val();
+            if (!msg) return;
+            // Ne notifie que les messages récents (< 10s) et pas de nous-mêmes
+            if (Date.now() - (msg.ts || 0) > 10000) return;
+            if (msg.de === monCode) return;
+            // Trouve le pseudo de l'expéditeur
+            const autreCode = cle.split('_').find(c => c !== monCode);
+            if (!autreCode) return;
+            flashInfo(`💬 Nouveau message de ${autreCode} !`);
+        });
     });
 }
 
@@ -227,7 +279,6 @@ function setupFirebaseListeners() {
         }
     });
 
-    // Ban actif : recharge la liste
     fbDB.ref('cartesBannies').on('value', snap => {
         window.cartesBannies = snap.val() || [];
     });
@@ -277,13 +328,46 @@ function afficherListeJoueurs(data) {
         const cible = j.pseudoNorm || normaliserPseudo(j.pseudo);
         const moiMeme = (cible === monPseudo);
         const avatar = j.avatar || '🧑';
-        div.innerHTML = `<div><div class="mj-nom">${avatar} ${j.pseudo || 'Anonyme'}</div><div class="mj-etat ${libre ? 'libre' : 'en-combat'}">${libre ? '● Disponible' : '⚔ En combat'}</div></div><button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}</button>`;
+        const codeAmi = j.codeAmi || '';
+        const dejaAmi = (profil.amis || []).includes(codeAmi);
+        div.innerHTML = `<div><div class="mj-nom">${avatar} ${j.pseudo || 'Anonyme'}</div><div class="mj-etat ${libre ? 'libre' : 'en-combat'}">${libre ? '● Disponible' : '⚔ En combat'}</div></div>
+            <div class="mj-actions">
+                <button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}</button>
+                ${(!moiMeme && codeAmi && !dejaAmi) ? `<button class="sec" onclick="demanderAmi('${codeAmi}')" title="Ajouter en ami">➕ Ami</button>` : ''}
+            </div>`;
         liste.appendChild(div);
     });
     if (count) count.innerText = `${joueurs.length} joueur(s) connecté(s)`;
     if (combatCount) combatCount.innerText = `${enCombat} en combat`;
 }
 
+/* ---------- Demander un joueur en ami depuis le multi ---------- */
+function demanderAmi(codeCible) {
+    if (!fbDB || !profil.codeAmi || !codeCible) return;
+    if (codeCible === profil.codeAmi) return flashInfo('C\'est ton propre code !');
+    if ((profil.amis || []).includes(codeCible)) return flashInfo('Déjà ami.');
+
+    // Trouve l'uid du destinataire via son codeAmi
+    fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(codeCible).once('value').then(snap => {
+        const data = snap.val();
+        if (!data) {
+            flashInfo('Joueur introuvable.');
+            return;
+        }
+        const uid = Object.keys(data)[0];
+        const pub = data[uid].public || {};
+        // Envoie la demande
+        fbDB.ref('demandesAmis/' + uid).push({
+            deCode: profil.codeAmi,
+            dePseudo: J.nom,
+            deUid: monId,
+            ts: Date.now()
+        });
+        flashInfo(`Demande envoyée à ${pub.pseudo || codeCible} !`);
+    }).catch(() => flashInfo('Erreur d\'envoi.'));
+}
+
+/* ---------- Défis ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
     fbDB.ref('defis/' + pseudoCible).set({ de: monPseudo, dePseudo: J.nom, deId: monId, etat: 'en_attente', timestamp: Date.now() });
@@ -388,7 +472,7 @@ function validerChoixDeckEnLigne() {
     annoncerDeckChoisi(window._pseudoAdverseDeck, deckIds);
     const ov = document.getElementById('deck-choix-overlay');
     if (ov) ov.classList.remove('open');
-    afficherAttente('En attente de l\'adversaire…', '');
+    afficherAttente('En attente de l\'adversaire…');
 }
 
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
