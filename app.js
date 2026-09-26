@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v5)
+   FAMILLE TCG — moteur de jeu (Édition Ultime v6)
    =========================================================== */
 
 var collectionJoueur = {};
@@ -170,11 +170,6 @@ var dbCartes = [
     C('c11','Le grand repas','Sort',5,0,0,'epique','Déclenche l\'effet de Destruction de toutes tes créatures sans les tuer.',[],'🍽️'),
     C('c12','Cherchell','Terrain',3,0,0,'rare','Tes créatures Cousins coûtent 1 mana de moins.',[],'🏖️'),
 
-    /* =========================================================
-       CARTE ULTRA RARE — UNIFIÉE (4 familles, foil doré)
-       Mana 1 / Force 1 / Vie 1 / Sans effet
-       Drop 2× plus rare qu'une légendaire
-       ========================================================= */
     C('u1','La Famille Unie','Famille Unifiée',1,1,1,'unifiee','L\'union sacrée des quatre familles. Une force minuscule, mais un symbole éternel.',[],'👨‍👩‍👧‍👦')
 ];
 
@@ -660,7 +655,10 @@ function creerHTMLCarte(c, ctx, opts) {
     const w = document.createElement('div');
     w.className = 'card-wrapper';
     if (c.uid) w.dataset.uid = c.uid;
-    if (c.rarete === 'unifiee') w.classList.add('unifiee');
+
+    const displayRarete = opts.overrideRarete ? opts.overrideRarete : c.rarete;
+    if (displayRarete === 'unifiee') w.classList.add('unifiee');
+    if (displayRarete === 'legendaire') w.classList.add('legendaire');
 
     const enJeu = ctx === 'jeu' || ctx === 'main';
     const atk = c.auraAtk !== undefined ? atkTot(c) : c.atk;
@@ -678,7 +676,6 @@ function creerHTMLCarte(c, ctx, opts) {
         ? `<div class="card-foot"><span class="kw">${c.famille === 'Sort' ? 'Sort' : 'Terrain'}</span></div>`
         : `<div class="card-foot"><span class="stat atk ${atkBuffe ? 'buffed' : ''}">${atk}</span><span class="stat hp ${blesse ? 'blesse' : (pvBuffe ? 'buffed' : '')}">${pv}</span></div>`;
 
-    const displayRarete = opts.overrideRarete ? opts.overrideRarete : c.rarete;
     const rareteHtml = enJeu ? '' : `<div class="rarity-text ${displayRarete === 'unifiee' ? 'unifiee' : ''}">${displayRarete === 'unifiee' ? '✨ UNIFIÉE ✨' : displayRarete}</div>`;
     const clRarete = displayRarete === 'fusion' ? 'fusion' : (displayRarete === 'unifiee' ? 'unifiee' : displayRarete);
 
@@ -893,14 +890,11 @@ function trierDeckbuilder(critere) {
     const deckCourant = (deckEnEdition !== null && mesDecks[deckEnEdition]) ? mesDecks[deckEnEdition] : null;
     const estDeckOfficiel = deckCourant && deckCourant.base === true;
 
-    // Titre dynamique
     const titre = document.getElementById('deckbuilder-title');
     if (titre) {
         titre.innerText = estDeckOfficiel ? 'Cartes du deck officiel' : 'Cartes du jeu';
     }
 
-    // Si deck officiel : n'affiche QUE les cartes du deck (avec manquantes)
-    // Sinon : affiche toutes les cartes
     let liste;
     if (estDeckOfficiel) {
         const idsUniques = [];
@@ -1212,7 +1206,7 @@ function afficherGainArgent(montant) {
     }
 }
 
-/* ---------- Boosters avec Unifiée (2x plus rare que légendaire) ---------- */
+/* ---------- Boosters (Unifiée 2x plus rare que Légendaire) ---------- */
 function preparerBooster() {
     if (profil.coins < 50) { alert("Il te faut 50 💰 pour ouvrir un booster. Tu en as " + profil.coins + "."); return; }
     profil.coins -= 50;
@@ -1228,8 +1222,6 @@ function preparerBooster() {
         for (let i = 0; i < 5; i++) {
             const r = Math.random();
             let rarete;
-            // Unifiée : 2x plus rare que légendaire.
-            // Légendaire = r > 0.93 (7%) → Unifiée = r > 0.965 (3.5%)
             if (r > 0.965) rarete = 'unifiee';
             else if (r > 0.93) rarete = 'legendaire';
             else if (r > 0.82) rarete = 'epique';
@@ -1263,7 +1255,7 @@ function preparerBooster() {
     }, 520);
 }
 
-/* ---------- Lancement ---------- */
+/* ---------- Lancement de partie ---------- */
 function initialiserPartie(botStart) {
     partieFinie = false; selection = null; ciblage = null;
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0; J.cimetiere = [];
@@ -1353,37 +1345,37 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
 }
 
 /* ===========================================================
-   TUTORIEL v3 — 7 étapes interactives
+   TUTORIEL v4 — Passage manuel (plus de autoNext)
    =========================================================== */
 var TUTO_ETAPES = {
     1: {
         titre: "Découvrir le plateau",
         etapes: [
-            { txt: "Bienvenue à l'Académie ! 🎓<br><br>Voici ton plateau. En haut : l'adversaire. En bas : toi.<br><br>Chaque côté a un <b>héros</b> avec ses <b>points de patience</b> ❤ (c'est ta vie).", cible: ".side.opponent", autoNext: true },
-            { txt: "Les <b>cristaux bleus</b> 💧 sous ton héros représentent ton mana. Il augmente de 1 à chaque tour.", cible: "#crystals", autoNext: true },
-            { txt: "Tes cartes sont en bas : c'est ta <b>main</b>. Chaque carte affiche son coût en mana (chiffre bleu en haut à gauche), sa <b>force ⚔</b> et sa <b>vie ❤</b> en bas.", cible: "#player-hand", autoNext: true },
-            { txt: "Le <b>cimetière</b> 💀 à droite du héros contient les cartes détruites. Clique dessus pour les voir !", cible: ".badge.deck", autoNext: true }
+            { txt: "Bienvenue à l'Académie ! 🎓<br><br>Voici ton plateau. En haut : l'adversaire. En bas : toi.<br><br>Chaque côté a un <b>héros</b> avec ses <b>points de patience</b> ❤ (c'est ta vie).", cible: ".side.opponent" },
+            { txt: "Les <b>cristaux bleus</b> 💧 sous ton héros représentent ton mana. Il augmente de 2 à chaque tour.", cible: "#crystals" },
+            { txt: "Tes cartes sont en bas : c'est ta <b>main</b>. Chaque carte affiche son coût en mana (chiffre bleu), sa <b>force ⚔</b> et sa <b>vie ❤</b>.", cible: "#player-hand" },
+            { txt: "Le <b>cimetière</b> 💀 à droite du héros contient les cartes détruites. Clique dessus pour les voir !", cible: ".badge.deck" }
         ]
     },
     2: {
         titre: "Poser une carte",
         etapes: [
             { txt: "Tu as <b>3 mana</b>. Regarde tes 2 cartes : l'une coûte 3, l'autre 4.<br><br>❌ Impossible de poser celle à 4 (grisée).<br>✅ Clique sur celle à 3 mana !", cible: "#player-hand", attendre: () => J.plateau.length > 0 },
-            { txt: "Parfait ! Ta créature est sur le plateau. 🎉<br><br>Elle a une attaque ⚔ et des points de vie ❤. Les cristaux utilisés sont épuisés.", cible: "#player-board", autoNext: true }
+            { txt: "Parfait ! Ta créature est sur le plateau. 🎉<br><br>Elle a une attaque ⚔ et des points de vie ❤. Les cristaux utilisés sont épuisés.", cible: "#player-board" }
         ]
     },
     3: {
         titre: "Attaquer",
         etapes: [
-            { txt: "⚠️ Attention : une créature <b>fraîchement posée</b> ne peut PAS attaquer ce tour ! Il faut attendre le tour suivant (sauf avec Charge ⚡).", cible: "#player-board", autoNext: true },
-            { txt: "Je vais passer ton tour pour simuler l'attente. Observe bien…", cible: "#btn-endturn", autoNext: true },
-            { txt: "C'est reparti ! Ta créature n'est plus fatiguée : elle brille ✨. Clique dessus, puis choisis une cible :<br>• soit une <b>créature ennemie</b> pour l'affronter,<br>• soit le <b>héros adverse</b> pour l'attaquer directement !", cible: "#player-board", attendre: () => B.patience < 30 || B.plateau.length < 1 }
+            { txt: "⚠️ Une créature <b>fraîchement posée</b> ne peut PAS attaquer ce tour ! Il faut attendre le tour suivant (sauf avec Charge ⚡).", cible: "#player-board" },
+            { txt: "Je vais passer ton tour pour simuler l'attente. Observe bien…", cible: "#btn-endturn" },
+            { txt: "C'est reparti ! Ta créature n'est plus fatiguée : elle brille ✨. Clique dessus, puis choisis une cible :<br>• soit une <b>créature ennemie</b>,<br>• soit le <b>héros adverse</b> !", cible: "#player-board", attendre: () => B.patience < 30 || B.plateau.length < 1 }
         ]
     },
     4: {
         titre: "La Charge ⚡",
         etapes: [
-            { txt: "Le mot-clé <b>Charge ⚡</b> permet d'attaquer <b>dès l'invocation</b>, sans attendre un tour.", cible: "#player-hand", autoNext: true },
+            { txt: "Le mot-clé <b>Charge ⚡</b> permet d'attaquer <b>dès l'invocation</b>, sans attendre un tour.", cible: "#player-hand" },
             { txt: "Invoque cette créature avec Charge en cliquant dessus !", cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Charge')) },
             { txt: "Elle brille immédiatement : clique dessus puis sur le héros adverse !", cible: "#opp-portrait", attendre: () => B.patience < 30 }
         ]
@@ -1391,7 +1383,7 @@ var TUTO_ETAPES = {
     5: {
         titre: "La Provocation 🛡️",
         etapes: [
-            { txt: "L'adversaire a une créature avec <b>Provocation 🛡️</b>.<br><br>Tu ne peux PAS attaquer son héros tant qu'elle est en vie !", cible: "#opponent-board", autoNext: true },
+            { txt: "L'adversaire a une créature avec <b>Provocation 🛡️</b>.<br><br>Tu ne peux PAS attaquer son héros tant qu'elle est en vie !", cible: "#opponent-board" },
             { txt: "Utilise ton sort <b>« Machine à laver »</b> : clique dessus puis sur la créature pour la détruire.", cible: "#player-hand", attendre: () => B.plateau.length === 0 },
             { txt: "Bien joué ! La voie est libre, tu peux attaquer le héros.", cible: "#opp-portrait", attendre: () => B.patience < 30 }
         ]
@@ -1399,17 +1391,17 @@ var TUTO_ETAPES = {
     6: {
         titre: "Les Effets - Boost 💪",
         etapes: [
-            { txt: "Cette carte donne un <b>bonus à une autre créature</b> : elle peut transformer une petite créature en tueuse !", cible: "#player-hand", autoNext: true },
+            { txt: "Cette carte donne un <b>bonus à une autre créature</b> : elle peut transformer une petite créature en tueuse !", cible: "#player-hand" },
             { txt: "Joue le boost sur ta créature : clique sur le sort, puis sur ta créature sur le plateau.", cible: "#player-board", attendre: () => J.plateau.some(m => m.auraAtk > 0 || (defCarte(m.id) && atkTot(m) > defCarte(m.id).atk)) },
-            { txt: "BOOM ! Ta créature a maintenant plus de force. Elle peut détruire la Provocation adverse !", cible: "#opponent-board", autoNext: true }
+            { txt: "BOOM ! Ta créature a maintenant plus de force. Elle peut détruire la Provocation adverse !", cible: "#opponent-board" }
         ]
     },
     7: {
         titre: "La Fusion 💑",
         etapes: [
-            { txt: "Tu as 2 créatures compatibles : <b>Naila</b> et <b>Nassim</b>.<br><br>Elles peuvent <b>fusionner</b> en une carte ultra-puissante !", cible: "#player-board", autoNext: true },
+            { txt: "Tu as 2 créatures compatibles : <b>Naila</b> et <b>Nassim</b>.<br><br>Elles peuvent <b>fusionner</b> en une carte ultra-puissante !", cible: "#player-board" },
             { txt: "Clique sur la carte <b>« Naila x Nassim »</b> dans ta main !", cible: "#player-hand", attendre: () => J.plateau.some(m => m.rarete === 'fusion') },
-            { txt: "✨ FUSION RÉUSSIE ! 4 dégâts ennemis. Bravo !", cible: "#player-board", autoNext: true }
+            { txt: "✨ FUSION RÉUSSIE ! 4 dégâts ennemis. Bravo !", cible: "#player-board" }
         ]
     }
 };
@@ -1448,38 +1440,30 @@ function lancerTuto(niveau) {
     tourActuel = 'joueur';
 
     if (niveau === 1) {
-        // Découverte - pas de cartes jouables nécessaires
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
     } else if (niveau === 2) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
         const c2 = instancier(defCarte('m1'), 'J'); if (c2) { c2.cout = 4; J.main.push(c2); }
         J.manaMax = 3; J.manaActuel = 3;
     } else if (niveau === 3) {
-        // Attaquer : pose une créature sans Charge
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.plateau.push(c1);
         c1.malade = true;
-        // Donne 5 mana au joueur pour l'étape suivante
         J.manaMax = 5; J.manaActuel = 5;
     } else if (niveau === 4) {
-        // Charge
         const c = instancier(defCarte('m8'), 'J'); if (c) J.main.push(c);
     } else if (niveau === 5) {
-        // Provocation
         const c1 = instancier(defCarte('n6'), 'B'); if (c1) B.plateau.push(c1);
         const c2 = instancier(defCarte('s22'), 'J'); if (c2) J.main.push(c2);
         const c3 = instancier(defCarte('m5'), 'J'); if (c3) J.main.push(c3);
     } else if (niveau === 6) {
-        // Effet boost
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.plateau.push(c1);
-        const c2 = instancier(defCarte('s9'), 'J'); if (c2) { c2.cout = 1; J.main.push(c2); } // Tu as grandi +3/+3
+        const c2 = instancier(defCarte('s9'), 'J'); if (c2) { c2.cout = 1; J.main.push(c2); }
         const c3 = instancier(defCarte('n6'), 'B'); if (c3) B.plateau.push(c3);
         J.manaMax = 5; J.manaActuel = 5;
     } else if (niveau === 7) {
-        // Fusion : donne assez de mana pour éviter le bug
         const c1 = instancier(defCarte('ka5'), 'J'); if (c1) J.plateau.push(c1);
         const c2 = instancier(defCarte('ka6'), 'J'); if (c2) J.plateau.push(c2);
         const c3 = instancier(defCarte('f1'), 'J'); if (c3) J.main.push(c3);
-        // Le coût de f1 est 8, on donne 10 mana
         J.manaMax = 10; J.manaActuel = 10;
     }
 
@@ -1509,30 +1493,20 @@ function afficherEtapeTuto() {
     txt.innerHTML = `<b>${config.titre}</b> — Étape ${etapeTuto + 1}/${config.etapes.length}<br>${etape.txt}`;
     bulle.classList.remove('hidden');
 
-    if (etape.autoNext) {
-        btn.classList.add('hidden');
-        setTimeout(() => {
-            if (modeTuto && currentTutoLevel && etapeTuto < config.etapes.length) {
-                etapeTuto++;
-                afficherEtapeTuto();
-            }
-        }, 3500);
-    } else if (etape.attendre) {
-        btn.classList.add('hidden');
+    btn.classList.remove('hidden');
+    btn.innerText = 'Continuer ▶';
+    btn.onclick = () => { etapeTuto++; afficherEtapeTuto(); };
+
+    if (etape.attendre) {
         _tutoInterval = setInterval(() => {
             if (partieFinie || !modeTuto) { clearInterval(_tutoInterval); _tutoInterval = null; return; }
             let ok = false;
             try { ok = etape.attendre(); } catch(e) { ok = false; }
             if (ok) {
                 clearInterval(_tutoInterval); _tutoInterval = null;
-                etapeTuto++;
-                afficherEtapeTuto();
+                if (btn) btn.innerText = 'Continuer ▶ ✅';
             }
         }, 300);
-    } else {
-        btn.classList.remove('hidden');
-        btn.innerText = 'Continuer ▶';
-        btn.onclick = () => { etapeTuto++; afficherEtapeTuto(); };
     }
 }
 
@@ -1545,15 +1519,12 @@ function etapeTutoSuivante() {
 
 function validerEtapeTuto() {}
 
-/* Retourne une carte que le joueur ne possède PAS encore */
 function carteRecompenseTuto(niveau) {
     const cartesFixes = { 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'ka5' };
     const idFix = cartesFixes[niveau];
     if (idFix && getTot(idFix) === 0) return idFix;
-    // Sinon, cherche une carte random que le joueur ne possède pas
     const nonPossedees = dbCartesDispo().filter(c => getTot(c.id) === 0);
     if (nonPossedees.length) return hasard(nonPossedees).id;
-    // Fallback : une commune au hasard
     const pool = dbCartesDispo().filter(c => c.rarete === 'commune');
     return pool.length ? hasard(pool).id : 'm6';
 }
@@ -2003,10 +1974,14 @@ async function attaquer(attaquant, cible) {
     validerEtapeTuto();
 }
 
+/* ---------- Tours (nouvelle règle : 2 / 3 / +2) ---------- */
 function prochainManaMax(side) {
     side.numTour++;
-    if (side.numTour === 1) side.manaMax = side.premier ? 2 : 3;
-    else side.manaMax = Math.min(10, side.manaMax + 1);
+    if (side.numTour === 1) {
+        side.manaMax = side.premier ? 2 : 3;
+    } else {
+        side.manaMax = Math.min(10, side.manaMax + 2);
+    }
     side.manaActuel = side.manaMax;
 }
 function debutTourJoueur() {
@@ -2249,7 +2224,7 @@ function toggleAvatarPicker() {
                 afficherProfil();
                 const h = document.getElementById('player-portrait');
                 if (h) h.innerText = e;
-                toggleAvatarPicker(); // referme après choix
+                toggleAvatarPicker();
                 flashInfo('Avatar mis à jour !');
             };
             p.appendChild(d);
@@ -2307,6 +2282,10 @@ function accepterDemandeAmiPar(code) {
     if (!profil.amis.includes(code)) profil.amis.push(code);
     profil.demandesAmisRecues = (profil.demandesAmisRecues || []).filter(d => d.code !== code);
     sauvegarderProgression();
+    // Supprime la demande côté Firebase aussi
+    if (typeof fbDB !== 'undefined' && fbDB && monId) {
+        try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
+    }
     afficherProfil();
     flashInfo('Ami accepté !');
 }
@@ -2314,6 +2293,9 @@ function accepterDemandeAmiPar(code) {
 function refuserDemandeAmiPar(code) {
     profil.demandesAmisRecues = (profil.demandesAmisRecues || []).filter(d => d.code !== code);
     sauvegarderProgression();
+    if (typeof fbDB !== 'undefined' && fbDB && monId) {
+        try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
+    }
     afficherDemandesAmis();
 }
 
@@ -2355,7 +2337,6 @@ function ajouterAmi() {
         flashInfo('Code invalide.');
         return;
     }
-    // Envoie une demande à ce code
     if (typeof fbDB === 'undefined' || !fbDB) {
         flashInfo('Impossible d\'ajouter (hors-ligne).');
         return;
@@ -2368,7 +2349,6 @@ function ajouterAmi() {
         }
         const uid = Object.keys(data)[0];
         const pub = data[uid].public || {};
-        // Envoie la demande dans la boîte du destinataire
         fbDB.ref('demandesAmis/' + uid).push({
             deCode: profil.codeAmi,
             dePseudo: J.nom,
@@ -2465,13 +2445,12 @@ function envoyerMessageChat() {
     });
 }
 
-/* Demandes d'amis reçues (écoute Firebase) */
 function ecouterDemandesAmis() {
     if (typeof fbDB === 'undefined' || !fbDB || !monId) return;
     fbDB.ref('demandesAmis/' + monId).on('value', snap => {
         const data = snap.val() || {};
-        const arr = Object.entries(data).map(([k, v]) => ({ id: k, ...v }));
-        profil.demandesAmisRecues = arr.map(d => ({ code: d.deCode, pseudo: d.dePseudo, id: d.id }));
+        const arr = Object.entries(data).map(([k, v]) => ({ id: k, code: v.deCode, pseudo: v.dePseudo }));
+        profil.demandesAmisRecues = arr;
         if (arr.length > 0 && document.getElementById('profil-screen').classList.contains('active')) {
             afficherProfil();
         } else if (arr.length > 0) {
@@ -2690,12 +2669,10 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
-            // 6 cartes décoratives (recto-verso)
             ['m1','ma2','k1','ka1','f1','u1'].forEach(id => {
                 const c = defCarte(id);
                 if (c) {
                     const el = creerHTMLCarte(c, 'zoom');
-                    el.classList.add('flipped'); // affiche le dos pour l'effet décoratif
                     zone.appendChild(el);
                 }
             });
@@ -2726,7 +2703,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Écoute des demandes d'amis
     setTimeout(() => { if (typeof ecouterDemandesAmis === 'function') ecouterDemandesAmis(); }, 2000);
 });
 
@@ -2761,6 +2737,44 @@ function adminAppliquerTemplate() {
     }
 }
 
+/* Liste d'emojis pour le picker admin */
+var EMOJIS_DISPO = [
+    '🃏','🎴','🀄','🎲','🎯',
+    '👨🏻','👩🏻','🧑','👦🏻','👧🏻',
+    '👨🏽','👩🏽','🧔🏽','👦🏽','👧🏽',
+    '👨🏼','👩🏼','🧔🏻','👦🏼','👧🏼',
+    '👴🏽','👵🏻','👨‍🦳','👩‍🦳','🧓',
+    '🧕','👳‍♂️','🧑‍🦱','👩‍🦰','👨‍🦰',
+    '🐈','🐱','🐶','🐕','🐰',
+    '🐇','🦜','🕊️','🐦','🦊',
+    '🐺','🦁','🐯','🐻','🐼',
+    '🎭','👑','💎','⚡','🔥',
+    '💀','💢','🍲','🧹','🧸',
+    '🏺','🎁','🚗','📺','📱',
+    '💻','📸','🍵','☕','🌍',
+    '🏙️','🏡','🌳','🛫','🌴',
+    '🚇','😴','😂','🤼','👫',
+    '👬','👭','💑','👨‍👩‍👧‍👦','🧑‍🍼'
+];
+
+function adminInitEmojiPicker() {
+    const picker = document.getElementById('emoji-picker');
+    const hidden = document.getElementById('new-card-emoji');
+    if (!picker) return;
+    picker.innerHTML = '';
+    EMOJIS_DISPO.forEach(e => {
+        const b = document.createElement('div');
+        b.className = 'emoji-btn' + (hidden && hidden.value === e ? ' selected' : '');
+        b.textContent = e;
+        b.onclick = () => {
+            if (hidden) hidden.value = e;
+            picker.querySelectorAll('.emoji-btn').forEach(x => x.classList.remove('selected'));
+            b.classList.add('selected');
+        };
+        picker.appendChild(b);
+    });
+}
+
 /* ---------- Admin ---------- */
 function adminTab(tab) {
     ['actions','cartes','creation','stats','bannir','annonces'].forEach(t => {
@@ -2770,6 +2784,7 @@ function adminTab(tab) {
     if (tab === 'cartes') adminAfficherToutesCartes();
     if (tab === 'stats') adminAfficherStats();
     if (tab === 'bannir') adminAfficherCartesBannies();
+    if (tab === 'creation') adminInitEmojiPicker();
 }
 
 function adminAfficherToutesCartes() {
@@ -2833,7 +2848,7 @@ function adminAfficherStats() {
                 <div class="admin-stat-grid">
                     <div class="admin-stat-card"><div class="num">${totalParties}</div><div class="label">Parties jouées (total)</div></div>
                 </div>
-                <h4 style="color:var(--laiton-clair); margin-top:20px;">Joueurs actifs (par parties jouées)</h4>
+                <h4 style="color:var(--laiton-clair); margin-top:20px;">Joueurs actifs</h4>
                 <table>
                     <tr><th>Pseudo</th><th>Parties</th><th>Dernière connexion</th></tr>
                     ${joueursActifs.slice(0, 30).map(j => `
