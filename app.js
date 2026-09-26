@@ -1354,7 +1354,7 @@ var TUTO_ETAPES = {
             { txt: "Bienvenue à l'Académie ! 🎓<br><br>Voici ton plateau. En haut : l'adversaire. En bas : toi.<br><br>Chaque côté a un <b>héros</b> avec ses <b>points de patience</b> ❤ (c'est ta vie).", cible: ".side.opponent" },
             { txt: "Les <b>cristaux bleus</b> 💧 sous ton héros représentent ton mana. Il augmente de 2 à chaque tour.", cible: "#crystals" },
             { txt: "Tes cartes sont en bas : c'est ta <b>main</b>. Chaque carte affiche son coût en mana (chiffre bleu), sa <b>force ⚔</b> et sa <b>vie ❤</b>.", cible: "#player-hand" },
-            { txt: "Le <b>cimetière</b> 💀 à droite du héros contient les cartes détruites. Clique dessus pour les voir !", cible: ".badge.deck" }
+            { txt: "Le <b>cimetière</b> 💀 à droite du héros contient les cartes détruites. Clique dessus pour les voir !", cible: "#player-grave-btn" }
         ]
     },
     2: {
@@ -2518,7 +2518,7 @@ function rafraichirJeu() {
     set('player-grave-count', J.cimetiere.length);
     set('opp-mana', `${B.manaActuel}/${B.manaMax}`);
     set('opp-health', B.patience);
-    set('opp-hand', B.main.length);
+    set('opp-deck', B.deck.length);
     set('opp-grave-count', B.cimetiere.length);
 
     const av = document.getElementById('player-portrait');
