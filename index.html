@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -22,7 +22,6 @@
 <div id="fx-layer"></div>
 <div id="motd-banner" class="motd-banner hidden"></div>
 
-<!-- Confirmation sortie -->
 <div id="confirm-exit-overlay" class="confirm-box-overlay">
     <div class="confirm-box">
         <h3>⚠️ Quitter la partie ?</h3>
@@ -34,7 +33,6 @@
     </div>
 </div>
 
-<!-- Choix du deck de départ -->
 <div id="starter-overlay" class="starter-overlay">
     <div class="starter-box">
         <h1 class="title-hero">Bienvenue ! 🎉</h1>
@@ -95,7 +93,6 @@
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
 </div>
 
-<!-- Overlay de gain de récompense -->
 <div id="reward-overlay" class="reward-overlay">
     <div class="reward-box">
         <h2 id="reward-titre">🎉 Récompense !</h2>
@@ -116,7 +113,6 @@
     </div>
 </div>
 
-<!-- Demande d'ami reçue -->
 <div id="ami-demande-overlay" class="defi-overlay-inline">
     <div class="defi-box">
         <h3>👋 Demande d'ami</h3>
@@ -178,7 +174,7 @@
         <button onclick="tenterChangerEcran('multi-screen')">Multijoueur</button>
         <button onclick="tenterChangerEcran('profil-screen')">Profil</button>
         <button id="nav-admin" class="hidden" style="color:var(--braise)" onclick="tenterChangerEcran('admin-screen')">👑 Admin</button>
-        <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">Forfait</button>
+        <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">🏳️ Forfait</button>
     </div>
     <div class="nav-pseudo">
         <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
@@ -186,7 +182,6 @@
     </div>
 </nav>
 
-<!-- ECRAN CONNEXION avec 6 cartes décoratives -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
@@ -273,15 +268,15 @@
             <div style="display:flex;gap:8px;margin-top:6px;">
                 <div style="flex:1;">
                     <label style="display:block;color:var(--mana);font-size:12px;font-weight:700;">💧 MANA</label>
-                    <input type="number" id="new-card-cout" placeholder="Coût en mana" value="3" min="0" max="10">
+                    <input type="number" id="new-card-cout" placeholder="Coût" value="3" min="0" max="10">
                 </div>
                 <div style="flex:1;">
-                    <label style="display:block;color:var(--braise);font-size:12px;font-weight:700;">⚔ FORCE (ATK)</label>
-                    <input type="number" id="new-card-atk" placeholder="Points d'attaque" value="2" min="0" max="20">
+                    <label style="display:block;color:var(--braise);font-size:12px;font-weight:700;">⚔ FORCE</label>
+                    <input type="number" id="new-card-atk" placeholder="Attaque" value="2" min="0" max="20">
                 </div>
                 <div style="flex:1;">
-                    <label style="display:block;color:var(--menthe);font-size:12px;font-weight:700;">❤ VIE (HP)</label>
-                    <input type="number" id="new-card-vie" placeholder="Points de vie" value="3" min="0" max="30">
+                    <label style="display:block;color:var(--menthe);font-size:12px;font-weight:700;">❤ VIE</label>
+                    <input type="number" id="new-card-vie" placeholder="Vie" value="3" min="0" max="30">
                 </div>
             </div>
             <select id="new-card-rarete" style="margin-top:10px;">
@@ -292,7 +287,11 @@
                 <option value="fusion">Fusion</option>
                 <option value="unifiee">✨ Unifiée (ultra rare foil)</option>
             </select>
-            <input type="text" id="new-card-emoji" placeholder="Emoji" value="🃏">
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Emoji de la carte :</label>
+            <div id="emoji-picker" class="emoji-picker"></div>
+            <input type="hidden" id="new-card-emoji" value="🃏">
+
             <input type="text" id="new-card-motscles" placeholder="Mots-clés (séparés par virgules)">
 
             <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Effet prédéfini :</label>
@@ -315,10 +314,7 @@
                 </optgroup>
             </select>
 
-            <div style="display:flex;gap:8px;margin-top:6px;">
-                <input type="text" id="new-card-template-perso" placeholder="Personnage ciblé" style="flex:1">
-            </div>
-
+            <input type="text" id="new-card-template-perso" placeholder="Personnage ciblé" style="margin-top:6px;">
             <textarea id="new-card-desc" placeholder="Description finale..."></textarea>
             <button class="btn-large" onclick="adminCreerCarte()">✨ Créer la carte</button>
         </div>
@@ -465,7 +461,7 @@
         <div class="turn-pill"><span id="tour-indicateur">Ton tour</span></div>
         <div class="timer"><div class="timer-fill" id="timer-fill"></div><span id="timer-count">60</span></div>
         <div id="combat-info">À toi de jouer</div>
-        <button id="btn-forfait-ingame" class="btn-forfait-ingame hidden" onclick="declarerForfait()">🏳️ Forfait</button>
+        <button id="btn-forfait-ingame" class="btn-forfait-ingame" onclick="declarerForfait()">🏳️ Forfait</button>
     </div>
 
     <div id="action-log" class="action-log"></div>
@@ -525,7 +521,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=6"></script>
-<script src="multi.js?v=6"></script>
+<script src="app.js?v=7"></script>
+<script src="multi.js?v=7"></script>
 </body>
 </html>
