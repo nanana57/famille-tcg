@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v5)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v6)
    =========================================================== */
 
 const firebaseConfig = {
@@ -207,43 +207,34 @@ function demarrerEcouteDemandesAmis() {
     _ecouteurDemandesAmis.on('value', snap => {
         const data = snap.val() || {};
         const arr = Object.entries(data).map(([k, v]) => ({ id: k, code: v.deCode, pseudo: v.dePseudo, deUid: v.deUid }));
-        if (!profil.demandesAmisRecues) profil.demandesAmisRecues = [];
-        // Met à jour la liste locale
-        profil.demandesAmisRecues = arr;
-        if (typeof afficherDemandesAmis === 'function') afficherDemandesAmis();
-
-        // Pop-up immédiate si pas déjà en train de voir le profil
+        if (typeof profil !== 'undefined') {
+            profil.demandesAmisRecues = arr;
+            if (typeof afficherDemandesAmis === 'function') afficherDemandesAmis();
+        }
         if (arr.length > 0 && !document.getElementById('profil-screen').classList.contains('active')) {
-            flashInfo(`👋 ${arr.length} demande(s) d'ami !`);
+            if (typeof flashInfo === 'function') flashInfo(`👋 ${arr.length} demande(s) d'ami !`);
         }
     });
 }
 
 /* ---------- Écoute des messages privés (notification) ---------- */
 function demarrerEcouteMessagesPrives() {
-    if (!fbDB || !monId || !profil.codeAmi) return;
-    // On ne peut pas filtrer par code directement ; on charge la fiche publique de soi-même
-    // puis on écoute les conversations où on est impliqué
+    if (!fbDB || !monId) return;
     fbDB.ref('profils/' + monId + '/public').once('value').then(snap => {
         const pub = snap.val() || {};
-        const monCode = pub.codeAmi || profil.codeAmi;
+        const monCode = pub.codeAmi || (typeof profil !== 'undefined' ? profil.codeAmi : null);
         if (!monCode) return;
 
-        // Écoute globale des conversations — Firebase ne supporte pas le "contains"
-        // On va donc stocker les messages sous messagesPrives/<cleTriee> et écouter
-        // les clés qui contiennent mon code
         fbDB.ref('messagesPrives').on('child_added', child => {
             const cle = child.key;
             if (!cle.includes(monCode)) return;
             const msg = child.val();
             if (!msg) return;
-            // Ne notifie que les messages récents (< 10s) et pas de nous-mêmes
             if (Date.now() - (msg.ts || 0) > 10000) return;
             if (msg.de === monCode) return;
-            // Trouve le pseudo de l'expéditeur
             const autreCode = cle.split('_').find(c => c !== monCode);
             if (!autreCode) return;
-            flashInfo(`💬 Nouveau message de ${autreCode} !`);
+            if (typeof flashInfo === 'function') flashInfo(`💬 Nouveau message de ${autreCode} !`);
         });
     });
 }
@@ -263,7 +254,6 @@ function setupFirebaseListeners() {
         avatar: profil.avatar || '🧑'
     });
 
-    // Ping toutes les 30s pour marquer "en ligne"
     setInterval(() => {
         if (fbDB && monId) fbUserRef.update({ dernierPing: Date.now() });
     }, 30000);
@@ -347,7 +337,6 @@ function demanderAmi(codeCible) {
     if (codeCible === profil.codeAmi) return flashInfo('C\'est ton propre code !');
     if ((profil.amis || []).includes(codeCible)) return flashInfo('Déjà ami.');
 
-    // Trouve l'uid du destinataire via son codeAmi
     fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(codeCible).once('value').then(snap => {
         const data = snap.val();
         if (!data) {
@@ -356,7 +345,6 @@ function demanderAmi(codeCible) {
         }
         const uid = Object.keys(data)[0];
         const pub = data[uid].public || {};
-        // Envoie la demande
         fbDB.ref('demandesAmis/' + uid).push({
             deCode: profil.codeAmi,
             dePseudo: J.nom,
