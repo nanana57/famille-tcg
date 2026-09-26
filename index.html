@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -35,7 +35,7 @@
     </div>
 </div>
 
-<!-- Choix du deck de départ -->
+<!-- Choix starter -->
 <div id="starter-overlay" class="starter-overlay">
     <div class="starter-box">
         <h1 class="title-hero">Bienvenue ! 🎉</h1>
@@ -66,7 +66,7 @@
     </div>
 </div>
 
-<!-- Overlay quêtes journalières + connexion -->
+<!-- Daily bonus / streak -->
 <div id="daily-overlay" class="daily-overlay">
     <div class="daily-box">
         <h1 class="title-hero">🎁 Bonus quotidien</h1>
@@ -78,7 +78,7 @@
     </div>
 </div>
 
-<!-- Overlay quêtes -->
+<!-- Quêtes -->
 <div id="quetes-overlay" class="quetes-overlay" onclick="fermerQuetes()">
     <div class="quetes-box" onclick="event.stopPropagation()">
         <h2>🎯 Quêtes journalières</h2>
@@ -88,7 +88,7 @@
     </div>
 </div>
 
-<!-- Overlay tournoi -->
+<!-- Tournoi -->
 <div id="tournoi-overlay" class="tournoi-overlay">
     <div class="tournoi-box">
         <h2>🏆 Tournoi</h2>
@@ -109,7 +109,7 @@
                 <li><strong>Rage</strong> 🔥 : Effet déclenché si blessée sans mourir.</li>
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
                 <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
-                <li><strong>Terrain</strong> 🌍 : Actif 3 tours puis disparaît.</li>
+                <li><strong>Terrain</strong> 🏡 : Actif 3 tours puis disparaît.</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -124,12 +124,16 @@
     </div>
 </div>
 
+<!-- BULLE TUTO -->
 <div id="tuto-bubble" class="hidden">
     <div class="tuto-text" id="tuto-text"></div>
-    <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
+    <div class="tuto-actions-row">
+        <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer ▶</button>
+        <button id="btn-tuto-skip" class="tuto-skip-btn" onclick="skipEtapeTuto()">Je connais déjà →</button>
+    </div>
 </div>
 
-<!-- Overlay de gain de récompense -->
+<!-- REWARD overlay (gains) -->
 <div id="reward-overlay" class="reward-overlay">
     <div class="reward-box">
         <h2 id="reward-titre">🎉 Récompense !</h2>
@@ -139,7 +143,7 @@
     </div>
 </div>
 
-<!-- Level up overlay -->
+<!-- Level up -->
 <div id="levelup-overlay" class="levelup-overlay">
     <div class="levelup-box">
         <h2>🎉 Niveau supérieur !</h2>
@@ -149,6 +153,7 @@
     </div>
 </div>
 
+<!-- Defi reçu -->
 <div id="defi-overlay">
     <div class="defi-box">
         <h3 id="defi-titre">Défi reçu</h3>
@@ -196,7 +201,7 @@
     <div id="card-zoom-container"></div>
 </div>
 
-<!-- Chat privé (amis) -->
+<!-- Chat privé -->
 <div id="chat-overlay" class="chat-overlay">
     <div class="chat-box">
         <div class="chat-head">
@@ -211,7 +216,7 @@
     </div>
 </div>
 
-<!-- Chat de partie -->
+<!-- Chat in-game -->
 <div id="ingame-chat" class="ingame-chat">
     <div class="ingame-chat-head">
         <span>💬 Chat de partie</span>
@@ -224,6 +229,71 @@
     </div>
 </div>
 
+<!-- TUTO EXPRESS (quiz) -->
+<div id="tuto-express-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:560px;">
+        <h3>⚡ Vérification rapide</h3>
+        <p class="subtitle">Réponds à 3 questions pour débloquer toutes les récompenses d'un coup.</p>
+        <div id="tuto-express-quiz"></div>
+        <div class="confirm-actions" style="margin-top:20px;">
+            <button class="btn-action" onclick="fermerTutoExpress()">Annuler</button>
+            <button class="btn-large" style="margin:0;flex:1;" onclick="validerTutoExpress()">Valider</button>
+        </div>
+    </div>
+</div>
+
+<!-- TUTO RÉSUMÉ après étape -->
+<div id="tuto-resume-overlay" class="reward-overlay">
+    <div class="reward-box" style="max-width:560px;">
+        <h2 id="tuto-resume-titre">✅ Étape terminée !</h2>
+        <div class="tuto-resume-appris" id="tuto-resume-appris"></div>
+        <div class="reward-coins" id="tuto-resume-gain" style="font-size:32px;">+500 💰</div>
+        <div id="tuto-resume-carte" class="grid" style="justify-content:center; margin:14px 0;"></div>
+        <button class="btn-large" id="btn-tuto-resume-next" onclick="fermerTutoResumeEtSuivant()">Étape suivante ▶</button>
+        <button class="btn-action full" onclick="fermerTutoResumeEtMenu()" style="margin-top:8px;">Retour à l'Académie</button>
+    </div>
+</div>
+
+<!-- TUTO RÉCAP FINAL -->
+<div id="tuto-final-overlay" class="reward-overlay">
+    <div class="reward-box" style="max-width:640px;">
+        <h2>🎓 FÉLICITATIONS !</h2>
+        <p class="subtitle">Tu as terminé l'Académie de la Famille !</p>
+        <h3 style="color:var(--laiton-clair); text-align:left;">📚 Compétences acquises :</h3>
+        <div id="tuto-final-competences" class="tuto-final-list"></div>
+        <h3 style="color:var(--laiton-clair); text-align:left; margin-top:16px;">🎁 Total des récompenses :</h3>
+        <div class="tuto-final-rewards">
+            <div class="profil-stat"><span class="profil-nb" id="tuto-final-coins">0</span><span>💰 gagnés</span></div>
+            <div class="profil-stat win"><span class="profil-nb" id="tuto-final-cartes">0</span><span>🎴 cartes</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="tuto-final-niveau">1</span><span>Niveau atteint</span></div>
+        </div>
+        <button class="btn-large" onclick="fermerTutoFinal()">Retour au menu</button>
+    </div>
+</div>
+
+<!-- TUTO MAP (carte de progression) -->
+<div id="tuto-map-overlay" class="starter-overlay" style="align-items:flex-start; padding-top:40px; overflow-y:auto;">
+    <div class="starter-box" style="max-width:900px;">
+        <h2>🗺️ Carte de progression</h2>
+        <p class="subtitle">Visualise ton avancée dans l'Académie</p>
+        <div id="tuto-map-content" class="tuto-map"></div>
+        <button class="btn-large" onclick="fermerTutoMap()" style="max-width:280px;margin:20px auto 0;">Fermer</button>
+    </div>
+</div>
+
+<!-- TUTO CHALLENGE post-final -->
+<div id="tuto-challenge-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:520px;">
+        <h3>🎯 Défi bonus</h3>
+        <p id="tuto-challenge-text">Bats le bot en 5 tours ou moins !</p>
+        <div class="confirm-actions">
+            <button class="btn-action" onclick="refuserChallengeTuto()">Plus tard</button>
+            <button class="btn-large" style="margin:0;flex:1;" onclick="accepterChallengeTuto()">Relever le défi</button>
+        </div>
+    </div>
+</div>
+
+<!-- NAV -->
 <nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
@@ -240,6 +310,7 @@
         <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">🏳️ Forfait</button>
     </div>
     <div class="nav-pseudo">
+        <span id="nav-tuto-map" style="cursor:pointer; margin-right:10px;" onclick="ouvrirTutoMap()" title="Carte tuto">🗺️</span>
         <span id="nav-quetes" style="cursor:pointer; margin-right:10px;" onclick="ouvrirQuetes()" title="Quêtes">🎯</span>
         <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
         <span id="display-pseudo"></span>
@@ -247,7 +318,7 @@
     </div>
 </nav>
 
-<!-- ECRAN CONNEXION -->
+<!-- LOGIN -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
@@ -273,22 +344,57 @@
     </div>
 </div>
 
-<!-- ECRAN TUTO -->
+<!-- TUTO SCREEN -->
 <div id="tuto-screen" class="screen">
-    <div class="box menu-box" style="max-width:600px">
-        <h2>Académie de la Famille</h2>
+    <div class="box menu-box" style="max-width:700px; max-height:88vh; overflow-y:auto;">
+        <h2>🎓 Académie de la Famille</h2>
         <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
-        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Découvrir le plateau (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. Poser une carte (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. Attaquer (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. La Charge ⚡ (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Provocation (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(6)" id="btn-tuto-6">6. Les Effets - Boost (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(7)" id="btn-tuto-7">7. La Fusion (Gain: 500 💰 + 1 carte)</button>
+
+        <div class="tuto-progress-bar">
+            <div class="tuto-progress-fill" id="tuto-progress-fill" style="width:0%"></div>
+        </div>
+        <p class="hint" id="tuto-progress-text" style="margin-bottom:14px;">0 / 10 étapes complétées</p>
+
+        <button class="btn-action full" onclick="ouvrirTutoExpress()" style="background:#233346;margin-bottom:14px;">
+            ⚡ Je sais déjà jouer — Vérifier mes connaissances
+        </button>
+
+        <div id="tuto-liste-etapes">
+            <button class="btn-large tuto-btn" onclick="lancerTuto(0)" id="btn-tuto-0" data-lvl="0">
+                📜 0. Bienvenue dans la Famille
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(1)" id="btn-tuto-1" data-lvl="1">
+                🔍 1. Découvrir le plateau
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(2)" id="btn-tuto-2" data-lvl="2">
+                🎴 2. Poser une carte
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(3)" id="btn-tuto-3" data-lvl="3">
+                ⚔️ 3. Attaquer
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(4)" id="btn-tuto-4" data-lvl="4">
+                ⚡ 4. La Charge
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(5)" id="btn-tuto-5" data-lvl="5">
+                🛡️ 5. La Provocation
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(6)" id="btn-tuto-6" data-lvl="6">
+                💪 6. Les Effets — Boost
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(7)" id="btn-tuto-7" data-lvl="7">
+                📚 7. Pioche & Cimetière
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(8)" id="btn-tuto-8" data-lvl="8">
+                💧 8. Mana progressif
+            </button>
+            <button class="btn-large tuto-btn" onclick="lancerTuto(9)" id="btn-tuto-9" data-lvl="9">
+                🏡 9. Terrains & Fusion
+            </button>
+        </div>
     </div>
 </div>
 
-<!-- ECRAN ARENE -->
+<!-- MENU -->
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
@@ -298,7 +404,7 @@
     </div>
 </div>
 
-<!-- ECRAN TOURNOI -->
+<!-- TOURNOI -->
 <div id="tournoi-screen" class="screen">
     <div class="box menu-box" style="max-width:700px">
         <h2>🏆 Tournoi</h2>
@@ -311,7 +417,7 @@
     </div>
 </div>
 
-<!-- ECRAN SPECTATEUR -->
+<!-- SPECTATEUR -->
 <div id="spectateur-screen" class="screen">
     <div class="box menu-box" style="max-width:700px">
         <h2>👀 Mode Spectateur</h2>
@@ -321,7 +427,7 @@
     </div>
 </div>
 
-<!-- ECRAN ADMIN -->
+<!-- ADMIN -->
 <div id="admin-screen" class="screen">
     <div class="box" style="max-width:900px; max-height:90vh; overflow-y:auto;">
         <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
@@ -344,7 +450,7 @@
         </div>
 
         <div id="admin-tab-cartes" class="hidden">
-            <h3>Collection complète — clique = +1 de chaque rareté</h3>
+            <h3>Collection complète</h3>
             <div id="admin-cartes-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
         </div>
 
@@ -422,7 +528,7 @@
     </div>
 </div>
 
-<!-- ECRAN COLLECTION -->
+<!-- COLLECTION -->
 <div id="collection-screen" class="screen">
     <div class="box menu-box" style="max-width:90%; padding:20px; display:flex; flex-direction:column; height:90vh; margin-top:5vh;">
         <div class="sort-bar" style="justify-content:space-between;">
@@ -437,7 +543,7 @@
     </div>
 </div>
 
-<!-- ECRAN DECKBUILDER -->
+<!-- DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -472,7 +578,7 @@
     </div>
 </div>
 
-<!-- ECRAN PROFIL -->
+<!-- PROFIL -->
 <div id="profil-screen" class="screen">
     <div class="box profil-box" style="max-width:640px; max-height:90vh; overflow-y:auto;">
         <h2>Ton profil</h2>
@@ -517,7 +623,7 @@
     </div>
 </div>
 
-<!-- ECRAN MULTI -->
+<!-- MULTI -->
 <div id="multi-screen" class="screen">
     <div class="box multi-box">
         <h2>Multijoueur</h2>
@@ -531,7 +637,7 @@
     </div>
 </div>
 
-<!-- ECRAN BOOSTER -->
+<!-- BOOSTER -->
 <div id="booster-screen" class="screen">
     <div class="booster-wrap">
         <h2>Ouverture de booster</h2>
@@ -546,7 +652,7 @@
     </div>
 </div>
 
-<!-- ECRAN JEU -->
+<!-- GAME -->
 <div id="game-screen" class="screen scrollable">
     <div id="mulligan-overlay">
         <h2>Choisis les cartes à rejeter</h2>
@@ -618,7 +724,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=9"></script>
-<script src="multi.js?v=9"></script>
+<script src="app.js?v=10"></script>
+<script src="multi.js?v=10"></script>
 </body>
 </html>
