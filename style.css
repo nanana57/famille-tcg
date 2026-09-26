@@ -346,18 +346,19 @@ body:has(#game-screen.active){overflow-y:auto;overflow-x:hidden;}
     position: relative;
 }
 
-/* FOIL léger sur les légendaires */
+/* FOIL léger sur les légendaires (atténué) */
 .card-wrapper.legendaire .card::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255,215,0,.35) 45%, rgba(255,255,255,.4) 50%, rgba(255,215,0,.35) 55%, transparent 70%);
+    background: linear-gradient(115deg, transparent 35%, rgba(255,215,0,.15) 47%, rgba(255,255,255,.18) 50%, rgba(255,215,0,.15) 53%, transparent 65%);
     background-size: 300% 300%;
-    animation: foilShine 4.5s linear infinite;
+    animation: foilShine 7s linear infinite;
     pointer-events: none;
     mix-blend-mode: overlay;
     z-index: 3;
     border-radius: .5em;
+    opacity: 0.6;
 }
 
 /* FOIL intense sur la carte Unifiée */
