@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
 <div id="fx-layer"></div>
 <div id="motd-banner" class="motd-banner hidden"></div>
 
-<!-- Overlay de confirmation de sortie de partie -->
+<!-- Confirmation sortie -->
 <div id="confirm-exit-overlay" class="confirm-box-overlay">
     <div class="confirm-box">
         <h3>⚠️ Quitter la partie ?</h3>
@@ -95,7 +95,7 @@
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
 </div>
 
-<!-- Overlay de gain de récompense (carte + argent) -->
+<!-- Overlay de gain de récompense -->
 <div id="reward-overlay" class="reward-overlay">
     <div class="reward-box">
         <h2 id="reward-titre">🎉 Récompense !</h2>
@@ -112,6 +112,18 @@
         <div class="defi-actions">
             <button class="btn-large" onclick="accepterDefi()">Accepter</button>
             <button class="btn-action" onclick="refuserDefi()">Refuser</button>
+        </div>
+    </div>
+</div>
+
+<!-- Demande d'ami reçue -->
+<div id="ami-demande-overlay" class="defi-overlay-inline">
+    <div class="defi-box">
+        <h3>👋 Demande d'ami</h3>
+        <p id="ami-demande-texte"></p>
+        <div class="defi-actions">
+            <button class="btn-large" onclick="accepterDemandeAmi()">Accepter</button>
+            <button class="btn-action" onclick="refuserDemandeAmi()">Refuser</button>
         </div>
     </div>
 </div>
@@ -141,7 +153,6 @@
     <div id="card-zoom-container"></div>
 </div>
 
-<!-- Overlay de chat avec un ami -->
 <div id="chat-overlay" class="chat-overlay">
     <div class="chat-box">
         <div class="chat-head">
@@ -175,6 +186,7 @@
     </div>
 </nav>
 
+<!-- ECRAN CONNEXION avec 6 cartes décoratives -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
@@ -201,14 +213,16 @@
 </div>
 
 <div id="tuto-screen" class="screen">
-    <div class="box menu-box" style="max-width:550px">
+    <div class="box menu-box" style="max-width:600px">
         <h2>Académie de la Famille</h2>
         <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
-        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Poser une carte (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. L'Attaque & Charge (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. La Provocation (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. Les Effets - Rage (Gain: 500 💰 + 1 carte)</button>
-        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Fusion (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(1)" id="btn-tuto-1">1. Découvrir le plateau (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(2)" id="btn-tuto-2">2. Poser une carte (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(3)" id="btn-tuto-3">3. Attaquer (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(4)" id="btn-tuto-4">4. La Charge ⚡ (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(5)" id="btn-tuto-5">5. La Provocation (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(6)" id="btn-tuto-6">6. Les Effets - Boost (Gain: 500 💰 + 1 carte)</button>
+        <button class="btn-large" onclick="lancerTuto(7)" id="btn-tuto-7">7. La Fusion (Gain: 500 💰 + 1 carte)</button>
     </div>
 </div>
 
@@ -276,93 +290,46 @@
                 <option value="epique">Épique</option>
                 <option value="legendaire">Légendaire</option>
                 <option value="fusion">Fusion</option>
+                <option value="unifiee">✨ Unifiée (ultra rare foil)</option>
             </select>
             <input type="text" id="new-card-emoji" placeholder="Emoji" value="🃏">
             <input type="text" id="new-card-motscles" placeholder="Mots-clés (séparés par virgules)">
 
-            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">
-                Effet prédéfini :
-            </label>
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Effet prédéfini :</label>
             <select id="new-card-template" onchange="adminAppliquerTemplate()">
                 <option value="">-- Aucun (texte libre) --</option>
                 <optgroup label="Cri de guerre - Buffs">
                     <option value="buff_allie_1_1">Cri de guerre : donne +1/+1 à une créature alliée.</option>
-                    <option value="buff_allie_0_2">Cri de guerre : +0/+2 à une créature alliée.</option>
-                    <option value="buff_allie_2_0">Cri de guerre : +2 attaque à une créature alliée.</option>
                     <option value="buff_allie_3_3">Donne +3/+3 à une créature alliée.</option>
-                    <option value="buff_all_allies_1_1">Donne +1/+1 à toutes tes créatures.</option>
                     <option value="buff_all_allies_2_2">Donne +2/+2 à toutes tes créatures.</option>
-                    <option value="buff_famille_2_2">Cri de guerre : donne +2/+2 aux autres [FAMILLE] alliés.</option>
                 </optgroup>
                 <optgroup label="Si personnage X en jeu">
                     <option value="si_X_buff_2_2">Gagne +2/+2 si [PERSO] est en jeu.</option>
-                    <option value="si_X_buff_2_0">Cri de guerre : +2 attaque si [PERSO] est en jeu.</option>
-                    <option value="si_X_buff_0_4">Cri de guerre : +4 en vie si [PERSO] est en jeu.</option>
-                    <option value="si_X_et_Y_buff_2_2">Gagne +2/+2 si [PERSO_X] et [PERSO_Y] sont en jeu.</option>
                 </optgroup>
                 <optgroup label="Dégâts / Soins">
                     <option value="degats_cible_2">Cri de guerre : inflige 2 dégâts à une cible ennemie.</option>
-                    <option value="degats_cible_3">Inflige 3 dégâts à une créature ennemie ciblée.</option>
-                    <option value="degats_hero_aleatoire">Cri de guerre : lance un dé et inflige ce nombre de dégâts au héros adverse.</option>
                     <option value="soin_hero_2">Cri de guerre : rend 2 patience à ton héros.</option>
-                    <option value="soin_hero_3_fin">À la fin de ton tour, rend 3 patience à ton héros.</option>
-                    <option value="soin_creature_2">Cri de guerre : rend 2 points de vie à une créature alliée.</option>
                 </optgroup>
-                <optgroup label="Pioche">
-                    <option value="pioche_1_fin">À la fin de ton tour, pioche une carte.</option>
-                    <option value="pioche_2">Pioche 2 cartes.</option>
-                    <option value="pioche_1">Pioche immédiatement une carte.</option>
-                    <option value="pioche_sort">Cri de guerre : pioche un sort de ton deck.</option>
-                </optgroup>
-                <optgroup label="Contrôle">
-                    <option value="renvoyer">Renvoie une créature ennemie dans la main de son propriétaire.</option>
-                    <option value="endormir_1">Endort une créature ennemie pendant un tour.</option>
-                    <option value="endormir_2">Cri de guerre : endort une créature ennemie pendant 2 tours.</option>
-                    <option value="endormir_tous">Endort toutes les créatures ennemies pendant un tour.</option>
-                    <option value="silence">Réduit une créature au silence : son texte est annulé.</option>
-                    <option value="transformer_chaussettes">Transforme une créature ennemie en Paire de chaussettes 1/1.</option>
-                    <option value="detruire_gros">Détruit une créature ennemie ayant 5 attaque ou plus.</option>
-                    <option value="detruire_petits">Détruit toutes les créatures ennemies ayant 3 vie ou moins.</option>
-                    <option value="annule_sort">Annule le prochain sort lancé par l'adversaire.</option>
-                </optgroup>
-                <optgroup label="Invocation">
-                    <option value="invoque_jeton_1_1">Cri de guerre : invoque un Cousin éloigné 1/1.</option>
-                    <option value="invoque_jeton_provoc">Cri de guerre : invoque un Chat protecteur 2/1 avec Provocation.</option>
-                    <option value="invoque_2_jetons">Invoque deux Cousins éloignés 1/1 avec Provocation.</option>
-                    <option value="invoque_bon_repas">Cri de guerre : invoque un Bon repas 3/3.</option>
-                </optgroup>
-                <optgroup label="Chance / Divers">
-                    <option value="de_pair_pioche">Cri de guerre : lance un dé. Pair, pioche une carte. Impair, gagne 1 mana ce tour.</option>
-                    <option value="pile_ou_face_mana">Cri de guerre : pile ou face. Pile, gagne 1 mana ce tour.</option>
-                    <option value="pile_ou_face_defausse">Cri de guerre : pile ou face. Pile, l'adversaire défausse une carte.</option>
-                    <option value="surcout">Au prochain tour, les cartes coûtent 2 mana de plus pour les deux joueurs.</option>
-                    <option value="detruit_terrains">Détruit les terrains en jeu, des deux côtés.</option>
+                <optgroup label="Charge">
                     <option value="charge">Charge : attaque dès son arrivée.</option>
                 </optgroup>
             </select>
 
             <div style="display:flex;gap:8px;margin-top:6px;">
                 <input type="text" id="new-card-template-perso" placeholder="Personnage ciblé" style="flex:1">
-                <input type="text" id="new-card-template-perso2" placeholder="Personnage secondaire" style="flex:1">
             </div>
 
-            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">
-                Description finale (éditable) :
-            </label>
-            <textarea id="new-card-desc" placeholder="Texte qui s'affichera sur la carte..."></textarea>
-
+            <textarea id="new-card-desc" placeholder="Description finale..."></textarea>
             <button class="btn-large" onclick="adminCreerCarte()">✨ Créer la carte</button>
         </div>
 
         <div id="admin-tab-stats" class="hidden">
             <h3>Stats globales</h3>
-            <div id="admin-stats-content" style="text-align:left;">
-                <p>Chargement...</p>
-            </div>
+            <div id="admin-stats-content"><p>Chargement...</p></div>
         </div>
 
         <div id="admin-tab-bannir" class="hidden">
-            <h3>Cartes bannies (invisibles pour les joueurs)</h3>
+            <h3>Cartes bannies</h3>
             <div id="admin-ban-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
         </div>
 
@@ -399,7 +366,7 @@
 
         <section class="collection-area">
             <div class="sort-bar">
-                <h3>Cartes du jeu</h3>
+                <h3 id="deckbuilder-title">Cartes du jeu</h3>
                 <div class="sort-actions">
                     <button class="btn-chip" onclick="trierDeckbuilder('cout')">Coût</button>
                     <button class="btn-chip" onclick="trierDeckbuilder('rarete')">Rareté</button>
@@ -424,15 +391,14 @@
     <div class="box profil-box" style="max-width:640px; max-height:90vh; overflow-y:auto;">
         <h2>Ton profil</h2>
         <div class="profil-avatar-row">
-            <div class="profil-avatar" id="profil-avatar-big">🧑</div>
+            <div class="profil-avatar" id="profil-avatar-big" onclick="toggleAvatarPicker()" title="Clique pour changer d'avatar">🧑</div>
             <div>
                 <p class="subtitle" id="profil-pseudo" style="margin:0;"></p>
-                <p class="hint" id="profil-code" style="margin:4px 0 0;">Code ami : —</p>
+                <p class="hint" id="profil-code" style="margin:4px 0 0; cursor:pointer;" onclick="copierCodeAmi()" title="Clique pour copier">Code ami : — 📋</p>
             </div>
         </div>
 
-        <h3 style="color:var(--laiton-clair); margin-top:20px;">Choisis ton avatar</h3>
-        <div class="avatar-picker" id="avatar-picker"></div>
+        <div id="avatar-picker" class="avatar-picker hidden"></div>
 
         <div class="profil-stats">
             <div class="profil-stat"><span class="profil-nb" id="stat-parties">0</span><span>Parties jouées</span></div>
@@ -454,6 +420,7 @@
             <input type="text" id="friend-code-input" placeholder="Code ami (ex: FT-A3X9)" style="flex:1; text-transform:uppercase;">
             <button class="btn-action" onclick="ajouterAmi()">Ajouter</button>
         </div>
+        <div id="demandes-ami-liste"></div>
         <div id="amis-liste" class="amis-liste"></div>
 
         <button class="btn-action full" onclick="deconnexion()" style="margin-top:16px;">Déconnexion</button>
@@ -558,7 +525,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=5"></script>
-<script src="multi.js?v=5"></script>
+<script src="app.js?v=6"></script>
+<script src="multi.js?v=6"></script>
 </body>
 </html>
