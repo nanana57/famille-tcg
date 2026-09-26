@@ -3346,6 +3346,14 @@ function declarerForfait() {
 
 /* ---------- DÉMARRAGE ---------- */
 document.addEventListener('DOMContentLoaded', function() {
+   // Détection mobile (ajoute classe pour CSS conditionnel)
+    const estVraiMobile = ('ontouchstart' in window)
+        && (navigator.maxTouchPoints > 0)
+        && window.matchMedia('(pointer: coarse)').matches
+        && window.innerWidth <= 1024;
+    if (estVraiMobile) {
+        document.body.classList.add('is-mobile');
+    }
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
