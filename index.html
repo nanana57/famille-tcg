@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -20,8 +20,10 @@
 </div>
 
 <div id="fx-layer"></div>
+<div id="particles-layer"></div>
 <div id="motd-banner" class="motd-banner hidden"></div>
 
+<!-- Confirmation sortie -->
 <div id="confirm-exit-overlay" class="confirm-box-overlay">
     <div class="confirm-box">
         <h3>⚠️ Quitter la partie ?</h3>
@@ -33,6 +35,7 @@
     </div>
 </div>
 
+<!-- Choix du deck de départ -->
 <div id="starter-overlay" class="starter-overlay">
     <div class="starter-box">
         <h1 class="title-hero">Bienvenue ! 🎉</h1>
@@ -63,6 +66,38 @@
     </div>
 </div>
 
+<!-- Overlay quêtes journalières + connexion -->
+<div id="daily-overlay" class="daily-overlay">
+    <div class="daily-box">
+        <h1 class="title-hero">🎁 Bonus quotidien</h1>
+        <p class="subtitle">Connecte-toi chaque jour pour gagner des récompenses !</p>
+        <div class="daily-streak-row" id="daily-streak-row"></div>
+        <div id="daily-reward-content"></div>
+        <button class="btn-large" onclick="recupererRecompenseQuotidienne()" id="btn-daily-claim">🎁 Récupérer (+50💰)</button>
+        <button class="btn-action full" onclick="fermerDailyOverlay()" style="margin-top:10px;">Passer</button>
+    </div>
+</div>
+
+<!-- Overlay quêtes -->
+<div id="quetes-overlay" class="quetes-overlay" onclick="fermerQuetes()">
+    <div class="quetes-box" onclick="event.stopPropagation()">
+        <h2>🎯 Quêtes journalières</h2>
+        <p class="subtitle">Renouvelées chaque jour à minuit</p>
+        <div id="quetes-liste"></div>
+        <button class="btn-large" onclick="fermerQuetes()">Fermer</button>
+    </div>
+</div>
+
+<!-- Overlay tournoi -->
+<div id="tournoi-overlay" class="tournoi-overlay">
+    <div class="tournoi-box">
+        <h2>🏆 Tournoi</h2>
+        <div id="tournoi-content"></div>
+        <button class="btn-action full" onclick="fermerTournoi()">Fermer</button>
+    </div>
+</div>
+
+<!-- Aide -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
         <h2>📖 Guide du jeu</h2>
@@ -74,6 +109,7 @@
                 <li><strong>Rage</strong> 🔥 : Effet déclenché si blessée sans mourir.</li>
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
                 <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
+                <li><strong>Terrain</strong> 🌍 : Actif 3 tours puis disparaît.</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -93,12 +129,23 @@
     <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer</button>
 </div>
 
+<!-- Overlay de gain de récompense -->
 <div id="reward-overlay" class="reward-overlay">
     <div class="reward-box">
         <h2 id="reward-titre">🎉 Récompense !</h2>
         <div id="reward-cards" class="grid" style="justify-content:center; margin:20px 0;"></div>
         <div id="reward-coins" class="reward-coins">+0 💰</div>
         <button class="btn-large" onclick="fermerReward()">Récupérer</button>
+    </div>
+</div>
+
+<!-- Level up overlay -->
+<div id="levelup-overlay" class="levelup-overlay">
+    <div class="levelup-box">
+        <h2>🎉 Niveau supérieur !</h2>
+        <div class="levelup-num" id="levelup-num">2</div>
+        <p id="levelup-reward">+1 Booster gratuit !</p>
+        <button class="btn-large" onclick="fermerLevelUp()">Continuer</button>
     </div>
 </div>
 
@@ -149,6 +196,7 @@
     <div id="card-zoom-container"></div>
 </div>
 
+<!-- Chat privé (amis) -->
 <div id="chat-overlay" class="chat-overlay">
     <div class="chat-box">
         <div class="chat-head">
@@ -163,25 +211,43 @@
     </div>
 </div>
 
+<!-- Chat de partie -->
+<div id="ingame-chat" class="ingame-chat">
+    <div class="ingame-chat-head">
+        <span>💬 Chat de partie</span>
+        <button onclick="toggleIngameChat()">−</button>
+    </div>
+    <div class="ingame-chat-messages" id="ingame-chat-messages"></div>
+    <div class="ingame-chat-input">
+        <input type="text" id="ingame-chat-input" placeholder="Message rapide..." maxlength="120">
+        <button onclick="envoyerIngameChat()">➤</button>
+    </div>
+</div>
+
 <nav id="main-nav" class="hidden">
     <div class="nav-brand">Famille<span>TCG</span></div>
     <div class="nav-links">
         <button onclick="tenterChangerEcran('tuto-screen')">🎓 Académie</button>
         <button onclick="tenterChangerEcran('menu-screen')">Arène</button>
+        <button onclick="tenterChangerEcran('tournoi-screen')">🏆 Tournoi</button>
         <button onclick="tenterChangerEcran('collection-screen')">Collection</button>
         <button onclick="tenterChangerEcran('deckbuilder-screen')">Mes Decks</button>
         <button onclick="tenterChangerEcran('booster-screen')">Boosters</button>
         <button onclick="tenterChangerEcran('multi-screen')">Multijoueur</button>
+        <button onclick="tenterChangerEcran('spectateur-screen')">👀 Spectateur</button>
         <button onclick="tenterChangerEcran('profil-screen')">Profil</button>
         <button id="nav-admin" class="hidden" style="color:var(--braise)" onclick="tenterChangerEcran('admin-screen')">👑 Admin</button>
         <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">🏳️ Forfait</button>
     </div>
     <div class="nav-pseudo">
+        <span id="nav-quetes" style="cursor:pointer; margin-right:10px;" onclick="ouvrirQuetes()" title="Quêtes">🎯</span>
         <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
         <span id="display-pseudo"></span>
+        <span id="nav-level" class="nav-level">Niv. 1</span>
     </div>
 </nav>
 
+<!-- ECRAN CONNEXION -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
         <div class="login-cards" id="login-cards"></div>
@@ -207,6 +273,7 @@
     </div>
 </div>
 
+<!-- ECRAN TUTO -->
 <div id="tuto-screen" class="screen">
     <div class="box menu-box" style="max-width:600px">
         <h2>Académie de la Famille</h2>
@@ -221,6 +288,7 @@
     </div>
 </div>
 
+<!-- ECRAN ARENE -->
 <div id="menu-screen" class="screen">
     <div class="box menu-box">
         <h2>Lancer une partie</h2>
@@ -230,15 +298,40 @@
     </div>
 </div>
 
+<!-- ECRAN TOURNOI -->
+<div id="tournoi-screen" class="screen">
+    <div class="box menu-box" style="max-width:700px">
+        <h2>🏆 Tournoi</h2>
+        <p class="subtitle">Affronte des bots en série. 4 ou 8 participants, élimination directe.</p>
+        <div class="tournoi-choix">
+            <button class="btn-large" onclick="demarrerTournoi(4)">Tournoi 4 joueurs (500💰 entrée)</button>
+            <button class="btn-large" onclick="demarrerTournoi(8)">Tournoi 8 joueurs (1000💰 entrée)</button>
+        </div>
+        <div id="tournoi-etat" style="margin-top:20px;"></div>
+    </div>
+</div>
+
+<!-- ECRAN SPECTATEUR -->
+<div id="spectateur-screen" class="screen">
+    <div class="box menu-box" style="max-width:700px">
+        <h2>👀 Mode Spectateur</h2>
+        <p class="subtitle">Regarde les parties en cours des autres joueurs.</p>
+        <div id="spectateur-liste"></div>
+        <button class="btn-large" onclick="rafraichirSpectateur()">🔄 Rafraîchir</button>
+    </div>
+</div>
+
+<!-- ECRAN ADMIN -->
 <div id="admin-screen" class="screen">
     <div class="box" style="max-width:900px; max-height:90vh; overflow-y:auto;">
         <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
         <div class="admin-tabs">
             <button class="btn-chip" onclick="adminTab('actions')">Actions</button>
-            <button class="btn-chip" onclick="adminTab('cartes')">Toutes les cartes</button>
-            <button class="btn-chip" onclick="adminTab('creation')">Créer une carte</button>
-            <button class="btn-chip" onclick="adminTab('stats')">Stats globales</button>
-            <button class="btn-chip" onclick="adminTab('bannir')">Cartes bannies</button>
+            <button class="btn-chip" onclick="adminTab('cartes')">Cartes</button>
+            <button class="btn-chip" onclick="adminTab('creation')">Créer</button>
+            <button class="btn-chip" onclick="adminTab('stats')">Stats</button>
+            <button class="btn-chip" onclick="adminTab('bannir')">Bannir</button>
+            <button class="btn-chip" onclick="adminTab('bonus')">Bonus joueur</button>
             <button class="btn-chip" onclick="adminTab('annonces')">Annonces</button>
         </div>
 
@@ -247,7 +340,7 @@
             <button class="btn-large" onclick="adminToutDebloquer(10)">🎁 10 de chaque carte & rareté</button>
             <button class="btn-large" onclick="adminToutDebloquer(1)">🎁 1 de chaque carte</button>
             <button class="btn-large" onclick="adminMaxCoins()">💰 1M Coins</button>
-            <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles fantômes</button>
+            <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles</button>
         </div>
 
         <div id="admin-tab-cartes" class="hidden">
@@ -286,35 +379,12 @@
                 <option value="legendaire">Légendaire</option>
             </select>
 
-            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Emoji de la carte :</label>
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Emoji :</label>
             <div id="emoji-picker" class="emoji-picker"></div>
             <input type="hidden" id="new-card-emoji" value="🃏">
-
-            <input type="text" id="new-card-motscles" placeholder="Mots-clés (séparés par virgules)">
-
-            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Effet prédéfini :</label>
-            <select id="new-card-template" onchange="adminAppliquerTemplate()">
-                <option value="">-- Aucun (texte libre) --</option>
-                <optgroup label="Cri de guerre - Buffs">
-                    <option value="buff_allie_1_1">Cri de guerre : donne +1/+1 à une créature alliée.</option>
-                    <option value="buff_allie_3_3">Donne +3/+3 à une créature alliée.</option>
-                    <option value="buff_all_allies_2_2">Donne +2/+2 à toutes tes créatures.</option>
-                </optgroup>
-                <optgroup label="Si personnage X en jeu">
-                    <option value="si_X_buff_2_2">Gagne +2/+2 si [PERSO] est en jeu.</option>
-                </optgroup>
-                <optgroup label="Dégâts / Soins">
-                    <option value="degats_cible_2">Cri de guerre : inflige 2 dégâts à une cible ennemie.</option>
-                    <option value="soin_hero_2">Cri de guerre : rend 2 patience à ton héros.</option>
-                </optgroup>
-                <optgroup label="Charge">
-                    <option value="charge">Charge : attaque dès son arrivée.</option>
-                </optgroup>
-            </select>
-
-            <input type="text" id="new-card-template-perso" placeholder="Personnage ciblé" style="margin-top:6px;">
-            <textarea id="new-card-desc" placeholder="Description finale..."></textarea>
-            <button class="btn-large" onclick="adminCreerCarte()">✨ Créer la carte</button>
+            <input type="text" id="new-card-motscles" placeholder="Mots-clés (virgules)">
+            <textarea id="new-card-desc" placeholder="Description..."></textarea>
+            <button class="btn-large" onclick="adminCreerCarte()">✨ Créer</button>
         </div>
 
         <div id="admin-tab-stats" class="hidden">
@@ -327,14 +397,32 @@
             <div id="admin-ban-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
         </div>
 
+        <div id="admin-tab-bonus" class="hidden">
+            <h3>🎁 Bonus temporaire — Toutes les cartes ×3</h3>
+            <p class="hint">Donne à un joueur l'accès à 3 exemplaires de CHAQUE carte pendant une durée limitée.</p>
+            <input type="text" id="bonus-code-ami" placeholder="Code ami du joueur (FT-XXXX)">
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <select id="bonus-duree" style="flex:1;">
+                    <option value="5">5 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30" selected>30 minutes</option>
+                    <option value="60">1 heure</option>
+                    <option value="1440">24 heures</option>
+                </select>
+                <button class="btn-large" style="flex:1;margin:0;" onclick="adminDonnerBonusTemporaire()">✨ Donner</button>
+            </div>
+            <div id="admin-bonus-liste" style="margin-top:20px;"></div>
+        </div>
+
         <div id="admin-tab-annonces" class="hidden">
             <h3>Message global (MotD)</h3>
             <input type="text" id="admin-motd" placeholder="Ex: Tournoi ce soir à 21h !">
-            <button class="btn-action full" onclick="adminEnvoyerMotd()">Diffuser le message</button>
+            <button class="btn-action full" onclick="adminEnvoyerMotd()">Diffuser</button>
         </div>
     </div>
 </div>
 
+<!-- ECRAN COLLECTION -->
 <div id="collection-screen" class="screen">
     <div class="box menu-box" style="max-width:90%; padding:20px; display:flex; flex-direction:column; height:90vh; margin-top:5vh;">
         <div class="sort-bar" style="justify-content:space-between;">
@@ -349,6 +437,7 @@
     </div>
 </div>
 
+<!-- ECRAN DECKBUILDER -->
 <div id="deckbuilder-screen" class="screen">
     <div class="deckbuilder-container">
         <aside class="sidebar">
@@ -368,6 +457,7 @@
                 </div>
             </div>
             <div class="grid" id="deckbuilder-grid"></div>
+            <div id="deck-stats-panel" class="deck-stats-panel hidden"></div>
         </section>
 
         <aside class="deck-area">
@@ -375,43 +465,49 @@
             <h3>Cartes du deck <span id="deck-count">0</span>/20</h3>
             <div class="mana-curve" id="mana-curve"></div>
             <div id="deck-grid" class="deck-list"></div>
-            <button class="btn-large" onclick="sauvegarderDeck()">Enregistrer le deck</button>
+            <button class="btn-large" onclick="sauvegarderDeck()">Enregistrer</button>
             <button class="btn-action full" id="btn-set-default" onclick="definirDeckParDefaut()" style="margin-top:6px;">⭐ Définir par défaut</button>
+            <button class="btn-action full" onclick="toggleDeckStats()" style="margin-top:6px;">📊 Voir mes stats</button>
         </aside>
     </div>
 </div>
 
+<!-- ECRAN PROFIL -->
 <div id="profil-screen" class="screen">
     <div class="box profil-box" style="max-width:640px; max-height:90vh; overflow-y:auto;">
         <h2>Ton profil</h2>
         <div class="profil-avatar-row">
-            <div class="profil-avatar" id="profil-avatar-big" onclick="toggleAvatarPicker()" title="Clique pour changer d'avatar">🧑</div>
+            <div class="profil-avatar" id="profil-avatar-big" onclick="toggleAvatarPicker()">🧑</div>
             <div>
                 <p class="subtitle" id="profil-pseudo" style="margin:0;"></p>
-                <p class="hint" id="profil-code" style="margin:4px 0 0; cursor:pointer;" onclick="copierCodeAmi()" title="Clique pour copier">Code ami : — 📋</p>
+                <p class="hint" id="profil-code" style="margin:4px 0 0; cursor:pointer;" onclick="copierCodeAmi()">Code ami : — 📋</p>
+                <p class="hint" id="profil-xp" style="margin:4px 0 0;">XP : 0 / 100</p>
             </div>
         </div>
+
+        <div class="xp-bar-outer"><div class="xp-bar-inner" id="xp-bar"></div></div>
+        <p class="hint" style="text-align:center;" id="profil-niveau">Niveau 1</p>
 
         <div id="avatar-picker" class="avatar-picker hidden"></div>
 
         <div class="profil-stats">
-            <div class="profil-stat"><span class="profil-nb" id="stat-parties">0</span><span>Parties jouées</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-parties">0</span><span>Parties</span></div>
             <div class="profil-stat win"><span class="profil-nb" id="stat-victoires">0</span><span>Victoires</span></div>
             <div class="profil-stat lose"><span class="profil-nb" id="stat-defaites">0</span><span>Défaites</span></div>
-            <div class="profil-stat"><span class="profil-nb" id="stat-ratio">—</span><span>Taux de victoire</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-ratio">—</span><span>Ratio</span></div>
         </div>
 
         <h3 style="color:var(--laiton-clair); margin-top:16px;">Tes statistiques</h3>
         <div class="profil-stats">
-            <div class="profil-stat"><span class="profil-nb" id="stat-deck-fav">—</span><span>Deck le plus joué</span></div>
-            <div class="profil-stat"><span class="profil-nb" id="stat-deck-fav-count">0</span><span>Parties avec ce deck</span></div>
-            <div class="profil-stat"><span class="profil-nb" id="stat-carte-fav">—</span><span>Carte la plus jouée</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-deck-fav">—</span><span>Deck favori</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-deck-fav-count">0</span><span>Parties</span></div>
+            <div class="profil-stat"><span class="profil-nb" id="stat-carte-fav">—</span><span>Carte favorite</span></div>
             <div class="profil-stat"><span class="profil-nb" id="stat-carte-fav-count">0</span><span>Fois jouée</span></div>
         </div>
 
         <h3 style="color:var(--laiton-clair); margin-top:16px;">Amis</h3>
         <div style="display:flex;gap:6px;margin-bottom:10px;">
-            <input type="text" id="friend-code-input" placeholder="Code ami (ex: FT-A3X9)" style="flex:1; text-transform:uppercase;">
+            <input type="text" id="friend-code-input" placeholder="Code ami (FT-XXXX)" style="flex:1;text-transform:uppercase;">
             <button class="btn-action" onclick="ajouterAmi()">Ajouter</button>
         </div>
         <div id="demandes-ami-liste"></div>
@@ -421,6 +517,7 @@
     </div>
 </div>
 
+<!-- ECRAN MULTI -->
 <div id="multi-screen" class="screen">
     <div class="box multi-box">
         <h2>Multijoueur</h2>
@@ -430,10 +527,11 @@
             <span id="multi-combat-count">0 en combat</span>
         </div>
         <div id="multi-liste" class="multi-liste"></div>
-        <button class="btn-large" onclick="rafraichirJoueurs()">Rafraîchir la liste</button>
+        <button class="btn-large" onclick="rafraichirJoueurs()">Rafraîchir</button>
     </div>
 </div>
 
+<!-- ECRAN BOOSTER -->
 <div id="booster-screen" class="screen">
     <div class="booster-wrap">
         <h2>Ouverture de booster</h2>
@@ -448,6 +546,7 @@
     </div>
 </div>
 
+<!-- ECRAN JEU -->
 <div id="game-screen" class="screen scrollable">
     <div id="mulligan-overlay">
         <h2>Choisis les cartes à rejeter</h2>
@@ -519,7 +618,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=8"></script>
-<script src="multi.js?v=8"></script>
+<script src="app.js?v=9"></script>
+<script src="multi.js?v=9"></script>
 </body>
 </html>
