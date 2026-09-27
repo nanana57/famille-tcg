@@ -1128,7 +1128,7 @@ function creerHTMLCarte(c, ctx, opts) {
     const displayRarete = opts.overrideRarete ? opts.overrideRarete : c.rarete;
     
     // Gestion Bluff : si c'est une carte Bluff non révélée en jeu
-    const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && !c.revele && (ctx === 'jeu' || ctx === 'main'));
+   const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && c.revele === false && (ctx === 'jeu' || ctx === 'main'));
     
     // Si c'est une carte Bluff cachée sur le plateau, on affiche le dos
     if (estBluffCache) {
