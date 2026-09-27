@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v12)
-   Esthétique v12 + Portabilité + Fix connexion + Bluff + Mobile
+   FAMILLE TCG — moteur de jeu (Édition Ultime v13)
+   Esthétique v13 + Portabilité + Bluff + Mobile + Choix Face Visible/Cachée
    =========================================================== */
 
 var collectionJoueur = {};
@@ -58,6 +58,7 @@ var _tutoInterval = null;
 var _tutoSuccessInterval = null;
 var _deckUtiliseEnCours = null;
 var _sortieAutorisee = false;
+var _bluffPending = null; // { index, cible }
 window.appPret = false;
 
 var cartesBannies = [];
@@ -998,7 +999,30 @@ const estChat = m => m.motsCles.includes('Chat');
 
 function instancier(def, cle, jeton, overrideRarete) {
     if (!def) return null;
-    return { uid:'u'+(uidSeq++), id:def.id, prenom:def.prenom, famille:def.famille, cout:def.cout, atk:def.atk, vie:def.vie, vieMax:def.vie, rarete: overrideRarete || def.rarete, desc:def.desc, emoji:def.emoji, motsCles:[...def.motsCles], cote:cle, auraAtk:0, auraVieAppliquee:0, aAttaque:false, malade:true, gele:0, silence:false, jeton:!!jeton, revele: !def.motsCles.includes('Bluff') };
+    return {
+        uid:'u'+(uidSeq++),
+        id:def.id,
+        prenom:def.prenom,
+        famille:def.famille,
+        cout:def.cout,
+        atk:def.atk,
+        vie:def.vie,
+        vieMax:def.vie,
+        rarete: overrideRarete || def.rarete,
+        desc:def.desc,
+        emoji:def.emoji,
+        motsCles:[...def.motsCles],
+        cote:cle,
+        auraAtk:0,
+        auraVieAppliquee:0,
+        aAttaque:false,
+        malade:true,
+        gele:0,
+        silence:false,
+        jeton:!!jeton,
+        revele: !def.motsCles.includes('Bluff'),
+        bluffVisible: false // true si le joueur a choisi de la poser face visible (pas d'effet de révélation)
+    };
 }
 
 function recordCarteJouee(idCarte) {
@@ -1127,9 +1151,8 @@ function creerHTMLCarte(c, ctx, opts) {
     const estCarteUnifiee = (c.id === 'u1');
     const displayRarete = opts.overrideRarete ? opts.overrideRarete : c.rarete;
     
-    // Gestion Bluff : si c'est une carte Bluff non révélée en jeu
- // Une carte Bluff n'est cachée QUE si elle est sur le plateau (ctx === 'jeu') et non révélée
-const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && c.revele === false && ctx === 'jeu');
+    // Gestion Bluff : si c'est une carte Bluff non révélée en jeu (et pas en mode "posée visible")
+    const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && c.revele === false && !c.bluffVisible && ctx === 'jeu');
     
     // Si c'est une carte Bluff cachée sur le plateau, on affiche le dos
     if (estBluffCache) {
@@ -1143,6 +1166,12 @@ const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && c.revele ==
 
     if (estCarteUnifiee) w.classList.add('unifiee');
     else if (displayRarete === 'legendaire') w.classList.add('legendaire');
+
+    // Carte Bluff posée face visible : grisée car sa capacité ne se déclenchera pas
+    const estBluffVisibleGrise = (c.motsCles && c.motsCles.includes('Bluff') && c.bluffVisible === true && ctx === 'jeu');
+    if (estBluffVisibleGrise) {
+        w.classList.add('bluff-visible-grise');
+    }
 
     const enJeu = ctx === 'jeu' || ctx === 'main';
     const atk = c.auraAtk !== undefined ? atkTot(c) : c.atk;
@@ -2477,6 +2506,7 @@ function echangeDegats(a, b) { appliquerDegatsCreature(b, atkTot(a)); appliquerD
 function revelerBluff(m, effets) {
     if (m.revele) return;
     m.revele = true;
+    m.bluffVisible = false; // Une fois révélée, on retire le flag de visible
     fxSur(m, 'Révélé !', 'buff');
     jouerSon('summon');
     
@@ -2623,6 +2653,22 @@ function clicCarteMain(index) {
     if (J.manaActuel < cout) return info('Pas assez de mana.');
     if (c.famille !== 'Sort' && c.famille !== 'Terrain' && J.plateau.length >= 5) return info('Ton plateau est plein.');
 
+    // Si c'est une carte Bluff (créature), on demande au joueur comment la poser
+    if (c.motsCles.includes('Bluff') && c.famille !== 'Sort' && c.famille !== 'Terrain') {
+        const p = POUVOIRS[c.id];
+        if (p && p.cible) {
+            const cibles = ciblesValides(J, p.cible);
+            if (cibles.length) {
+                demarrerCiblage(p.cible, cibles, cible => {
+                    demanderModeBluff(index, cible);
+                });
+                return;
+            }
+        }
+        demanderModeBluff(index, null);
+        return;
+    }
+
     const p = POUVOIRS[c.id];
     if (p && p.cible) {
         const cibles = ciblesValides(J, p.cible);
@@ -2639,6 +2685,81 @@ function clicCarteMain(index) {
 
     pousserAction({ type:'jouer', id:c.id, idxCible:null, campCible:null, cibleHero:null });
     jouerCarte(J, index, null);
+}
+
+/* ===========================================================
+   CHOIX FACE VISIBLE / CACHÉE POUR LES CARTES BLUFF
+   =========================================================== */
+function demanderModeBluff(index, cible) {
+    _bluffPending = { index, cible };
+    const ov = document.getElementById('bluff-choix-overlay');
+    if (ov) ov.classList.add('open');
+}
+
+function confirmerModeBluff(cache) {
+    const ov = document.getElementById('bluff-choix-overlay');
+    if (ov) ov.classList.remove('open');
+    if (!_bluffPending) return;
+    const { index, cible } = _bluffPending;
+    _bluffPending = null;
+    poserCarteBluff(index, cible, cache);
+}
+
+function annulerChoixBluff() {
+    const ov = document.getElementById('bluff-choix-overlay');
+    if (ov) ov.classList.remove('open');
+    _bluffPending = null;
+}
+
+function poserCarteBluff(index, cible, cache) {
+    const c = J.main[index];
+    if (!c) return;
+    const cout = coutEffectif(J, c);
+    if (J.manaActuel < cout) return;
+
+    // On stocke le choix dans la carte
+    c.bluffVisible = !cache;
+    if (cache) {
+        c.revele = false;
+    } else {
+        // Si posée face visible, on la considère comme "révélée" mais sa capacité ne se déclenchera pas
+        c.revele = true;
+        c.silence = true; // Silencieuse = pas d'effet
+        if (!c.desc.includes('(posée visible')) {
+            c.desc = c.desc + " (posée visible : pas d'effet)";
+        }
+    }
+
+    pousserAction({ type:'jouer', id:c.id, idxCible:null, campCible:null, cibleHero:null, bluffVisible: !cache });
+    
+    // On retire la carte de la main et on la place sur le plateau
+    J.manaActuel -= cout;
+    J.main.splice(index, 1);
+    ajouterLog(c.emoji, `${J.nom} joue ${c.prenom} ${cache ? '(face cachée)' : '(face visible)'}`, J);
+    if (c.id && !c.id.startsWith('jeton_')) recordCarteJouee(c.id);
+
+    c.malade = !c.motsCles.includes('Charge');
+    c.aAttaque = false;
+    J.plateau.push(c);
+
+    // Effet "jouer" seulement si ce n'est pas une carte Bluff cachée
+    // ET si ce n'est pas une carte Bluff posée visible (sa capacité ne se déclenche pas)
+    if (!cache) {
+        info(`${c.prenom} entre en jeu (face visible).`);
+        // On ne déclenche PAS l'effet de Bluff
+    } else {
+        info(`${c.prenom} est posée face cachée.`);
+    }
+
+    setTimeout(() => {
+        const el = elOf(c.uid);
+        if (el) { const r = el.getBoundingClientRect(); creerParticules(r.left + r.width/2, r.top + r.height/2, cache ? '#a86bff' : '#93a3b4', 12); }
+    }, 80);
+    jouerSon('summon');
+
+    recalcAuras();
+    nettoyerMorts();
+    setTimeout(() => { rafraichirJeu(); verifierFin(); validerEtapeTuto(); }, 60);
 }
 
 function afficherErreurTuto(msg) {
@@ -2707,17 +2828,21 @@ function jouerCarte(side, index, cible) {
     } else {
         c.malade = !c.motsCles.includes('Charge');
         c.aAttaque = false;
-        // Si c'est une carte Bluff, elle arrive face cachée
-        if (c.motsCles.includes('Bluff')) {
+        // Si c'est une carte Bluff, elle arrive face cachée par défaut (cas générique)
+        // Ce cas est normalement géré par poserCarteBluff, mais on garde une sécurité
+        if (c.motsCles.includes('Bluff') && !c.bluffVisible && c.revele !== true) {
             c.revele = false;
             info(`${c.prenom} est posée face cachée (Bluff).`);
+        } else if (c.motsCles.includes('Bluff') && c.bluffVisible) {
+            info(`${c.prenom} est posée face visible (pas d'effet).`);
         } else {
             c.revele = true;
             info(`${c.prenom} entre en jeu.`);
         }
         side.plateau.push(c);
-        // Si la carte n'est pas Bluff, on déclenche son effet "jouer"
-        if (!c.motsCles.includes('Bluff') && p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
+        // Déclenchement de l'effet "jouer" : uniquement si ce n'est pas une carte Bluff cachée ni posée visible
+        const nePasDeclencher = c.motsCles.includes('Bluff') && (!c.revele || c.bluffVisible);
+        if (!nePasDeclencher && p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
         
         setTimeout(() => {
             const el = elOf(c.uid);
@@ -2751,7 +2876,7 @@ function clicCreatureAlliee(m) {
     if (m.gele > 0) return info(`${m.prenom} est endormi.`);
     
     // Si c'est une carte Bluff non révélée, on ne peut pas attaquer avec
-    if (m.motsCles.includes('Bluff') && !m.revele) return info(`${m.prenom} est face cachée.`);
+    if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible) return info(`${m.prenom} est face cachée.`);
 
     if (m.malade) return info(`${m.prenom} ne peut pas encore attaquer.`);
     if (m.aAttaque) return info(`${m.prenom} a déjà attaqué.`);
@@ -2961,7 +3086,15 @@ async function jouerTourBot() {
                 const p = POUVOIRS[choix.c.id];
                 let cible = null;
                 if (p && p.cible) cible = choisirCibleBot(p.cible, ciblesValides(B, p.cible));
-                jouerCarte(B, choix.i, cible);
+                // Si c'est une carte Bluff, le bot la pose face cachée par défaut
+                if (choix.c.motsCles.includes('Bluff') && choix.c.famille !== 'Sort' && choix.c.famille !== 'Terrain') {
+                    // Le bot pose face cachée
+                    choix.c.bluffVisible = false;
+                    choix.c.revele = false;
+                    jouerCarte(B, choix.i, cible);
+                } else {
+                    jouerCarte(B, choix.i, cible);
+                }
             }
             action = true;
             await pause(750);
@@ -2972,7 +3105,6 @@ async function jouerTourBot() {
         if (partieFinie) break;
         if (m.aAttaque || m.malade || m.gele > 0 || atkTot(m) <= 0) continue;
         // Le bot ne révèle pas ses Bluffs pour l'instant, il attaque avec si c'est possible
-        // (Logique simple : si c'est un Bluff, il ne l'attaque pas car il ne connait pas l'effet)
         if (m.motsCles.includes('Bluff') && !m.revele) continue; 
         
         const provocations = J.plateau.filter(x => x.motsCles.includes('Provocation'));
@@ -3112,7 +3244,6 @@ function demarrerTournoi(taille) {
     const nomsMelanges = nomsBots.sort(() => Math.random() - 0.5);
     
     // On a besoin de taille - 1 adversaires (les autres joueurs)
-    // Mais dans un tournoi à élimination directe, on affronte potentiellement taille - 1 adversaires
     const adversaires = nomsMelanges.slice(0, taille - 1);
     
     const matchs = [];
@@ -3130,7 +3261,7 @@ function demarrerTournoi(taille) {
         tourActuel: 0, 
         gainTotal: 0, 
         cout,
-        botsDisponibles: nomsMelanges.slice(taille - 1) // Bots pour remplir si on attend
+        botsDisponibles: nomsMelanges.slice(taille - 1)
     };
     
     afficherEtatTournoi();
@@ -3147,7 +3278,6 @@ function demarrerTournoi(taille) {
         _tournoiTimerSecondes--;
         if (timerTxt) timerTxt.innerText = `En attente de joueurs... ${_tournoiTimerSecondes}s`;
         
-        // Toutes les 5 secondes, on simule l'arrivée d'un joueur (ou on remplit avec des bots)
         if (_tournoiTimerSecondes % 5 === 0 && _tournoiTimerSecondes > 0) {
             flashInfo(`Un joueur a rejoint le tournoi !`);
         }
@@ -3585,7 +3715,7 @@ function rafraichirJeu() {
         J.plateau.forEach(m => {
             const el = creerHTMLCarte(m, 'jeu');
             if (m === selection) el.classList.add('selection');
-            else if (!m.malade && !m.aAttaque && m.gele === 0 && atkTot(m) > 0 && tourActuel === 'joueur' && (!m.motsCles.includes('Bluff') || m.revele)) el.classList.add('pret');
+            else if (!m.malade && !m.aAttaque && m.gele === 0 && atkTot(m) > 0 && tourActuel === 'joueur' && (!m.motsCles.includes('Bluff') || m.revele || m.bluffVisible)) el.classList.add('pret');
             if (m.aAttaque || m.malade) el.classList.add('epuise');
             if (m.gele > 0) el.classList.add('gelee');
             if (m.silence) el.classList.add('silencieuse');
@@ -3900,10 +4030,8 @@ function adminCreerCarte() {
     
     // Ajouter le pouvoir personnalisé si sélectionné
     if (pouvoirType !== 'aucun') {
-        // On stocke les infos du pouvoir dans la carte pour pouvoir le recréer
         nouvelleCarte.pouvoirCustom = { type: pouvoirType, param1: param1, param2: param2 };
         
-        // On crée un pouvoir générique basé sur le type
         if (pouvoirType === 'buff_allie') {
             POUVOIRS[id] = { mode:'eclair', cible:{camp:'allie',texte:'Choisis une créature'}, jouer:({cible})=>{ if(cible) buff(cible, parseInt(param1)||1, parseInt(param2)||1); } };
         } else if (pouvoirType === 'degats_cible') {
