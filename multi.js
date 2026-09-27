@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v10)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v11)
    =========================================================== */
 
 const firebaseConfig = {
