@@ -519,7 +519,9 @@ body:has(#game-screen.active){overflow-y:auto;overflow-x:hidden;}
     border:2px solid transparent;
     background-clip:padding-box;
     position:relative;
+    z-index:0; /* ← AJOUT */
 }
+
 .menu-box::before{
     content:'';
     position:absolute;
@@ -531,8 +533,13 @@ body:has(#game-screen.active){overflow-y:auto;overflow-x:hidden;}
     -webkit-mask-composite:xor;
     mask-composite:exclude;
     pointer-events:none;
-       z-index:-1; /* ← AJOUT : passe DERRIÈRE le contenu */
+    z-index:-1; /* ← AJOUT : passe DERRIÈRE le contenu */
+}
 
+/* Le contenu du menu doit avoir un z-index supérieur */
+.menu-box > *{
+    position:relative;
+    z-index:1;
 }
 .menu-box h2{font-family:'Cinzel',serif;color:var(--laiton-clair);text-shadow:0 2px 12px rgba(217,164,65,.5);font-size:26px;}
 
