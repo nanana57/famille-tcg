@@ -1,5 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v11)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v14)
+   Compatible avec les nouvelles mécaniques de Bluff (face visible/cachée)
    =========================================================== */
 
 const firebaseConfig = {
@@ -171,7 +172,6 @@ function initApresAuth(user) {
             const adminBtn = document.getElementById('nav-admin');
             if(adminBtn) adminBtn.classList.remove('hidden');
         }
-        // NE PLUS forcer le fullscreen automatiquement (respect utilisateur)
         if(fbDB && user) {
             fbDB.ref('profils/' + user.uid).once('value').then(snap => {
                 let p = snap.val();
@@ -598,6 +598,24 @@ async function traiterActionRecue(a) {
                 cible = (a.cibleHero === 'J') ? B : J;
             }
             if (carte.motsCles.includes('Fusion')) sacrifierPourFusion(B, carte.id);
+            
+            // Gestion spéciale pour les cartes Bluff
+            if (carte.motsCles.includes('Bluff') && carte.famille !== 'Sort' && carte.famille !== 'Terrain') {
+                if (a.bluffVisible === true) {
+                    // Le joueur adverse a choisi de la poser face visible
+                    carte.bluffVisible = true;
+                    carte.revele = true;
+                    carte.silence = true;
+                    if (!carte.desc.includes('(posée visible')) {
+                        carte.desc = carte.desc + " (posée visible : pas d'effet)";
+                    }
+                } else {
+                    // Face cachée (par défaut)
+                    carte.bluffVisible = false;
+                    carte.revele = false;
+                }
+            }
+            
             jouerCarte(B, idx, cible);
             break;
         }
