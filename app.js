@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v14)
-   Portrait mobile + Bachira tuto + Menu tuto qui se ferme
+   FAMILLE TCG — moteur de jeu (Édition Ultime v15)
+   Portrait mobile + Bot intelligent + Bluff révélable + Tuto corrigé
    =========================================================== */
 
 var collectionJoueur = {};
@@ -1079,15 +1079,13 @@ function changerEcran(id) {
     if (bfNav) bfNav.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
     
     const btnToggleNav = document.getElementById('btn-toggle-nav');
-    if (btnToggleNav) {
-        if (id === 'game-screen') {
-            btnToggleNav.classList.add('hidden');
-            document.body.classList.add('game-in-progress');
-        } else {
-            btnToggleNav.classList.add('hidden');
-            document.body.classList.remove('game-in-progress');
-            if (nav) nav.classList.remove('show-over-game');
-        }
+    if (btnToggleNav) btnToggleNav.classList.add('hidden');
+
+    if (id === 'game-screen') {
+        document.body.classList.add('game-in-progress');
+    } else {
+        document.body.classList.remove('game-in-progress');
+        if (nav) nav.classList.remove('show-over-game');
     }
 
     if (id === 'deckbuilder-screen') chargerListeDecks();
@@ -1720,7 +1718,7 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds, ts) {
 }
 
 /* ===========================================================
-   TUTO v15 — Bachira pour anatomie + Menu tuto se ferme
+   TUTO — Étapes (Bachira pour anatomie)
    =========================================================== */
 var TUTO_ETAPES = {
     0: {
@@ -1781,9 +1779,8 @@ var TUTO_ETAPES = {
         titre: "Le Bluff",
         etapes: [
             { txt: `Certaines cartes ont le mot-clé <b>Bluff 🎭</b>. Elles peuvent être posées face cachée.`, cible: "#player-hand", appris: ["Les cartes Bluff peuvent être posées face cachée", "Elles coûtent le même prix"] },
-            { txt: `Une carte Bluff face cachée ne peut pas attaquer et ne révèle pas son effet.<br><br>Pour la révéler, tu dois remplir sa condition (souvent en jouant un sort ou en attaquant).`, cible: "#player-board", appris: ["Une carte Bluff cachée ne fait rien", "Elle se révèle quand sa condition est remplie"] },
-            { txt: `Pose une carte Bluff face cachée en cliquant dessus !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Bluff') && !m.revele), appris: ["On pose une carte Bluff face cachée"] },
-            { txt: `Maintenant, joue le sort <b>« Cache-cache »</b> pour révéler ta carte !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Bluff') && m.revele), appris: ["Un sort peut révéler une carte Bluff", "Une fois révélée, elle gagne son effet"] }
+            { txt: `Une carte Bluff face cachée ne peut pas attaquer et prend une place de créature.<br><br>À ton <b>prochain tour</b>, clique dessus pour la révéler et déclencher son effet !`, cible: "#player-board", appris: ["Une carte Bluff cachée ne fait rien", "Clique dessus à ton prochain tour pour la révéler"] },
+            { txt: `Pose une carte Bluff face cachée en cliquant dessus !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Bluff') && !m.revele), appris: ["On pose une carte Bluff face cachée"] }
         ]
     },
     8: {
@@ -1829,7 +1826,7 @@ var TUTO_QUIZ = [
     ]},
     { q: "Comment révèle-t-on une carte Bluff 🎭 ?", options: [
         { txt: "En attendant 2 tours", correct: false },
-        { txt: "En jouant un sort spécifique ou en remplissant sa condition", correct: true },
+        { txt: "En cliquant dessus à ton prochain tour", correct: true },
         { txt: "En payant 3 mana", correct: false }
     ]},
     { q: "Que se passe-t-il quand on joue un Terrain 🏡 ?", options: [
@@ -1904,7 +1901,7 @@ function lancerTuto(niveau) {
 
     if (niveau === 0) {}
     else if (niveau === 1) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); } }
-    else if (niveau === 2) { /* Pas de cartes en main pour l'anatomie */ }
+    else if (niveau === 2) { }
     else if (niveau === 3) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
         const c2 = instancier(defCarte('m1'), 'J'); if (c2) { c2.cout = 4; J.main.push(c2); }
@@ -2201,7 +2198,7 @@ function validerTutoExpress() {
 }
 
 /* ===========================================================
-   TUTO ANATOMIE — Bachira + points repositionnés
+   TUTO ANATOMIE — Bachira + positions corrigées
    =========================================================== */
 function ouvrirTutoCarteAnatomie() {
     const ov = document.getElementById('tuto-carte-zoom');
@@ -2210,12 +2207,10 @@ function ouvrirTutoCarteAnatomie() {
     const list = document.getElementById('tuto-carte-legend-list');
     if (!display || !list) return;
 
-    // On prend la carte BACHIRA (m2) avec Provocation
-    const carteExemple = defCarte('m2');
+    const carteExemple = defCarte('m2'); // Bachira
     display.innerHTML = '';
     display.appendChild(creerHTMLCarte(carteExemple, 'zoom'));
     
-    // Ajouter les points de légende
     const dots = [
         { n: 1, txt: "Coût en mana", pos: "dot-1" },
         { n: 2, txt: "Nom de la carte", pos: "dot-2" },
@@ -2715,7 +2710,7 @@ function poserCarteBluff(index, cible, cache) {
     if (!cache) {
         info(`${c.prenom} entre en jeu (face visible).`);
     } else {
-        info(`${c.prenom} est posée face cachée.`);
+        info(`${c.prenom} est posée face cachée. Clique dessus à ton prochain tour pour la révéler !`);
     }
 
     setTimeout(() => {
@@ -2838,7 +2833,15 @@ function clicCreatureAlliee(m) {
     if (tourActuel !== 'joueur' && !modeEnLigne && !modeTuto) return;
     if (ciblage) return choisirCible(m);
     if (m.gele > 0) return info(`${m.prenom} est endormi.`);
-    if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible) return info(`${m.prenom} est face cachée.`);
+    
+    // Si c'est une carte Bluff cachée, on peut la révéler (sauf si elle vient d'être posée ce tour)
+    if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible) {
+        if (m.malade) return info(`${m.prenom} ne peut pas être révélée le tour où elle est posée.`);
+        revelerBluff(m, null);
+        info(`${m.prenom} est révélée !`);
+        return;
+    }
+    
     if (m.malade) return info(`${m.prenom} ne peut pas encore attaquer.`);
     if (m.aAttaque) return info(`${m.prenom} a déjà attaqué.`);
     if (atkTot(m) <= 0) return info(`${m.prenom} n'a pas d'attaque.`);
@@ -3007,6 +3010,97 @@ function majTimer() {
     if (tm) tm.classList.toggle('urgent', tempsRestant <= 10);
 }
 
+/* ===========================================================
+   BOT INTELLIGENT
+   =========================================================== */
+
+// Choisir une cible pour un sort/pouvoir du bot
+function choisirCibleBotIntelligent(spec, cibles, carteSource, side) {
+    if (!cibles.length) return null;
+    
+    const estSortAllie = spec.camp === 'allie';
+    const estSortEnnemi = spec.camp === 'ennemi';
+    
+    if (estSortAllie) {
+        const creatures = cibles.filter(c => c.uid);
+        if (creatures.length === 0) return cibles[0];
+        
+        // Pour un buff, cibler en priorité une créature prête à attaquer
+        if (carteSource.desc.toLowerCase().includes('attaque') || carteSource.desc.toLowerCase().includes('force')) {
+            const pretes = creatures.filter(c => !c.aAttaque && !c.malade && c.gele === 0);
+            if (pretes.length) return pretes.sort((a, b) => atkTot(b) - atkTot(a))[0];
+            return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0];
+        }
+        
+        // Pour un soin, cibler la créature la plus blessée
+        if (carteSource.desc.toLowerCase().includes('soign') || carteSource.desc.toLowerCase().includes('vie')) {
+            const blessees = creatures.filter(c => c.vie < c.vieMax);
+            if (blessees.length) return blessees.sort((a, b) => (a.vie / a.vieMax) - (b.vie / b.vieMax))[0];
+            return creatures.sort((a, b) => b.vieMax - a.vieMax)[0];
+        }
+        
+        return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0] || cibles[0];
+    }
+    
+    if (estSortEnnemi) {
+        const creatures = cibles.filter(c => c.uid);
+        
+        // Pour un sort de destruction, cibler la créature la plus dangereuse
+        if (carteSource.desc.toLowerCase().includes('détruit') || carteSource.desc.toLowerCase().includes('destruction')) {
+            if (creatures.length) return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0];
+            return cibles.includes(J) ? J : null;
+        }
+        
+        // Pour un sort de dégâts
+        if (carteSource.desc.toLowerCase().includes('dégât') || carteSource.desc.toLowerCase().includes('inflige')) {
+            const degats = parseInt((carteSource.desc.match(/\d+/) || [2])[0]);
+            const tuables = creatures.filter(c => c.vie <= degats);
+            if (tuables.length) return tuables.sort((a, b) => atkTot(b) - atkTot(a))[0];
+            if (creatures.length) return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0];
+            return cibles.includes(J) ? J : null;
+        }
+        
+        // Par défaut
+        if (creatures.length) return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0];
+        return cibles.includes(J) ? J : null;
+    }
+    
+    return cibles[0];
+}
+
+// Choisir une cible d'attaque pour le bot
+function choisirCibleAttaqueBot(attaquant, coteAdverse) {
+    const creaturesAdverses = coteAdverse.plateau;
+    const heroAdverse = coteAdverse;
+    
+    if (creaturesAdverses.length === 0) return heroAdverse;
+    
+    const atk = atkTot(attaquant);
+    const vie = attaquant.vie;
+    
+    // Trouver les cibles qu'on peut tuer
+    const ciblesTuables = creaturesAdverses.filter(c => c.vie <= atk);
+    
+    if (ciblesTuables.length > 0) {
+        // Parmi les cibles tuables, choisir celle avec le plus d'attaque (la plus dangereuse)
+        const meilleureCible = [...ciblesTuables].sort((a, b) => atkTot(b) - atkTot(a))[0];
+        // Vérifier qu'on ne va pas mourir inutilement
+        if (atkTot(meilleureCible) < vie) {
+            return meilleureCible;
+        }
+        // Sinon, échanger avec la moins dangereuse
+        return [...ciblesTuables].sort((a, b) => atkTot(a) - atkTot(b))[0];
+    }
+    
+    // Si aucune cible tuable, mais qu'on a beaucoup de vie, on peut taper une créature pour l'affaiblir
+    if (vie > 4 && Math.random() < 0.35) {
+        return [...creaturesAdverses].sort((a, b) => atkTot(b) - atkTot(a))[0];
+    }
+    
+    // Sinon, taper le héros
+    return heroAdverse;
+}
+
 async function jouerTourBot() {
     if (modeEnLigne || modeTuto) return;
     if (partieFinie) return;
@@ -3033,6 +3127,20 @@ async function jouerTourBot() {
     piocher(B, 1);
     rafraichirJeu();
     await pause(700);
+
+    // PHASE 1 : RÉVÉLER LES CARTES BLUFF CACHÉES
+    for (const m of [...B.plateau]) {
+        if (partieFinie) break;
+        if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible && !m.malade) {
+            if (Math.random() < 0.7) {
+                await pause(400);
+                revelerBluff(m, null);
+                info(`Le bot révèle ${m.prenom} !`);
+            }
+        }
+    }
+
+    // PHASE 2 : JOUER DES CARTES
     let action = true, securite = 0;
     while (action && !partieFinie && securite < 20) {
         securite++; action = false;
@@ -3040,13 +3148,19 @@ async function jouerTourBot() {
             if (o.c.motsCles.includes('Fusion')) return fusionsPossibles(B, o.c).length > 0 && coutEffectif(B, o.c) <= B.manaActuel;
             return coutEffectif(B, o.c) <= B.manaActuel && (o.c.famille === 'Sort' || o.c.famille === 'Terrain' || B.plateau.length < 5);
         }).sort((a, b) => b.c.cout - a.c.cout);
+        
         if (jouables.length) {
             const choix = jouables[0];
-            if (choix.c.motsCles.includes('Fusion')) { sacrifierPourFusion(B, choix.c.id); jouerCarte(B, choix.i, null); }
-            else {
+            if (choix.c.motsCles.includes('Fusion')) { 
+                sacrifierPourFusion(B, choix.c.id); 
+                jouerCarte(B, choix.i, null); 
+            } else {
                 const p = POUVOIRS[choix.c.id];
                 let cible = null;
-                if (p && p.cible) cible = choisirCibleBot(p.cible, ciblesValides(B, p.cible));
+                if (p && p.cible) {
+                    cible = choisirCibleBotIntelligent(p.cible, ciblesValides(B, p.cible), choix.c, B);
+                }
+                
                 if (choix.c.motsCles.includes('Bluff') && choix.c.famille !== 'Sort' && choix.c.famille !== 'Terrain') {
                     choix.c.bluffVisible = false;
                     choix.c.revele = false;
@@ -3059,20 +3173,28 @@ async function jouerTourBot() {
             await pause(750);
         }
     }
+
+    // PHASE 3 : ATTAQUER
     await pause(300);
     for (const m of [...B.plateau]) {
         if (partieFinie) break;
         if (m.aAttaque || m.malade || m.gele > 0 || atkTot(m) <= 0) continue;
-        if (m.motsCles.includes('Bluff') && !m.revele) continue; 
+        if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible) continue; 
         
         const provocations = J.plateau.filter(x => x.motsCles.includes('Provocation'));
         let cible;
-        if (provocations.length) cible = provocations[0];
-        else if (J.plateau.length && Math.random() > 0.45) cible = [...J.plateau].sort((a, b) => atkTot(b) - atkTot(a))[0];
-        else cible = J;
-        await attaquer(m, cible);
-        await pause(280);
+        if (provocations.length) {
+            cible = [...provocations].sort((a, b) => atkTot(b) - atkTot(a))[0];
+        } else {
+            cible = choisirCibleAttaqueBot(m, J);
+        }
+        
+        if (cible) {
+            await attaquer(m, cible);
+            await pause(280);
+        }
     }
+    
     if (partieFinie) return;
     appliquerFinDeTour(B);
     B.surcout = 0;
