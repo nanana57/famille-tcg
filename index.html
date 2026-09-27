@@ -7,18 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
-
-<div id="rotate-overlay">
-    <div class="rotate-box">
-        <div class="rotate-phone">📱</div>
-        <h2>Tourne ton appareil</h2>
-        <p>Famille TCG se joue en <strong>mode paysage</strong>.</p>
-        <p class="rotate-hint">Si tu joues sur PC, ignore ce message.</p>
-    </div>
-</div>
 
 <div id="fx-layer"></div>
 <div id="particles-layer"></div>
@@ -33,6 +24,29 @@
             <button class="btn-large btn-danger" onclick="confirmerSortie()">Oui, déclarer forfait</button>
             <button class="btn-action" onclick="annulerSortie()">Rester</button>
         </div>
+    </div>
+</div>
+
+<!-- Choix Face Visible / Cachée pour les cartes Bluff -->
+<div id="bluff-choix-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:520px; border-color:var(--r-epique);">
+        <h3 style="color:#a86bff;">🎭 Comment poser cette carte ?</h3>
+        <p>Cette carte a le mot-clé <b>Bluff</b>. Tu peux la poser :</p>
+        <div style="text-align:left; background:#101a25; border-radius:10px; padding:14px; margin:14px 0; font-size:13px; line-height:1.7;">
+            <div style="margin-bottom:10px;">
+                <b style="color:#a86bff;">🎭 Face cachée :</b><br>
+                Personne ne voit son identité. Elle ne peut pas attaquer. Pour la révéler, tu devras remplir sa condition (souvent avec un sort). Une fois révélée, sa capacité se déclenche !
+            </div>
+            <div>
+                <b style="color:#93a3b4;">👁️ Face visible :</b><br>
+                Tout le monde voit son identité. Elle peut attaquer normalement, mais sa capacité de révélation <b>ne se déclenchera jamais</b>. Elle sera grisée pour t'indiquer qu'elle n'a pas d'effet actif.
+            </div>
+        </div>
+        <div class="confirm-actions">
+            <button class="btn-action" onclick="confirmerModeBluff(false)">👁️ Face visible</button>
+            <button class="btn-large btn-play" style="margin:0;flex:1;background:linear-gradient(180deg,#c9a6ff,#a86bff);color:#fff;" onclick="confirmerModeBluff(true)">🎭 Face cachée</button>
+        </div>
+        <button class="btn-action full" onclick="annulerChoixBluff()" style="margin-top:10px;">Annuler</button>
     </div>
 </div>
 
@@ -109,7 +123,7 @@
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
                 <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
                 <li><strong>Terrain</strong> 🏡 : Actif 3 tours puis disparaît.</li>
-                <li><strong>Bluff</strong> 🎭 : Peut être posée face cachée. Attend sa condition pour se révéler avec un bonus.</li>
+                <li><strong>Bluff</strong> 🎭 : Peut être posée face cachée (révèle son effet plus tard) ou face visible (attaque normalement mais pas d'effet).</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -298,16 +312,6 @@
     </div>
 </div>
 
-<!-- TUTO MAP -->
-<div id="tuto-map-overlay" class="starter-overlay" style="align-items:flex-start; padding-top:40px; overflow-y:auto;">
-    <div class="starter-box" style="max-width:900px;">
-        <h2>🗺️ Carte de progression</h2>
-        <p class="subtitle">Visualise ton avancée dans l'Académie</p>
-        <div id="tuto-map-content" class="tuto-map"></div>
-        <button class="btn-large" onclick="fermerTutoMap()" style="max-width:280px;margin:20px auto 0;">Fermer</button>
-    </div>
-</div>
-
 <!-- TUTO CHALLENGE -->
 <div id="tuto-challenge-overlay" class="confirm-box-overlay">
     <div class="confirm-box" style="max-width:520px;">
@@ -338,7 +342,6 @@
         <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">🏳️ Forfait</button>
     </div>
     <div class="nav-pseudo">
-        <span id="nav-tuto-map" style="cursor:pointer; margin-right:10px;" onclick="ouvrirTutoMap()" title="Carte tuto">🗺️</span>
         <span id="nav-quetes" style="cursor:pointer; margin-right:10px;" onclick="ouvrirQuetes()" title="Quêtes">🎯</span>
         <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
         <span id="display-pseudo"></span>
@@ -948,7 +951,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=13"></script>
-<script src="multi.js?v=13"></script>
+<script src="app.js?v=14"></script>
+<script src="multi.js?v=14"></script>
 </body>
 </html>
