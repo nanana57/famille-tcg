@@ -1,5 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v8)
+   FAMILLE TCG — moteur de jeu (Édition Ultime v9)
+   Tuto narratif complet + toutes fonctionnalités v8
    =========================================================== */
 
 var collectionJoueur = {};
@@ -8,8 +9,16 @@ var profil = {
     coins: 0,
     deckStart: false,
     lastLogin: 0,
-    tuto_1:false, tuto_2:false, tuto_3:false, tuto_4:false,
-    tuto_5:false, tuto_6:false, tuto_7:false,
+    // tutos
+    tuto_0:false, tuto_1:false, tuto_2:false, tuto_3:false, tuto_4:false,
+    tuto_5:false, tuto_6:false, tuto_7:false, tuto_8:false, tuto_9:false,
+    tutoComplet:false,
+    tutoCartesGagnees: [],
+    tutoCoinsGagnes: 0,
+    tutoExpressReussi: false,
+    tutoSkipped: [],
+    tutoEtapeActuelle: 0,
+    // profil
     avatar: '🧑',
     codeAmi: null,
     amis: [],
@@ -27,9 +36,9 @@ var profil = {
     derniereConnexion: 0,
     quetes: [],
     quetesDate: '',
-    bonusTemporaire: null,   // { expireAt: timestamp }
-    deckStats: {},           // { nomDeck: { parties, victoires, defaites } }
-    historique: []           // 20 dernières parties
+    bonusTemporaire: null,
+    deckStats: {},
+    historique: []
 };
 var deckEnEdition = null;
 var tempDeckCartes = [];
@@ -40,71 +49,67 @@ var modeEnLigne = false, modeAttente = false, mulliganValide = false;
 var modeTuto = false, etapeTuto = 0, currentTutoLevel = 0;
 var modeTournoi = false, tournoiEnCours = null;
 var modeSpectateur = false, partieObservee = null;
+var modeChallenge = false;
 var _dernierIdTraite = 0, _compteurAction = 0, _replayEnCours = false;
 var stats = { parties:0, victoires:0, defaites:0 };
 var _timerMulligan = null;
 var _syncSeed = 12345;
 var _tutoInterval = null;
+var _tutoSuccessInterval = null;
 var _deckUtiliseEnCours = null;
 var _sortieAutorisee = false;
 window.appPret = false;
 
 var cartesBannies = [];
 
-/* ---------- AUDIO (Web Audio API) ---------- */
+/* ===========================================================
+   AUDIO
+   =========================================================== */
 var _audioCtx = null;
 function getAudioCtx() {
     if (!_audioCtx) {
-        try {
-            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch(e) { _audioCtx = null; }
+        try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { _audioCtx = null; }
     }
     return _audioCtx;
 }
 function jouerSon(type) {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    // Reprise si suspendu
     if (ctx.state === 'suspended') ctx.resume();
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-
     switch(type) {
-        case 'attack':      // Impact court
+        case 'attack':
             osc.type = 'square';
             osc.frequency.setValueAtTime(320, t);
             osc.frequency.exponentialRampToValueAtTime(80, t + 0.15);
             gain.gain.setValueAtTime(0.15, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-            osc.start(t); osc.stop(t + 0.22);
-            break;
-        case 'hurt':        // Dégâts
+            osc.start(t); osc.stop(t + 0.22); break;
+        case 'hurt':
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(180, t);
             osc.frequency.exponentialRampToValueAtTime(60, t + 0.25);
             gain.gain.setValueAtTime(0.18, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-            osc.start(t); osc.stop(t + 0.32);
-            break;
-        case 'summon':      // Invocation (montée)
+            osc.start(t); osc.stop(t + 0.32); break;
+        case 'summon':
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(180, t);
             osc.frequency.exponentialRampToValueAtTime(680, t + 0.35);
             gain.gain.setValueAtTime(0.12, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-            osc.start(t); osc.stop(t + 0.42);
-            break;
-        case 'click':       // Clic
+            osc.start(t); osc.stop(t + 0.42); break;
+        case 'click':
             osc.type = 'square';
             osc.frequency.setValueAtTime(600, t);
             gain.gain.setValueAtTime(0.06, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-            osc.start(t); osc.stop(t + 0.07);
-            break;
-        case 'victory':     // Fanfare victoire
+            osc.start(t); osc.stop(t + 0.07); break;
+        case 'victory':
             [523, 659, 784, 1047].forEach((f, i) => {
                 const o = ctx.createOscillator(); const g = ctx.createGain();
                 o.connect(g); g.connect(ctx.destination);
@@ -113,9 +118,8 @@ function jouerSon(type) {
                 g.gain.exponentialRampToValueAtTime(0.001, t + i*0.1 + 0.25);
                 o.start(t + i*0.1); o.stop(t + i*0.1 + 0.3);
             });
-            osc.start(t); osc.stop(t + 0.01);
-            break;
-        case 'defeat':      // Fanfare défaite
+            osc.start(t); osc.stop(t + 0.01); break;
+        case 'defeat':
             [392, 330, 262, 196].forEach((f, i) => {
                 const o = ctx.createOscillator(); const g = ctx.createGain();
                 o.connect(g); g.connect(ctx.destination);
@@ -124,16 +128,14 @@ function jouerSon(type) {
                 g.gain.exponentialRampToValueAtTime(0.001, t + i*0.15 + 0.3);
                 o.start(t + i*0.15); o.stop(t + i*0.15 + 0.35);
             });
-            osc.start(t); osc.stop(t + 0.01);
-            break;
-        case 'coin':        // Pièce argent
+            osc.start(t); osc.stop(t + 0.01); break;
+        case 'coin':
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(1200, t);
             osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
             gain.gain.setValueAtTime(0.1, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-            osc.start(t); osc.stop(t + 0.17);
-            break;
+            osc.start(t); osc.stop(t + 0.17); break;
         case 'levelup':
             [523, 784, 1047, 1319].forEach((f, i) => {
                 const o = ctx.createOscillator(); const g = ctx.createGain();
@@ -143,12 +145,37 @@ function jouerSon(type) {
                 g.gain.exponentialRampToValueAtTime(0.001, t + i*0.08 + 0.4);
                 o.start(t + i*0.08); o.stop(t + i*0.08 + 0.45);
             });
-            osc.start(t); osc.stop(t + 0.01);
-            break;
+            osc.start(t); osc.stop(t + 0.01); break;
+        case 'tutoStep':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(660, t);
+            osc.frequency.exponentialRampToValueAtTime(880, t + 0.15);
+            gain.gain.setValueAtTime(0.09, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+            osc.start(t); osc.stop(t + 0.22); break;
+        case 'tutoDone':
+            [659, 784, 988, 1319].forEach((f, i) => {
+                const o = ctx.createOscillator(); const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.type = 'triangle'; o.frequency.value = f;
+                g.gain.setValueAtTime(0.14, t + i*0.09);
+                g.gain.exponentialRampToValueAtTime(0.001, t + i*0.09 + 0.3);
+                o.start(t + i*0.09); o.stop(t + i*0.09 + 0.35);
+            });
+            osc.start(t); osc.stop(t + 0.01); break;
+        case 'error':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(220, t);
+            osc.frequency.exponentialRampToValueAtTime(140, t + 0.18);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+            osc.start(t); osc.stop(t + 0.24); break;
     }
 }
 
-/* ---------- PARTICULES ---------- */
+/* ===========================================================
+   PARTICULES
+   =========================================================== */
 function creerParticules(x, y, couleur, nombre) {
     nombre = nombre || 12;
     const layer = document.getElementById('particles-layer');
@@ -203,7 +230,9 @@ function creerDeathBurst(x, y) {
     setTimeout(() => b.remove(), 700);
 }
 
-/* ---------- 1. Base de cartes ---------- */
+/* ===========================================================
+   CARTES
+   =========================================================== */
 function C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji) {
     return { id: id, prenom: prenom, famille: famille, cout: cout, atk: atk, vie: vie, rarete: rarete, desc: desc, motsCles: motsCles || [], emoji: emoji };
 }
@@ -495,10 +524,10 @@ var decksPreconstruits = decksPreconstruitsBrut.map(function(d) {
     };
 });
 
-/* ---------- Helpers Collection ---------- */
-function bonusActif() {
-    return profil.bonusTemporaire && profil.bonusTemporaire.expireAt > Date.now();
-}
+/* ===========================================================
+   HELPERS COLLECTION
+   =========================================================== */
+function bonusActif() { return profil.bonusTemporaire && profil.bonusTemporaire.expireAt > Date.now(); }
 
 function initColl(id) {
     if (!collectionJoueur[id] || typeof collectionJoueur[id] === 'number') {
@@ -509,8 +538,6 @@ function initColl(id) {
     }
     if (collectionJoueur[id].fusion !== undefined) delete collectionJoueur[id].fusion;
     if (collectionJoueur[id].unifiee !== undefined) delete collectionJoueur[id].unifiee;
-
-    // Bonus temporaire : ajoute virtuellement 3 de chaque carte
     if (bonusActif()) {
         if (!collectionJoueur[id]._bonus3) {
             collectionJoueur[id].commune += 3;
@@ -520,7 +547,6 @@ function initColl(id) {
             collectionJoueur[id]._bonus3 = true;
         }
     } else if (collectionJoueur[id]._bonus3) {
-        // Retire le bonus
         collectionJoueur[id].commune = Math.max(0, collectionJoueur[id].commune - 3);
         collectionJoueur[id].rare = Math.max(0, collectionJoueur[id].rare - 3);
         collectionJoueur[id].epique = Math.max(0, collectionJoueur[id].epique - 3);
@@ -562,7 +588,9 @@ function dbCartesDispo() {
 }
 function carteEstBannie(id) { return (window.cartesBannies || []).includes(id); }
 
-/* ---------- XP / Niveaux ---------- */
+/* ===========================================================
+   XP / NIVEAUX
+   =========================================================== */
 function xpRequis(niveau) { return 100 + (niveau - 1) * 50; }
 
 function ajouterXP(n) {
@@ -614,7 +642,9 @@ function majProfilUI() {
     if (nivTxt) nivTxt.innerText = 'Niveau ' + profil.niveau;
 }
 
-/* ---------- QUÊTES JOURNALIÈRES ---------- */
+/* ===========================================================
+   QUÊTES
+   =========================================================== */
 function jourActuel() {
     const d = new Date();
     return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
@@ -631,7 +661,6 @@ function genererQuetes() {
         { id:'degats',         titre:'Infliger 30 dégâts au total',      cible:30, recomp:150, type:'degats_total' },
         { id:'tuto',           titre:'Terminer une étape du tutoriel',   cible:1,  recomp:80,  type:'tutos' }
     ];
-    // Shuffle et garde 3
     pool.sort(() => Math.random() - 0.5);
     profil.quetes = pool.slice(0, 3).map(q => ({ ...q, progress: 0, claimed: false }));
     profil.quetesDate = jourActuel();
@@ -648,9 +677,7 @@ function progresserQuete(type, montant) {
     profil.quetes.forEach(q => {
         if (q.type === type && !q.claimed) {
             q.progress = Math.min(q.cible, (q.progress || 0) + montant);
-            if (q.progress >= q.cible && !q.claimed) {
-                flashInfo(`✅ Quête accomplie : ${q.titre}`);
-            }
+            if (q.progress >= q.cible && !q.claimed) flashInfo(`✅ Quête accomplie : ${q.titre}`);
         }
     });
     sauvegarderProgression();
@@ -661,10 +688,7 @@ function ouvrirQuetes() {
     const ov = document.getElementById('quetes-overlay');
     if (ov) ov.classList.add('open');
 }
-function fermerQuetes() {
-    const ov = document.getElementById('quetes-overlay');
-    if (ov) ov.classList.remove('open');
-}
+function fermerQuetes() { const ov = document.getElementById('quetes-overlay'); if (ov) ov.classList.remove('open'); }
 function afficherQuetes() {
     const box = document.getElementById('quetes-liste');
     if (!box) return;
@@ -700,23 +724,19 @@ function recupererQuete(i) {
     afficherQuetes();
 }
 
-/* ---------- CONNEXION JOURNALIÈRE ---------- */
+/* ===========================================================
+   CONNEXION JOURNALIÈRE
+   =========================================================== */
 function verifierConnexionJournaliere() {
     const now = Date.now();
     const dernier = profil.derniereConnexion || 0;
     const unJour = 86400000;
     const deuxJours = 2 * unJour;
-    if (now - dernier > deuxJours) {
-        profil.streak = 0;
-    }
-    // Ne pas redonner si déjà pris aujourd'hui
+    if (now - dernier > deuxJours) profil.streak = 0;
     if (now - dernier < unJour && profil.streak > 0) return;
-
-    // Propose le bonus
     setTimeout(() => {
         const ov = document.getElementById('daily-overlay');
         if (!ov) return;
-        // Affiche les 7 jours du streak
         const row = document.getElementById('daily-streak-row');
         if (row) {
             row.innerHTML = '';
@@ -750,7 +770,9 @@ function fermerDailyOverlay() {
     if (ov) ov.classList.remove('open');
 }
 
-/* ---------- Sauvegarde ---------- */
+/* ===========================================================
+   SAUVEGARDE
+   =========================================================== */
 function sanitizeSave() {
     if (!profil.avatar) profil.avatar = '🧑';
     if (!profil.codeAmi) profil.codeAmi = genererCodeAmi();
@@ -768,6 +790,9 @@ function sanitizeSave() {
     if (!profil.quetesDate) profil.quetesDate = '';
     if (!profil.deckStats || typeof profil.deckStats !== 'object') profil.deckStats = {};
     if (!Array.isArray(profil.historique)) profil.historique = [];
+    if (!Array.isArray(profil.tutoCartesGagnees)) profil.tutoCartesGagnees = [];
+    if (!Array.isArray(profil.tutoSkipped)) profil.tutoSkipped = [];
+    if (!profil.tutoCoinsGagnes) profil.tutoCoinsGagnes = 0;
 
     if (typeof collectionJoueur === 'object' && collectionJoueur !== null) {
         for (let id in collectionJoueur) {
@@ -786,9 +811,7 @@ function sanitizeSave() {
                 delete collectionJoueur[id].unifiee;
             }
         }
-    } else {
-        collectionJoueur = {};
-    }
+    } else collectionJoueur = {};
 
     if (!Array.isArray(mesDecks)) mesDecks = [];
     mesDecks.forEach(d => {
@@ -798,10 +821,7 @@ function sanitizeSave() {
                 let def = defCarte(c);
                 return def ? { id: c, rarete: def.rarete } : null;
             }
-            if (c && c.id && defCarte(c.id)) {
-                const r = defCarte(c.id).rarete;
-                return { id: c.id, rarete: r };
-            }
+            if (c && c.id && defCarte(c.id)) return { id: c.id, rarete: defCarte(c.id).rarete };
             return null;
         }).filter(c => c !== null);
     });
@@ -809,11 +829,7 @@ function sanitizeSave() {
     const decksPersonnalises = mesDecks.filter(d => !d.base);
     const decksPreconstruitsActuels = decksPreconstruits
         .filter(dp => !profil.decksSupprimes.includes(dp.nom))
-        .map(dp => ({
-            nom: dp.nom,
-            cartes: dp.cartes.map(c => ({ ...c })),
-            base: true
-        }));
+        .map(dp => ({ nom: dp.nom, cartes: dp.cartes.map(c => ({ ...c })), base: true }));
     mesDecks.length = 0;
     mesDecks.push(...decksPersonnalises, ...decksPreconstruitsActuels);
 }
@@ -844,10 +860,8 @@ function chargerProgression(email) {
         });
     }
 
-    // Quêtes journalières
     verifierResetQuetes();
 
-    // Streak
     const maintenant = Date.now();
     if (maintenant - profil.lastLogin > 86400000) {
         if (email !== 'nassim57132@gmail.com') profil.coins += 50;
@@ -868,8 +882,6 @@ function chargerProgression(email) {
     majTopBarCoins();
     majTutoUI();
     majProfilUI();
-
-    // Bonus journalier
     verifierConnexionJournaliere();
 }
 
@@ -893,76 +905,56 @@ function sauvegarderProgression() {
     majTopBarCoins();
 }
 
-/* ---------- Choix starter ---------- */
+/* ===========================================================
+   STARTER
+   =========================================================== */
 function ouvrirChoixStarter() {
     const ov = document.getElementById('starter-overlay');
     if (ov) ov.classList.add('open');
 }
-
 function choisirStarter(famille) {
     const ov = document.getElementById('starter-overlay');
     if (ov) ov.classList.remove('open');
-
     const famillesDeBase = ['Meridja', 'Marouf', 'Kerkache', 'Belgacemi'];
     let familleChoisie = famille;
     let auto = false;
-    if (!familleChoisie) {
-        familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)];
-        auto = true;
-    }
-
+    if (!familleChoisie) { familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)]; auto = true; }
     const precon = decksPreconstruits.find(d => d.nom.includes(familleChoisie));
     const compte = {};
-    precon.cartes.forEach(c => {
-        const id = typeof c === 'string' ? c : c.id;
-        compte[id] = (compte[id] || 0) + 1;
-    });
+    precon.cartes.forEach(c => { const id = typeof c === 'string' ? c : c.id; compte[id] = (compte[id] || 0) + 1; });
     Object.entries(compte).forEach(([id, qte]) => {
         initColl(id);
         const rarete = defCarte(id) ? defCarte(id).rarete : 'commune';
         collectionJoueur[id][rarete] = (collectionJoueur[id][rarete] || 0) + qte;
     });
-
     profil.deckStart = true;
     profil.coins += 100;
     if (!profil.deckParDefaut) profil.deckParDefaut = precon.nom;
-
     sauvegarderProgression();
     majTopBarCoins();
-    setTimeout(() => {
-        alert(`🎉 Tu as choisi la famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\nTu as reçu son deck complet + 100 💰.\nDeck par défaut : ${precon.nom}`);
-    }, 300);
+    setTimeout(() => { alert(`🎉 Tu as choisi la famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\nTu as reçu son deck complet + 100 💰.\nDeck par défaut : ${precon.nom}`); }, 300);
 }
 
 function calculerCartesPossedeesPourDeck(cartesDeck) {
     let owned = 0;
     let tempColl = {};
-    for (let id in collectionJoueur) {
-        if (collectionJoueur[id] && typeof collectionJoueur[id] === 'object') {
-            tempColl[id] = { ...collectionJoueur[id] };
-        }
-    }
+    for (let id in collectionJoueur) if (collectionJoueur[id] && typeof collectionJoueur[id] === 'object') tempColl[id] = { ...collectionJoueur[id] };
     cartesDeck.forEach(c => {
         const id = typeof c === 'string' ? c : c.id;
         if (!id || !defCarte(id)) return;
         initColl(id);
         const rDefaut = defCarte(id).rarete;
         const rDemande = (typeof c === 'string') ? rDefaut : (c.rarete || rDefaut);
-        if (tempColl[id] && tempColl[id][rDemande] && tempColl[id][rDemande] > 0) {
-            owned++; tempColl[id][rDemande]--; return;
-        }
+        if (tempColl[id] && tempColl[id][rDemande] && tempColl[id][rDemande] > 0) { owned++; tempColl[id][rDemande]--; return; }
         const raretes = ['commune','rare','epique','legendaire'];
         for (const r of raretes) {
-            if (tempColl[id] && tempColl[id][r] && tempColl[id][r] > 0) {
-                owned++; tempColl[id][r]--; return;
-            }
+            if (tempColl[id] && tempColl[id][r] && tempColl[id][r] > 0) { owned++; tempColl[id][r]--; return; }
         }
     });
     return owned;
 }
 
 function nouveauCote(cle, nom) { return { cle:cle, nom:nom, patience:20, manaActuel:0, manaMax:0, main:[], plateau:[], deck:[], terrain:null, terrainTours:0, surcout:0, contreSort:false, voitMainAdverse:0, pioceBloquee:false, numTour:0, premier:false, cimetiere:[] }; }
-
 var J = nouveauCote('J', 'Toi'), B = nouveauCote('B', 'Bot');
 
 const autre = s => (s === J ? B : J);
@@ -987,7 +979,6 @@ function recordDeckJoue(nomDeck) {
     if (!profil.statsDecks) profil.statsDecks = {};
     profil.statsDecks[nomDeck] = (profil.statsDecks[nomDeck] || 0) + 1;
 }
-
 function enregistrerVictoire(nomDeck, gagne) {
     if (!nomDeck) return;
     if (!profil.deckStats) profil.deckStats = {};
@@ -997,7 +988,9 @@ function enregistrerVictoire(nomDeck, gagne) {
     else profil.deckStats[nomDeck].defaites++;
 }
 
-/* ---------- Navigation sécurisée ---------- */
+/* ===========================================================
+   NAVIGATION
+   =========================================================== */
 function tenterChangerEcran(id) {
     const gs = document.getElementById('game-screen');
     const enPartie = gs && gs.classList.contains('active') && !partieFinie && !modeTuto;
@@ -1009,14 +1002,10 @@ function tenterChangerEcran(id) {
     }
     changerEcran(id);
 }
-
 function confirmerSortie() {
     const ov = document.getElementById('confirm-exit-overlay');
     if (ov) ov.classList.remove('open');
-    partieFinie = true;
-    clearInterval(timer);
-    annulerCiblage();
-    selection = null;
+    partieFinie = true; clearInterval(timer); annulerCiblage(); selection = null;
     enregistrerResultat(false, modeEnLigne ? 'multi' : 'bot');
     banniere('Forfait… Défaite');
     if (window.multiPartie && window.multiPartie.active && typeof signalerForfaitEnLigne === 'function') signalerForfaitEnLigne();
@@ -1024,43 +1013,35 @@ function confirmerSortie() {
     window._ecranDemande = null;
     setTimeout(() => { changerEcran(cible); }, 800);
 }
-
 function annulerSortie() {
     const ov = document.getElementById('confirm-exit-overlay');
     if (ov) ov.classList.remove('open');
     window._ecranDemande = null;
 }
-
 function changerEcran(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const cible = document.getElementById(id);
     if (cible) cible.classList.add('active');
-
     const nav = document.getElementById('main-nav');
-    if (nav) {
-        if(id !== 'login-screen') nav.classList.remove('hidden');
-        else nav.classList.add('hidden');
-    }
-
+    if (nav) { if(id !== 'login-screen') nav.classList.remove('hidden'); else nav.classList.add('hidden'); }
     const bfNav = document.getElementById('btn-forfait');
     if (bfNav) bfNav.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
-
-    if (id === 'deckbuilder-screen') { chargerListeDecks(); }
-    if (id === 'collection-screen') { afficherBoutique(triCourant); }
-    if (id === 'menu-screen') chargerDropdownDecks();
+    if (id === 'deckbuilder-screen') chargerListeDecks();
+    if (id === 'collection-screen') afficherBoutique(triCourant);
+    if (id === 'menu-screen') { chargerDropdownDecks(); verifierResetQuetes(); }
     if (id === 'profil-screen') afficherProfil();
     if (id === 'tuto-screen') majTutoUI();
     if (id === 'multi-screen' && typeof rafraichirJoueurs === 'function') rafraichirJoueurs();
     if (id === 'admin-screen') adminTab('actions');
     if (id === 'spectateur-screen') rafraichirSpectateur();
     if (id === 'tournoi-screen') afficherEtatTournoi();
-    if (id === 'menu-screen') { verifierResetQuetes(); }
 }
-
 function ouvrirAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.add('open'); }
 function fermerAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.remove('open'); }
 
-/* ---------- Rendu cartes ---------- */
+/* ===========================================================
+   RENDU CARTES
+   =========================================================== */
 function creerHTMLCarte(c, ctx, opts) {
     opts = opts || {};
     const w = document.createElement('div');
@@ -1122,10 +1103,7 @@ function creerHTMLCarte(c, ctx, opts) {
     if (opts.inDeck) {
         w.classList.add('in-deck');
         const card = w.querySelector('.card');
-        if (card) {
-            card.style.boxShadow = "0 0 15px var(--menthe), 0 .5em 1.4em rgba(0,0,0,.6)";
-            card.style.filter = "saturate(1.2)";
-        }
+        if (card) { card.style.boxShadow = "0 0 15px var(--menthe), 0 .5em 1.4em rgba(0,0,0,.6)"; card.style.filter = "saturate(1.2)"; }
     }
     return w;
 }
@@ -1156,7 +1134,9 @@ function zoomCarte(event, id) {
 }
 function fermerZoom() { const el = document.getElementById('card-zoom-overlay'); if(el) el.classList.remove('open'); }
 
-/* ---------- Boutique ---------- */
+/* ===========================================================
+   BOUTIQUE
+   =========================================================== */
 function afficherBoutique(critere) {
     triCourant = critere;
     const ordreRarete = { legendaire:0, epique:1, rare:2, commune:3 };
@@ -1166,67 +1146,50 @@ function afficherBoutique(critere) {
     if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
     if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout);
     if (critere === 'famille') liste.sort((a, b) => (ordreFamille[a.famille]||99) - (ordreFamille[b.famille]||99) || a.cout - b.cout);
-
     const grid = document.getElementById('boutique-grid');
     if (!grid) return;
     grid.innerHTML = '';
-
     liste.forEach(c => {
         const total = getTot(c.id);
         const highestRarity = getHighRarity(c.id);
         const el = creerHTMLCarte(c, 'collection', { qty: total, overrideRarete: highestRarity });
-        if (total === 0) {
-            el.style.filter = "grayscale(1) brightness(0.4)";
-            el.style.opacity = "0.8";
-        }
+        if (total === 0) { el.style.filter = "grayscale(1) brightness(0.4)"; el.style.opacity = "0.8"; }
         el.onclick = () => { ouvrirDetailCarte(c.id, false); };
         grid.appendChild(el);
     });
     ajusterTextes(grid);
 }
 
-/* ---------- Deckbuilder ---------- */
+/* ===========================================================
+   DECKBUILDER
+   =========================================================== */
 function chargerListeDecks() {
     chargerProgression();
     const list = document.getElementById('liste-decks');
     if (!list) return;
     list.innerHTML = '';
-
     mesDecks.forEach((d, i) => {
         const owned = calculerCartesPossedeesPourDeck(d.cartes);
         const isComplete = owned === 20;
-
         const div = document.createElement('div');
         div.className = 'deck-item' + (deckEnEdition === i ? ' active' : '');
-
         const supprBtn = `<button class="del-btn" onclick="supprimerDeck(${i}, event)">✕</button>`;
         const baseTag = d.base ? '<span class="base-tag">Officiel</span>' : '';
-        const warnTag = isComplete
-            ? '<span class="deck-ok">✓</span>'
-            : `<span class="deck-warn">${owned}/20</span>`;
+        const warnTag = isComplete ? '<span class="deck-ok">✓</span>' : `<span class="deck-warn">${owned}/20</span>`;
         const isDefault = profil.deckParDefaut === d.nom ? '<span style="color:var(--laiton);font-size:14px;">⭐</span>' : '';
-
         div.innerHTML = `<span class="di-texte">${d.nom}</span>${isDefault}${warnTag}${baseTag}${supprBtn}`;
         div.onclick = () => editerDeck(i);
         list.appendChild(div);
     });
-
     if (deckEnEdition === null && mesDecks.length) editerDeck(0);
     else { trierDeckbuilder(triCourant); afficherDeckEnCours(); }
 }
-
-function creerNouveauDeck() {
-    mesDecks.push({ nom:'Nouveau deck perso', cartes:[], base:false });
-    editerDeck(mesDecks.length - 1);
-}
-
+function creerNouveauDeck() { mesDecks.push({ nom:'Nouveau deck perso', cartes:[], base:false }); editerDeck(mesDecks.length - 1); }
 function supprimerDeck(i, event) {
     if (event) event.stopPropagation();
     const deck = mesDecks[i];
     if (!deck) return;
-    const message = deck.base
-        ? `⚠️ Ce deck est un deck OFFICIEL.\n\nLe supprimer définitivement ?`
-        : `Supprimer le deck « ${deck.nom} » ?`;
+    const message = deck.base ? `⚠️ Ce deck est un deck OFFICIEL.\n\nLe supprimer définitivement ?` : `Supprimer le deck « ${deck.nom} » ?`;
     if (!confirm(message)) return;
     if (deck.base) {
         if (!Array.isArray(profil.decksSupprimes)) profil.decksSupprimes = [];
@@ -1240,7 +1203,6 @@ function supprimerDeck(i, event) {
     sauvegarderProgression();
     flashInfo(`Deck « ${deck.nom} » supprimé.`);
 }
-
 function restaurerDecksOfficiels() {
     const dejaPresents = mesDecks.filter(d => d.base).map(d => d.nom);
     const manquants = decksPreconstruits.filter(dp => !dejaPresents.includes(dp.nom));
@@ -1255,167 +1217,102 @@ function restaurerDecksOfficiels() {
     chargerListeDecks();
     flashInfo(`${manquants.length} deck(s) restauré(s).`);
 }
-
 function editerDeck(i) {
     deckEnEdition = i;
     tempDeckCartes = [...mesDecks[i].cartes];
     const inp = document.getElementById('deck-name-input');
     if (inp) inp.value = mesDecks[i].nom;
-
     const list = document.getElementById('liste-decks');
     if (list) [...list.children].forEach((el, k) => el.classList.toggle('active', k === i));
-
     const btnDef = document.getElementById('btn-set-default');
     if (btnDef) {
-        if (profil.deckParDefaut === mesDecks[i].nom) {
-            btnDef.innerText = '⭐ Déjà par défaut';
-            btnDef.disabled = true;
-        } else {
-            btnDef.innerText = '⭐ Définir par défaut';
-            btnDef.disabled = false;
-        }
+        if (profil.deckParDefaut === mesDecks[i].nom) { btnDef.innerText = '⭐ Déjà par défaut'; btnDef.disabled = true; }
+        else { btnDef.innerText = '⭐ Définir par défaut'; btnDef.disabled = false; }
     }
-
     trierDeckbuilder(triCourant);
     afficherDeckEnCours();
 }
-
 function trierDeckbuilder(critere) {
     triCourant = critere;
     const ordreRarete = { legendaire:0, epique:1, rare:2, commune:3 };
     const ordreFamille = { Meridja:1, Marouf:2, Kerkache:3, Belgacemi:4, Cousins:5, 'Nouvelle famille':6, 'Famille Unifiée':7, Neutre:8, Terrain:9, Sort:10 };
     const deckCourant = (deckEnEdition !== null && mesDecks[deckEnEdition]) ? mesDecks[deckEnEdition] : null;
     const estDeckOfficiel = deckCourant && deckCourant.base === true;
-
     const titre = document.getElementById('deckbuilder-title');
     if (titre) titre.innerText = estDeckOfficiel ? 'Cartes du deck officiel' : 'Cartes du jeu';
-
     let liste;
     if (estDeckOfficiel) {
         const idsUniques = [];
-        deckCourant.cartes.forEach(c => {
-            const id = typeof c === 'string' ? c : c.id;
-            if (!idsUniques.includes(id)) idsUniques.push(id);
-        });
+        deckCourant.cartes.forEach(c => { const id = typeof c === 'string' ? c : c.id; if (!idsUniques.includes(id)) idsUniques.push(id); });
         liste = idsUniques.map(id => defCarte(id)).filter(Boolean);
-    } else {
-        liste = dbCartesDispo();
-    }
-
+    } else liste = dbCartesDispo();
     if (critere === 'nom') liste.sort((a, b) => a.prenom.localeCompare(b.prenom));
     if (critere === 'cout') liste.sort((a, b) => a.cout - b.cout || a.prenom.localeCompare(b.prenom));
     if (critere === 'rarete') liste.sort((a, b) => ordreRarete[a.rarete] - ordreRarete[b.rarete] || a.cout - b.cout);
     if (critere === 'famille') liste.sort((a, b) => (ordreFamille[a.famille]||99) - (ordreFamille[b.famille]||99) || a.cout - b.cout);
-
     const grid = document.getElementById('deckbuilder-grid');
     if (!grid) return;
     grid.innerHTML = '';
-
     liste.forEach(c => {
         const total = getTot(c.id);
         const dansDeck = tempDeckCartes.filter(x => x.id === c.id).length;
         const highestRarity = getHighRarity(c.id);
         const dispo = total - dansDeck;
         const manquante = total === 0;
-
-        const el = creerHTMLCarte(c, 'collection', {
-            qty: total,
-            overrideRarete: highestRarity,
-            inDeck: dansDeck > 0,
-            missing: manquante
-        });
-
-        if (!manquante && dispo <= 0 && dansDeck === 0) {
-            el.style.filter = "grayscale(0.7) brightness(0.7)";
-        }
-
+        const el = creerHTMLCarte(c, 'collection', { qty: total, overrideRarete: highestRarity, inDeck: dansDeck > 0, missing: manquante });
+        if (!manquante && dispo <= 0 && dansDeck === 0) el.style.filter = "grayscale(0.7) brightness(0.7)";
         el.onclick = () => { ouvrirDetailCarte(c.id, true); };
         grid.appendChild(el);
     });
     ajusterTextes(grid);
 }
-
 function ouvrirDetailCarte(idCarte, modeDeckbuilder) {
     const c = defCarte(idCarte);
     if (!c) return;
     const content = document.getElementById('card-detail-content');
     if (!content) return;
-
     function render() {
         initColl(idCarte);
         const coll = collectionJoueur[idCarte];
         const highestRarity = getHighRarity(idCarte);
-
         const wrapTmp = document.createElement('div');
         wrapTmp.appendChild(creerHTMLCarte(c, 'collection', { overrideRarete: highestRarity }));
-
         const rList = ['commune','rare','epique','legendaire'];
         const rPrices = { commune: 10, rare: 50, epique: 200, legendaire: 1000 };
-
         const totalDansDeck = tempDeckCartes.filter(x => x.id === idCarte).length;
         const maxDansDeck = 3;
-
         let rowsHtml = rList.map(r => {
             const possede = coll[r];
             const maxCopies = (r === 'legendaire' || r === 'epique') ? 1 : 2;
             const prix = rPrices[r];
             const prixV = prix / 2;
             const dansDeck = modeDeckbuilder ? tempDeckCartes.filter(x => x.id === idCarte && x.rarete === r).length : 0;
-
             let deckBtns = '';
             if(modeDeckbuilder && deckEnEdition !== null) {
                 const canAdd = totalDansDeck < maxDansDeck && dansDeck < possede && dansDeck < maxCopies && tempDeckCartes.length < 20;
-                deckBtns = `
-                    <button onclick="window.ajouterAuDeck('${idCarte}', '${r}')" ${canAdd ? '' : 'disabled'}>+ Deck</button>
-                    <button onclick="window.retirerDuDeck('${idCarte}', '${r}')" ${dansDeck <= 0 ? 'disabled' : ''}>- Deck</button>
-                `;
+                deckBtns = `<button onclick="window.ajouterAuDeck('${idCarte}', '${r}')" ${canAdd ? '' : 'disabled'}>+ Deck</button>
+                            <button onclick="window.retirerDuDeck('${idCarte}', '${r}')" ${dansDeck <= 0 ? 'disabled' : ''}>- Deck</button>`;
             }
-
-            return `
-            <div class="rarity-row">
-                <div>
-                    <div class="r-name ${r}">${r.toUpperCase()}</div>
-                    <div style="font-size:12px; color:var(--texte-doux)">Possédé : ${possede} ${modeDeckbuilder && dansDeck>0 ? `(Dans deck: ${dansDeck})` : ''}</div>
-                </div>
-                <div class="r-actions-col">
-                    <div class="r-actions">
-                        <button onclick="window.acheterCarte('${idCarte}','${r}', ${prix})" ${profil.coins < prix || possede >= maxCopies ? 'disabled' : ''}>Acheter (-${prix}💰)</button>
-                        <button class="btn-sell" onclick="window.vendreCarte('${idCarte}','${r}', ${prixV})" ${possede <= 0 ? 'disabled' : ''}>Vendre (+${prixV}💰)</button>
-                    </div>
-                    ${deckBtns ? `<div class="r-actions" style="margin-top:4px;">${deckBtns}</div>` : ''}
-                </div>
-            </div>`;
+            return `<div class="rarity-row"><div><div class="r-name ${r}">${r.toUpperCase()}</div>
+                <div style="font-size:12px; color:var(--texte-doux)">Possédé : ${possede} ${modeDeckbuilder && dansDeck>0 ? `(Dans deck: ${dansDeck})` : ''}</div></div>
+                <div class="r-actions-col"><div class="r-actions">
+                    <button onclick="window.acheterCarte('${idCarte}','${r}', ${prix})" ${profil.coins < prix || possede >= maxCopies ? 'disabled' : ''}>Acheter (-${prix}💰)</button>
+                    <button class="btn-sell" onclick="window.vendreCarte('${idCarte}','${r}', ${prixV})" ${possede <= 0 ? 'disabled' : ''}>Vendre (+${prixV}💰)</button>
+                </div>${deckBtns ? `<div class="r-actions" style="margin-top:4px;">${deckBtns}</div>` : ''}</div></div>`;
         }).join('');
-
-        const infoLimite = modeDeckbuilder
-            ? `<div style="text-align:center;font-size:12px;color:var(--texte-doux);margin-bottom:8px;">Dans le deck : ${totalDansDeck}/3</div>`
-            : '';
-
-        content.innerHTML = `
-            <div class="detail-panel-left" style="pointer-events:none;">
-                ${wrapTmp.innerHTML}
-            </div>
-            <div class="detail-panel-right">
-                <h3>${c.prenom}</h3>
-                ${modeDeckbuilder && deckEnEdition !== null ? `<h4 style="text-align:center; color:var(--laiton-clair); margin:0 0 10px;">Édition : ${mesDecks[deckEnEdition].nom} (${tempDeckCartes.length}/20)</h4>` : ''}
-                ${infoLimite}
-                ${rowsHtml}
-            </div>
-        `;
+        const infoLimite = modeDeckbuilder ? `<div style="text-align:center;font-size:12px;color:var(--texte-doux);margin-bottom:8px;">Dans le deck : ${totalDansDeck}/3</div>` : '';
+        content.innerHTML = `<div class="detail-panel-left" style="pointer-events:none;">${wrapTmp.innerHTML}</div>
+            <div class="detail-panel-right"><h3>${c.prenom}</h3>
+            ${modeDeckbuilder && deckEnEdition !== null ? `<h4 style="text-align:center; color:var(--laiton-clair); margin:0 0 10px;">Édition : ${mesDecks[deckEnEdition].nom} (${tempDeckCartes.length}/20)</h4>` : ''}
+            ${infoLimite}${rowsHtml}</div>`;
         ajusterTextes(content);
     }
-
     window.acheterCarte = function(id, r, prix) {
         if (profil.coins >= prix) {
-            profil.coins -= prix;
-            collectionJoueur[id][r]++;
-            sauvegarderProgression();
-            render();
-            if(modeDeckbuilder) trierDeckbuilder(triCourant);
-            else afficherBoutique(triCourant);
+            profil.coins -= prix; collectionJoueur[id][r]++; sauvegarderProgression(); render();
+            if(modeDeckbuilder) trierDeckbuilder(triCourant); else afficherBoutique(triCourant);
         }
     };
-
     window.vendreCarte = function(id, r, prix) {
         if (collectionJoueur[id][r] > 0) {
             const inDeckCount = tempDeckCartes.filter(x => x.id === id && x.rarete === r).length;
@@ -1423,15 +1320,10 @@ function ouvrirDetailCarte(idCarte, modeDeckbuilder) {
                 if(!confirm("Cette carte est dans ton deck actif. Continuer ?")) return;
                 window.retirerDuDeck(id, r);
             }
-            collectionJoueur[id][r]--;
-            profil.coins += prix;
-            sauvegarderProgression();
-            render();
-            if(modeDeckbuilder) trierDeckbuilder(triCourant);
-            else afficherBoutique(triCourant);
+            collectionJoueur[id][r]--; profil.coins += prix; sauvegarderProgression(); render();
+            if(modeDeckbuilder) trierDeckbuilder(triCourant); else afficherBoutique(triCourant);
         }
     };
-
     window.ajouterAuDeck = function(id, r) {
         if (tempDeckCartes.length >= 20) return;
         const totalDansDeck = tempDeckCartes.filter(x => x.id === id).length;
@@ -1439,39 +1331,24 @@ function ouvrirDetailCarte(idCarte, modeDeckbuilder) {
         tempDeckCartes.push({id: id, rarete: r});
         render(); afficherDeckEnCours(); trierDeckbuilder(triCourant);
     };
-
     window.retirerDuDeck = function(id, r) {
         const idx = tempDeckCartes.map(x=>x.id+'_'+x.rarete).lastIndexOf(id+'_'+r);
-        if (idx >= 0) {
-            tempDeckCartes.splice(idx, 1);
-            render(); afficherDeckEnCours(); trierDeckbuilder(triCourant);
-        }
+        if (idx >= 0) { tempDeckCartes.splice(idx, 1); render(); afficherDeckEnCours(); trierDeckbuilder(triCourant); }
     };
-
     render();
     const ov = document.getElementById('card-detail-overlay');
     if (ov) ov.classList.add('open');
 }
-
-function fermerDetailCarte() {
-    const m = document.getElementById('card-detail-overlay');
-    if (m) m.classList.remove('open');
-}
+function fermerDetailCarte() { const m = document.getElementById('card-detail-overlay'); if (m) m.classList.remove('open'); }
 window.fermerDetailCarte = fermerDetailCarte;
-
 function afficherDeckEnCours() {
     const grid = document.getElementById('deck-grid');
     if (!grid) return;
     grid.innerHTML = '';
     const cnt = document.getElementById('deck-count');
     if (cnt) cnt.innerText = tempDeckCartes.length;
-
     const compte = {};
-    tempDeckCartes.forEach(c => {
-        const key = c.id + '_' + c.rarete;
-        compte[key] = (compte[key] || 0) + 1;
-    });
-
+    tempDeckCartes.forEach(c => { const key = c.id + '_' + c.rarete; compte[key] = (compte[key] || 0) + 1; });
     Object.keys(compte).sort((k1, k2) => {
         let c1 = defCarte(k1.split('_')[0]), c2 = defCarte(k2.split('_')[0]);
         if (!c1 || !c2) return 0;
@@ -1483,16 +1360,13 @@ function afficherDeckEnCours() {
         const div = document.createElement('div');
         div.className = 'mini-card';
         div.style.borderLeftColor = `var(--r-${r})`;
-
         const possede = collectionJoueur[id] ? collectionJoueur[id][r] : 0;
         const checkPossede = possede >= compte[key];
         const clTextColor = checkPossede ? '' : 'color:var(--braise);';
-
         div.innerHTML = `<span class="mc-cost">${c.cout}</span><span class="mc-name" style="${clTextColor}">${c.prenom} (${r.charAt(0).toUpperCase()})</span><span class="mc-qty">×${compte[key]}</span>`;
         div.onclick = () => { window.retirerDuDeck(id, r); };
         grid.appendChild(div);
     });
-
     const curve = document.getElementById('mana-curve');
     if (curve) {
         const seuils = [0,1,2,3,4,5,6,7,8];
@@ -1501,7 +1375,6 @@ function afficherDeckEnCours() {
         curve.innerHTML = seuils.map((s, i) => `<div class="curve-col"><div class="curve-bar" style="height:${(vals[i] / max) * 38}px"></div>${s === 8 ? '8+' : s}</div>`).join('');
     }
 }
-
 function sauvegarderDeck() {
     if (deckEnEdition === null) return;
     const inp = document.getElementById('deck-name-input');
@@ -1514,7 +1387,6 @@ function sauvegarderDeck() {
     chargerListeDecks();
     flashInfo(tempDeckCartes.length === 20 ? 'Deck enregistré.' : `Deck incomplet (${tempDeckCartes.length}/20).`);
 }
-
 function definirDeckParDefaut() {
     if (deckEnEdition === null) return;
     const deck = mesDecks[deckEnEdition];
@@ -1523,27 +1395,20 @@ function definirDeckParDefaut() {
     chargerListeDecks();
     flashInfo(`⭐ Deck « ${deck.nom} » défini par défaut.`);
 }
-
 function toggleDeckStats() {
     const panel = document.getElementById('deck-stats-panel');
     if (!panel) return;
-    if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        afficherDeckStats();
-    } else {
-        panel.classList.add('hidden');
-    }
+    if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); afficherDeckStats(); }
+    else panel.classList.add('hidden');
 }
-
 function afficherDeckStats() {
     const panel = document.getElementById('deck-stats-panel');
     if (!panel) return;
     const stats = profil.deckStats || {};
     let html = '<h4>📊 Statistiques par deck</h4>';
     const noms = Object.keys(stats).sort((a, b) => stats[b].parties - stats[a].parties);
-    if (noms.length === 0) {
-        html += '<p class="hint">Aucune partie jouée pour l\'instant.</p>';
-    } else {
+    if (noms.length === 0) html += '<p class="hint">Aucune partie jouée pour l\'instant.</p>';
+    else {
         noms.forEach(nom => {
             const s = stats[nom];
             const ratio = s.parties > 0 ? Math.round((s.victoires / s.parties) * 100) : 0;
@@ -1552,7 +1417,6 @@ function afficherDeckStats() {
     }
     panel.innerHTML = html;
 }
-
 function chargerDropdownDecks() {
     const sel = document.getElementById('deck-select');
     if (!sel) return;
@@ -1569,7 +1433,6 @@ function chargerDropdownDecks() {
     });
     if (indexDefaut >= 0) sel.value = indexDefaut;
 }
-
 function flashInfo(txt) {
     const d = document.createElement('div');
     d.className = 'fx-banniere';
@@ -1577,12 +1440,8 @@ function flashInfo(txt) {
     d.style.top = '14%';
     d.textContent = txt;
     const layer = document.getElementById('fx-layer');
-    if (layer) {
-        layer.appendChild(d);
-        setTimeout(() => d.remove(), 1500);
-    }
+    if (layer) { layer.appendChild(d); setTimeout(() => d.remove(), 1500); }
 }
-
 function afficherGainRecompense(titre, coins, carteId) {
     const ov = document.getElementById('reward-overlay');
     if (!ov) return;
@@ -1595,18 +1454,12 @@ function afficherGainRecompense(titre, coins, carteId) {
         cardsEl.innerHTML = '';
         if (carteId) {
             const c = defCarte(carteId);
-            if (c) {
-                const el = creerHTMLCarte(c, 'zoom', { overrideRarete: getHighRarity(carteId), nouveau: true });
-                cardsEl.appendChild(el);
-                ajusterTextes(cardsEl);
-            }
+            if (c) { const el = creerHTMLCarte(c, 'zoom', { overrideRarete: getHighRarity(carteId), nouveau: true }); cardsEl.appendChild(el); ajusterTextes(cardsEl); }
         }
     }
     ov.classList.add('open');
 }
-
 function fermerReward() { const ov = document.getElementById('reward-overlay'); if (ov) ov.classList.remove('open'); }
-
 function afficherGainArgent(montant) {
     const d = document.createElement('div');
     d.className = 'fx-nombre argent';
@@ -1617,19 +1470,19 @@ function afficherGainArgent(montant) {
     if (layer) { layer.appendChild(d); setTimeout(() => d.remove(), 1000); }
 }
 
-/* ---------- BOOSTERS ---------- */
+/* ===========================================================
+   BOOSTERS
+   =========================================================== */
 function preparerBooster() {
     if (profil.coins < 50) { alert("Il te faut 50 💰 pour ouvrir un booster. Tu en as " + profil.coins + "."); return; }
     profil.coins -= 50;
     sauvegarderProgression();
     const pack = document.getElementById('pack'), res = document.getElementById('booster-results'), btn = document.getElementById('btn-again');
     if (!pack || !res || !btn) return;
-    btn.classList.add('hidden');
-    res.innerHTML = '';
+    btn.classList.add('hidden'); res.innerHTML = '';
     pack.classList.add('opening');
     setTimeout(() => {
-        pack.classList.remove('opening');
-        pack.classList.add('hidden');
+        pack.classList.remove('opening'); pack.classList.add('hidden');
         for (let i = 0; i < 5; i++) {
             const r = Math.random();
             let pool;
@@ -1638,14 +1491,12 @@ function preparerBooster() {
             else if (r > 0.82) pool = dbCartesDispo().filter(c => c.rarete === 'epique');
             else if (r > 0.58) pool = dbCartesDispo().filter(c => c.rarete === 'rare');
             else pool = dbCartesDispo().filter(c => c.rarete === 'commune');
-
             const carte = hasard(pool);
             if (!carte) continue;
             initColl(carte.id);
             const vraieRarete = carte.rarete;
             const nouveau = collectionJoueur[carte.id][vraieRarete] === 0;
             collectionJoueur[carte.id][vraieRarete]++;
-
             const el = creerHTMLCarte(carte, 'booster', { nouveau });
             el.classList.add('flipped');
             el.style.animationDelay = (i * 0.07) + 's';
@@ -1654,9 +1505,7 @@ function preparerBooster() {
                     el.classList.remove('flipped');
                     if (vraieRarete === 'legendaire' || vraieRarete === 'epique') el.classList.add('reveal-' + vraieRarete);
                     if (res.querySelectorAll('.flipped').length === 0) btn.classList.remove('hidden');
-                } else {
-                    zoomCarte(null, carte.id);
-                }
+                } else zoomCarte(null, carte.id);
             };
             res.appendChild(el);
         }
@@ -1667,7 +1516,9 @@ function preparerBooster() {
     }, 520);
 }
 
-/* ---------- Lancement de partie ---------- */
+/* ===========================================================
+   LANCEMENT DE PARTIE
+   =========================================================== */
 function initialiserPartie(botStart) {
     partieFinie = false; selection = null; ciblage = null;
     J.manaMax = 0; J.manaActuel = 0; J.numTour = 0; J.cimetiere = []; J.terrainTours = 0;
@@ -1678,15 +1529,10 @@ function initialiserPartie(botStart) {
     tourActuel = botStart ? 'bot' : 'joueur';
     for (let k = 0; k < 4; k++) piocher(B, 1);
     for (let k = 0; k < 4; k++) if (J.deck.length) J.main.push(J.deck.shift());
-    // Ouvre le chat en multi
-    if (modeEnLigne) {
-        const ic = document.getElementById('ingame-chat');
-        if (ic) ic.classList.add('open');
-    }
+    if (modeEnLigne) { const ic = document.getElementById('ingame-chat'); if (ic) ic.classList.add('open'); }
 }
-
 function lancerPartie() {
-    modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false; modeTournoi = false;
+    modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false; modeTournoi = false; modeChallenge = false;
     const sel = document.getElementById('deck-select');
     const i = sel ? sel.value : null;
     if (i === null || !mesDecks[i] || calculerCartesPossedeesPourDeck(mesDecks[i].cartes) !== 20) return flashInfo('Choisis un deck complet.');
@@ -1696,22 +1542,16 @@ function lancerPartie() {
     if (h) h.innerText = J.nom;
     const opp = document.getElementById('opp-name');
     if (opp) opp.innerText = 'Bot';
-
     _deckUtiliseEnCours = mesDecks[i].nom;
     recordDeckJoue(_deckUtiliseEnCours);
-
     J.deck = mesDecks[i].cartes.map(c => {
         const id = typeof c === 'string' ? c : c.id;
         const rarete = defCarte(id) ? defCarte(id).rarete : 'commune';
         return instancier(defCarte(id), 'J', false, rarete);
     }).filter(x => x);
     melanger(J.deck);
-
     const banned = window.cartesBannies || [];
-    const decksDispo = decksPreconstruits.map(dp => ({
-        nom: dp.nom,
-        cartes: dp.cartes.filter(c => !banned.includes(typeof c === 'string' ? c : c.id))
-    })).filter(dp => dp.cartes.length >= 20);
+    const decksDispo = decksPreconstruits.map(dp => ({ nom: dp.nom, cartes: dp.cartes.filter(c => !banned.includes(typeof c === 'string' ? c : c.id)) })).filter(dp => dp.cartes.length >= 20);
     const deckBot = hasard(decksDispo);
     B.deck = (deckBot ? deckBot.cartes : hasard(decksPreconstruits).cartes).map(c => {
         const id = typeof c === 'string' ? c : c.id;
@@ -1719,7 +1559,6 @@ function lancerPartie() {
         return instancier(defCarte(id), 'B', false, rarete);
     }).filter(x => x);
     melanger(B.deck);
-
     initialiserPartie(Math.random() > 0.5);
     changerEcran('game-screen');
     rafraichirJeu();
@@ -1727,7 +1566,6 @@ function lancerPartie() {
     progresserQuete('parties_bot', 1);
     jouerSon('click');
 }
-
 function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     modeEnLigne = true; modeAttente = false; mulliganValide = false; modeTuto = false;
     _dernierIdTraite = 0; _compteurAction = 0; _replayEnCours = false;
@@ -1737,25 +1575,13 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     if (h) h.innerText = J.nom;
     const opp = document.getElementById('opp-name');
     if (opp) opp.innerText = pseudoAdversaire || 'Adversaire';
-
     _deckUtiliseEnCours = window._deckMultiEnCours || profil.deckParDefaut || 'Inconnu';
     recordDeckJoue(_deckUtiliseEnCours);
-
-    J.deck = monDeckIds.map(c => {
-        const id = typeof c === 'string' ? c : c.id;
-        const rarete = defCarte(id) ? defCarte(id).rarete : 'commune';
-        return instancier(defCarte(id), 'J', false, rarete);
-    }).filter(x => x);
+    J.deck = monDeckIds.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'J', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
     melanger(J.deck);
-
     const deckAdv = (Array.isArray(advDeckIds) && advDeckIds.length === 20) ? advDeckIds : hasard(decksPreconstruits).cartes;
-    B.deck = deckAdv.map(c => {
-        const id = typeof c === 'string' ? c : c.id;
-        const rarete = defCarte(id) ? defCarte(id).rarete : 'commune';
-        return instancier(defCarte(id), 'B', false, rarete);
-    }).filter(x => x);
+    B.deck = deckAdv.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'B', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
     melanger(B.deck);
-
     initialiserPartie(false);
     tourActuel = 'attente';
     changerEcran('game-screen');
@@ -1765,69 +1591,170 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
     jouerSon('click');
 }
 
-/* ---------- TUTORIEL (idem v7, condensé) ---------- */
+/* ===========================================================
+   TUTO v9 — Structure complète
+   =========================================================== */
 var TUTO_ETAPES = {
-    1: { titre:"Découvrir le plateau", etapes: [
-        { txt:"Bienvenue à l'Académie ! 🎓<br><br>Chaque côté a un <b>héros</b> avec ses <b>points de patience</b> ❤.", cible:".side.opponent" },
-        { txt:"Les <b>cristaux bleus</b> 💧 représentent ton mana. +2 par tour.", cible:"#crystals" },
-        { txt:"Tes cartes : c'est ta <b>main</b>.", cible:"#player-hand" },
-        { txt:"Le <b>cimetière</b> 💀 contient les cartes détruites.", cible:"#player-grave-btn" }
-    ]},
-    2: { titre:"Poser une carte", etapes: [
-        { txt:"Tu as 3 mana. Clique sur la carte à 3 mana !", cible:"#player-hand", attendre: () => J.plateau.length > 0 },
-        { txt:"Parfait !", cible:"#player-board" }
-    ]},
-    3: { titre:"Attaquer", etapes: [
-        { txt:"Une créature fraîchement posée ne peut PAS attaquer ce tour.", cible:"#player-board" },
-        { txt:"Je passe ton tour pour simuler l'attente…", cible:"#btn-endturn" },
-        { txt:"Clique dessus, puis sur une cible.", cible:"#player-board", attendre: () => B.patience < 30 || B.plateau.length < 1 }
-    ]},
-    4: { titre:"La Charge ⚡", etapes: [
-        { txt:"<b>Charge ⚡</b> permet d'attaquer immédiatement.", cible:"#player-hand" },
-        { txt:"Invoque cette créature avec Charge.", cible:"#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Charge')) },
-        { txt:"Frappe le héros adverse !", cible:"#opp-portrait", attendre: () => B.patience < 30 }
-    ]},
-    5: { titre:"La Provocation 🛡️", etapes: [
-        { txt:"La <b>Provocation 🛡️</b> oblige à attaquer cette créature en premier.", cible:"#opponent-board" },
-        { txt:"Détruis-la avec ton sort.", cible:"#player-hand", attendre: () => B.plateau.length === 0 },
-        { txt:"Voie libre !", cible:"#opp-portrait", attendre: () => B.patience < 30 }
-    ]},
-    6: { titre:"Les Effets - Boost 💪", etapes: [
-        { txt:"Cette carte donne un <b>bonus à une créature</b>.", cible:"#player-hand" },
-        { txt:"Joue le boost.", cible:"#player-board", attendre: () => J.plateau.some(m => m.auraAtk > 0 || (defCarte(m.id) && atkTot(m) > defCarte(m.id).atk)) },
-        { txt:"Bien joué !", cible:"#opponent-board" }
-    ]},
-    7: { titre:"La Fusion 💑", etapes: [
-        { txt:"<b>Naila</b> et <b>Nassim</b> peuvent <b>fusionner</b> !", cible:"#player-board" },
-        { txt:"Clique sur la carte Fusion !", cible:"#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Fusion')) },
-        { txt:"✨ FUSION RÉUSSIE !", cible:"#player-board" }
-    ]}
+    0: {
+        titre: "Bienvenue dans la Famille",
+        etapes: [
+            {
+                txt: `📜 <b>Bienvenue dans la Famille !</b><br><br>Aujourd'hui, c'est le grand repas de famille. Ta tante a préparé son couscous légendaire... et ton cousin <b>Bot</b> a osé dire qu'il était meilleur que celui de ta mère. 😱<br><br>La guerre est déclarée !<br><br><b>🎯 Ton objectif :</b> baisser la <b>patience</b> de ton adversaire de 20 à 0 en jouant tes cartes.`,
+                cible: null,
+                appris: ["Bienvenue dans Famille TCG", "L'objectif : mettre la patience adverse à 0"]
+            },
+            {
+                txt: `Voici ton <b>héros</b> 🧑 (en bas à gauche). C'est <b>toi</b>.<br><br>Tu as <b>20 points de patience</b> ❤. Si tu tombes à 0, tu perds la partie.`,
+                cible: ".hero-panel.you",
+                appris: ["Ton héros a 20 points de patience", "Si tu tombes à 0, tu perds"]
+            },
+            {
+                txt: `En face, ton cousin <b>Bot</b> 🤖 a lui aussi 20 patience.<br><br><b>Ton objectif</b> : le faire descendre à 0 avant qu'il ne te fasse pareil !`,
+                cible: ".hero-panel.opp",
+                appris: ["L'adversaire a aussi 20 patience", "Le premier à 0 perd"]
+            },
+            {
+                txt: `Parfait ! Tu es prêt à défendre l'honneur de ta mère. 🥘<br><br>Prêt pour l'étape suivante ?`,
+                cible: null,
+                appris: ["Tu peux passer à l'étape 1 : découvrir le plateau"]
+            }
+        ]
+    },
+    1: {
+        titre: "Découvrir le plateau",
+        etapes: [
+            { txt: `Les <b>cristaux bleus</b> 💧 sous ton héros représentent ton <b>mana</b>.<br><br>Chaque carte coûte du mana (chiffre bleu en haut à gauche).`, cible: "#crystals", appris: ["Le mana est ta ressource principale", "Il augmente à chaque tour"] },
+            { txt: `Tes cartes sont en bas : c'est ta <b>main</b>.<br><br>Chaque carte affiche son coût en mana, sa <b>force ⚔</b> et sa <b>vie ❤</b>.`, cible: "#player-hand", appris: ["Tu joues les cartes depuis ta main", "Chaque carte a coût/force/vie"] },
+            { txt: `Le <b>cimetière</b> 💀 contient les cartes détruites ou jouées.<br><br>À côté, tu vois le nombre de cartes restantes dans ta <b>pioche</b> 📚.`, cible: "#player-grave-btn", appris: ["Le cimetière garde l'historique", "Ta pioche a un nombre limité de cartes"] }
+        ]
+    },
+    2: {
+        titre: "Poser une carte",
+        etapes: [
+            { txt: `Tu as <b>3 mana</b>. Regarde tes 2 cartes : l'une coûte 3, l'autre 4.<br><br>❌ Impossible de poser celle à 4 (grisée).<br>✅ Clique sur celle à 3 mana !`, cible: "#player-hand", attendre: () => J.plateau.length > 0, appris: ["On ne peut pas poser une carte trop chère", "Les cartes injouables sont grisées"] },
+            { txt: `Parfait ! Ta créature est sur le plateau. 🎉<br><br>Elle a une attaque ⚔ et des points de vie ❤. Les cristaux utilisés sont épuisés.`, cible: "#player-board", appris: ["La carte arrive sur le plateau", "Les cristaux utilisés deviennent gris"] }
+        ]
+    },
+    3: {
+        titre: "Attaquer",
+        etapes: [
+            { txt: `⚠️ Une créature <b>fraîchement posée</b> ne peut PAS attaquer ce tour !<br><br>Il faut attendre le tour suivant (sauf avec Charge ⚡).`, cible: "#player-board", appris: ["Une créature a le mal du tour", "Elle ne peut pas attaquer immédiatement"] },
+            { txt: `Je vais passer ton tour pour simuler l'attente.<br><br>Clique sur <b>« Fin du tour »</b> pour continuer.`, cible: "#btn-endturn", attendre: () => tourActuel === 'joueur' && J.numTour >= 2, appris: ["Finir son tour fait passer au tour adverse", "Puis le tien recommence"] },
+            { txt: `C'est reparti ! Ta créature n'est plus fatiguée : elle brille ✨.<br><br>Clique dessus, puis choisis une cible :<br>• une <b>créature ennemie</b><br>• ou le <b>héros adverse</b> !`, cible: "#player-board", attendre: () => B.patience < 30 || B.plateau.length < 1, appris: ["On peut attaquer une créature ou le héros", "Clique attaquant puis cible"] }
+        ]
+    },
+    4: {
+        titre: "La Charge ⚡",
+        etapes: [
+            { txt: `Le mot-clé <b>Charge ⚡</b> permet d'attaquer <b>dès l'invocation</b>, sans attendre un tour.<br><br>C'est indiqué par le badge bleu sur la carte.`, cible: "#player-hand", appris: ["Charge = attaque immédiate", "Pas besoin d'attendre un tour"] },
+            { txt: `Invoque cette créature avec Charge en cliquant dessus !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Charge')), appris: ["On invoque une carte en cliquant dessus"] },
+            { txt: `Elle brille immédiatement : clique dessus puis sur le héros adverse !`, cible: "#opp-portrait", attendre: () => B.patience < 30, appris: ["Une créature avec Charge attaque dès son arrivée"] }
+        ]
+    },
+    5: {
+        titre: "La Provocation 🛡️",
+        etapes: [
+            { txt: `L'adversaire a une créature avec <b>Provocation 🛡️</b>.<br><br>Tu ne peux <b>PAS</b> attaquer son héros tant qu'elle est en vie !`, cible: "#opponent-board", appris: ["Provocation force à attaquer cette créature", "Elle protège le héros"] },
+            { txt: `Utilise ton sort <b>« Machine à laver »</b> :<br>clique dessus puis sur la créature pour la détruire.`, cible: "#player-hand", attendre: () => B.plateau.length === 0, appris: ["Un sort peut cibler une créature", "Certains sorts infligent des dégâts directs"] },
+            { txt: `Bien joué ! La voie est libre, tu peux attaquer le héros.`, cible: "#opp-portrait", attendre: () => B.patience < 30, appris: ["Sans Provocation, on peut taper le héros"] }
+        ]
+    },
+    6: {
+        titre: "Les Effets — Boost 💪",
+        etapes: [
+            { txt: `Cette carte donne un <b>bonus permanent</b> à une créature alliée.<br><br>Les buffs permettent de transformer une petite créature en tueuse !`, cible: "#player-hand", appris: ["Les buffs augmentent force/vie", "Ils sont permanents tant que la créature vit"] },
+            { txt: `Joue le boost sur ta créature :<br>clique sur le sort, puis sur ta créature sur le plateau.`, cible: "#player-board", attendre: () => J.plateau.some(m => m.auraAtk > 0 || (defCarte(m.id) && atkTot(m) > defCarte(m.id).atk)), appris: ["Un buff se cible sur une créature alliée", "Ses stats montent immédiatement"] },
+            { txt: `BOOM ! Ta créature a maintenant plus de force.<br><br>Elle peut détruire des créatures qu'elle ne pouvait pas avant !`, cible: "#opponent-board", appris: ["Un buff change l'équilibre du combat"] }
+        ]
+    },
+    7: {
+        titre: "Pioche & Cimetière",
+        etapes: [
+            { txt: `Regarde en bas à droite de ton héros : le nombre restant dans ta <b>pioche</b> 📚.<br><br>Chaque tour, tu pioches automatiquement 1 carte.`, cible: "#player-deck", appris: ["Tu pioches 1 carte par tour", "Le chiffre descend à chaque pioche"] },
+            { txt: `⚠️ Si ta pioche est <b>vide</b>, tu perds <b>3 patience</b> à chaque pioche ratée.<br><br>C'est la <b>règle de fatigue</b> !`, cible: "#player-deck", appris: ["Pioche vide = 3 dégâts par tour", "Une partie peut se perdre par épuisement"] },
+            { txt: `Le <b>cimetière</b> 💀 (à côté) garde toutes les cartes jouées et détruites.<br><br>Clique dessus pour voir ce qui s'y trouve.`, cible: "#player-grave-btn", appris: ["Cimetière = cartes utilisées", "Utile pour se souvenir de ce qui a été joué"] }
+        ]
+    },
+    8: {
+        titre: "Mana progressif",
+        etapes: [
+            { txt: `Ton mana <b>augmente à chaque tour</b>.<br><br>Tour 1 : 2 mana. Tour 2 : 4 mana. Tour 3 : 6 mana... jusqu'à un plafond de 10.`, cible: "#player-mana", appris: ["Le mana augmente de +2 par tour", "Plafond à 10 mana"] },
+            { txt: `Observe ton compteur de mana : il affiche <b>« actuel / max »</b>.<br><br>Tu peux utiliser TOUT ton mana à chaque tour.`, cible: "#player-mana", appris: ["Tu as droit à mana max à chaque tour", "Le mana non utilisé est perdu"] },
+            { txt: `C'est pour ça que les grosses cartes à 8-10 mana ne se jouent qu'en milieu de partie !<br><br>Patience... 🌱`, cible: "#player-mana", appris: ["Les grosses cartes arrivent plus tard", "Il faut planifier plusieurs tours à l'avance"] }
+        ]
+    },
+    9: {
+        titre: "Terrains & Fusion",
+        etapes: [
+            { txt: `Un <b>terrain</b> 🏡 modifie les règles de la partie.<br><br>Cherchell : « Tes créatures Cousins coûtent 1 mana de moins. »`, cible: "#player-hand", appris: ["Les terrains modifient les règles", "Ils changent aussi le fond du plateau"] },
+            { txt: `⚠️ Un terrain reste actif <b>3 tours</b>, puis disparaît !<br><br>Pose-le au bon moment pour maximiser son effet.`, cible: "#player-hand", attendre: () => J.terrain !== null, appris: ["Un terrain dure 3 tours", "Le timer s'affiche sous la carte"] },
+            { txt: `Enfin, la <b>FUSION</b> 💑 :<br><br>Avec <b>Naila</b> et <b>Nassim</b> sur le plateau, tu peux jouer <b>« Naila x Nassim »</b> pour créer une carte ultra-puissante !`, cible: "#player-hand", appris: ["La Fusion consomme 2 créatures", "Le résultat est plus puissant que ses composants"] },
+            { txt: `Clique sur la carte Fusion dans ta main pour l'essayer !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Fusion')), appris: ["La Fusion est jouable si les 2 composants sont là"] },
+            { txt: `✨ FUSION RÉUSSIE ! 4 dégâts ennemis. Bravo, tu maîtrises maintenant toutes les bases !`, cible: "#player-board", appris: ["Tu sais jouer à Famille TCG !"] }
+        ]
+    }
 };
 
+/* QUIZ EXPRESS */
+var TUTO_QUIZ = [
+    { q: "Que fait le mot-clé Charge ⚡ ?", options: [
+        { txt: "Attaque immédiatement à l'invocation", correct: true },
+        { txt: "Inflige 3 dégâts en arrivant", correct: false },
+        { txt: "Soigne ton héros de 2 PV", correct: false }
+    ]},
+    { q: "Combien de mana as-tu au tour 1 ?", options: [
+        { txt: "1 mana", correct: false },
+        { txt: "2 mana", correct: true },
+        { txt: "5 mana", correct: false }
+    ]},
+    { q: "Que se passe-t-il si ton deck est vide ?", options: [
+        { txt: "Tu gagnes immédiatement", correct: false },
+        { txt: "Tu pioches depuis ta main", correct: false },
+        { txt: "Tu perds 3 patience par pioche", correct: true }
+    ]}
+];
+var _quizReponses = {};
+
+/* MAJ UI tuto */
 function majTutoUI() {
-    [1,2,3,4,5,6,7].forEach(lvl => {
+    let completes = 0;
+    for (let lvl = 0; lvl <= 9; lvl++) {
         const btn = document.getElementById('btn-tuto-' + lvl);
         if (btn) {
-            if(profil['tuto_' + lvl]) {
-                btn.style.background = 'linear-gradient(180deg, var(--menthe), #1c8f60)';
-                btn.style.color = '#04261a';
-            }
+            if (profil['tuto_' + lvl]) {
+                btn.classList.add('done');
+                completes++;
+            } else btn.classList.remove('done');
         }
-    });
+    }
+    const fill = document.getElementById('tuto-progress-fill');
+    const txt = document.getElementById('tuto-progress-text');
+    const pct = (completes / 10) * 100;
+    if (fill) fill.style.width = pct + '%';
+    if (txt) txt.innerText = `${completes} / 10 étapes complétées`;
+    if (completes === 10 && !profil.tutoComplet) {
+        profil.tutoComplet = true;
+        sauvegarderProgression();
+        setTimeout(() => afficherTutoFinal(), 800);
+    }
 }
 
+/* Lancer un tuto */
 function lancerTuto(niveau) {
     modeEnLigne = false; modeAttente = false; mulliganValide = true; modeTuto = true;
     currentTutoLevel = niveau; etapeTuto = 0;
     if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
+    if (_tutoSuccessInterval) { clearInterval(_tutoSuccessInterval); _tutoSuccessInterval = null; }
 
     J = nouveauCote('J', 'Toi');
     B = nouveauCote('B', 'Prof. Tuto');
     const h = document.getElementById('hero-name');
     if (h) h.innerText = 'Toi';
     const opp = document.getElementById('opp-name');
-    if (opp) opp.innerText = 'Professeur Tuto';
+    if (opp) opp.innerText = 'Cousin Bot';
     partieFinie = false; selection = null; ciblage = null;
+    const log = document.getElementById('action-log');
+    if (log) log.innerHTML = '';
 
     J.premier = true; B.premier = false;
     J.manaMax = 3; J.manaActuel = 3; J.numTour = 1; J.cimetiere = [];
@@ -1835,8 +1762,12 @@ function lancerTuto(niveau) {
     B.patience = 30;
     tourActuel = 'joueur';
 
-    if (niveau === 1) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); } }
-    else if (niveau === 2) {
+    // Setup selon niveau
+    if (niveau === 0) {
+        // Pas de cartes nécessaires
+    } else if (niveau === 1) {
+        const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
+    } else if (niveau === 2) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
         const c2 = instancier(defCarte('m1'), 'J'); if (c2) { c2.cout = 4; J.main.push(c2); }
     } else if (niveau === 3) {
@@ -1855,23 +1786,33 @@ function lancerTuto(niveau) {
         const c3 = instancier(defCarte('n6'), 'B'); if (c3) B.plateau.push(c3);
         J.manaMax = 5; J.manaActuel = 5;
     } else if (niveau === 7) {
+        const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1);
+        J.manaMax = 5; J.manaActuel = 5;
+    } else if (niveau === 8) {
+        const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1);
+    } else if (niveau === 9) {
         const c1 = instancier(defCarte('ka5'), 'J'); if (c1) J.plateau.push(c1);
         const c2 = instancier(defCarte('ka6'), 'J'); if (c2) J.plateau.push(c2);
         const c3 = instancier(defCarte('f1'), 'J'); if (c3) J.main.push(c3);
+        const c4 = instancier(defCarte('c12'), 'J'); if (c4) J.main.push(c4);
         J.manaMax = 10; J.manaActuel = 10;
     }
 
     changerEcran('game-screen');
     rafraichirJeu();
     setTimeout(() => afficherEtapeTuto(), 400);
+    jouerSon('click');
 }
 
+/* Afficher étape tuto */
 function afficherEtapeTuto() {
     if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
+    if (_tutoSuccessInterval) { clearInterval(_tutoSuccessInterval); _tutoSuccessInterval = null; }
+
     const config = TUTO_ETAPES[currentTutoLevel];
     if (!config) return;
     const etape = config.etapes[etapeTuto];
-    if (!etape) { terminerTuto(currentTutoLevel, 500, `🎓 ${config.titre} terminé !`); return; }
+    if (!etape) { terminerEtapeTuto(); return; }
 
     document.querySelectorAll('.tuto-highlight').forEach(el => el.classList.remove('tuto-highlight'));
     if (etape.cible) {
@@ -1882,6 +1823,7 @@ function afficherEtapeTuto() {
     const bulle = document.getElementById('tuto-bubble');
     const txt = document.getElementById('tuto-text');
     const btn = document.getElementById('btn-tuto-next');
+    const btnSkip = document.getElementById('btn-tuto-skip');
     if (!bulle || !txt || !btn) return;
 
     txt.innerHTML = `<b>${config.titre}</b> — Étape ${etapeTuto + 1}/${config.etapes.length}<br>${etape.txt}`;
@@ -1889,6 +1831,10 @@ function afficherEtapeTuto() {
     btn.classList.remove('hidden');
     btn.innerText = 'Continuer ▶';
     btn.onclick = () => { etapeTuto++; afficherEtapeTuto(); };
+    if (btnSkip) {
+        btnSkip.classList.remove('hidden');
+        btnSkip.onclick = () => skipEtapeTuto();
+    }
 
     if (etape.attendre) {
         _tutoInterval = setInterval(() => {
@@ -1908,10 +1854,159 @@ function etapeTutoSuivante() {
     etapeTuto++;
     afficherEtapeTuto();
 }
-function validerEtapeTuto() {}
+function skipEtapeTuto() {
+    if (!modeTuto) return;
+    if (!Array.isArray(profil.tutoSkipped)) profil.tutoSkipped = [];
+    if (!profil.tutoSkipped.includes(currentTutoLevel)) profil.tutoSkipped.push(currentTutoLevel);
+    etapeTuto++;
+    afficherEtapeTuto();
+}
+function validerEtapeTuto() {
+    // Appelé après certaines actions : permet d'afficher ✅ quand la condition est OK
+}
 
+/* Animations tuto */
+function animerReussiteEtape() {
+    const burst = document.createElement('div');
+    burst.className = 'tuto-success-burst';
+    burst.textContent = '✨ BRAVO !';
+    document.body.appendChild(burst);
+    setTimeout(() => burst.remove(), 1000);
+    creerParticules(window.innerWidth / 2, window.innerHeight / 2, '#3ddc97', 30);
+    jouerSon('tutoDone');
+}
+
+/* Terminer une étape */
+function terminerEtapeTuto() {
+    if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
+    const config = TUTO_ETAPES[currentTutoLevel];
+    if (!config) return;
+
+    // Marquer complète
+    if (!profil['tuto_' + currentTutoLevel]) {
+        profil['tuto_' + currentTutoLevel] = true;
+    }
+    modeTuto = false;
+    const bulle = document.getElementById('tuto-bubble');
+    if (bulle) bulle.classList.add('hidden');
+    document.querySelectorAll('.tuto-highlight').forEach(el => el.classList.remove('tuto-highlight'));
+
+    // Compilation des apprentissages
+    const apprisSet = new Set();
+    config.etapes.forEach(e => { if (e.appris) e.appris.forEach(a => apprisSet.add(a)); });
+
+    // Gain
+    const gain = 500;
+    const carteId = carteRecompenseTuto(currentTutoLevel);
+
+    if (!profil['tutoReward_' + currentTutoLevel]) {
+        profil.coins += gain;
+        profil.tutoCoinsGagnes = (profil.tutoCoinsGagnes || 0) + gain;
+        if (carteId) {
+            initColl(carteId);
+            const r = defCarte(carteId).rarete;
+            collectionJoueur[carteId][r] = (collectionJoueur[carteId][r] || 0) + 1;
+            if (!Array.isArray(profil.tutoCartesGagnees)) profil.tutoCartesGagnees = [];
+            profil.tutoCartesGagnees.push(carteId);
+        }
+        profil['tutoReward_' + currentTutoLevel] = true;
+        ajouterXP(30);
+        progresserQuete('tutos', 1);
+    }
+    sauvegarderProgression();
+
+    animerReussiteEtape();
+    afficherResumeEtape(currentTutoLevel, Array.from(apprisSet), gain, carteId);
+}
+
+function afficherResumeEtape(niveau, appris, gain, carteId) {
+    const ov = document.getElementById('tuto-resume-overlay');
+    if (!ov) return;
+    const titre = document.getElementById('tuto-resume-titre');
+    if (titre) titre.innerText = `✅ Étape ${niveau} terminée !`;
+    const apprisEl = document.getElementById('tuto-resume-appris');
+    if (apprisEl) {
+        apprisEl.innerHTML = '<ul>' + appris.map(a => `<li>${a}</li>`).join('') + '</ul>';
+    }
+    const gainEl = document.getElementById('tuto-resume-gain');
+    if (gainEl) gainEl.innerText = `+${gain} 💰`;
+    const carteEl = document.getElementById('tuto-resume-carte');
+    if (carteEl) {
+        carteEl.innerHTML = '';
+        if (carteId) {
+            const c = defCarte(carteId);
+            if (c) {
+                const el = creerHTMLCarte(c, 'zoom', { overrideRarete: getHighRarity(carteId), nouveau: true });
+                carteEl.appendChild(el);
+                ajusterTextes(carteEl);
+            }
+        }
+    }
+    // Adapter le bouton "suivant"
+    const btnNext = document.getElementById('btn-tuto-resume-next');
+    if (btnNext) {
+        if (niveau < 9) {
+            btnNext.innerText = `Étape ${niveau + 1} ▶`;
+        } else {
+            btnNext.innerText = '🎓 Voir le récap final';
+        }
+    }
+    ov.classList.add('open');
+    jouerSon('coin');
+}
+
+function fermerTutoResumeEtSuivant() {
+    const ov = document.getElementById('tuto-resume-overlay');
+    if (ov) ov.classList.remove('open');
+    majTutoUI();
+    if (currentTutoLevel < 9) {
+        setTimeout(() => lancerTuto(currentTutoLevel + 1), 400);
+    } else {
+        setTimeout(() => afficherTutoFinal(), 400);
+    }
+}
+function fermerTutoResumeEtMenu() {
+    const ov = document.getElementById('tuto-resume-overlay');
+    if (ov) ov.classList.remove('open');
+    changerEcran('tuto-screen');
+    majTutoUI();
+}
+
+/* Récap final */
+function afficherTutoFinal() {
+    const ov = document.getElementById('tuto-final-overlay');
+    if (!ov) return;
+    const comps = [
+        "Invoquer une carte",
+        "Comprendre le mana",
+        "Attaquer",
+        "Gérer Provocation & Charge",
+        "Déclencher des effets",
+        "Comprendre la pioche & le cimetière",
+        "Comprendre le mana progressif",
+        "Utiliser Terrains & Fusion"
+    ];
+    const compsEl = document.getElementById('tuto-final-competences');
+    if (compsEl) compsEl.innerHTML = comps.map(c => `<div>${c}</div>`).join('');
+    const coinsEl = document.getElementById('tuto-final-coins');
+    if (coinsEl) coinsEl.innerText = formatCoins(profil.tutoCoinsGagnes || 0);
+    const cartesEl = document.getElementById('tuto-final-cartes');
+    if (cartesEl) cartesEl.innerText = (profil.tutoCartesGagnees || []).length;
+    const niveauEl = document.getElementById('tuto-final-niveau');
+    if (niveauEl) niveauEl.innerText = profil.niveau;
+    ov.classList.add('open');
+    jouerSon('victory');
+}
+function fermerTutoFinal() {
+    const ov = document.getElementById('tuto-final-overlay');
+    if (ov) ov.classList.remove('open');
+    changerEcran('menu-screen');
+    setTimeout(() => ouvrirChallengeTuto(), 600);
+}
+
+/* Carte récompense */
 function carteRecompenseTuto(niveau) {
-    const cartesFixes = { 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'ka5' };
+    const cartesFixes = { 0:'m6', 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'s23', 8:'s38', 9:'ka5' };
     const idFix = cartesFixes[niveau];
     if (idFix && getTot(idFix) === 0) return idFix;
     const nonPossedees = dbCartesDispo().filter(c => getTot(c.id) === 0);
@@ -1920,50 +2015,167 @@ function carteRecompenseTuto(niveau) {
     return pool.length ? hasard(pool).id : 'm6';
 }
 
-function terminerTuto(niveau, gain, message) {
-    if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
-    const txt = document.getElementById('tuto-text');
-    const btn = document.getElementById('btn-tuto-next');
-    const bulle = document.getElementById('tuto-bubble');
-    const idCarte = carteRecompenseTuto(niveau);
-
-    if (txt) txt.innerHTML = message + `<br><br>🎉 +${gain} 💰 et une carte !`;
-    if (btn) {
-        btn.classList.remove('hidden');
-        btn.innerText = 'Voir ma récompense 🎁';
-        btn.onclick = () => {
-            if (bulle) bulle.classList.add('hidden');
-            document.querySelectorAll('.tuto-highlight').forEach(el => el.classList.remove('tuto-highlight'));
-            modeTuto = false;
-            if (!profil['tuto_' + niveau]) {
-                profil.coins += gain;
-                profil['tuto_' + niveau] = true;
-                if (idCarte) {
-                    initColl(idCarte);
-                    const r = defCarte(idCarte).rarete;
-                    collectionJoueur[idCarte][r] = (collectionJoueur[idCarte][r] || 0) + 1;
+/* ===========================================================
+   TUTO EXPRESS (quiz)
+   =========================================================== */
+function ouvrirTutoExpress() {
+    const ov = document.getElementById('tuto-express-overlay');
+    if (!ov) return;
+    _quizReponses = {};
+    const zone = document.getElementById('tuto-express-quiz');
+    if (!zone) return;
+    zone.innerHTML = '';
+    TUTO_QUIZ.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = 'quiz-question';
+        let opts = q.options.map((o, j) => `<button class="quiz-option" onclick="choisirQuizReponse(${i}, ${j}, this)">${o.txt}</button>`).join('');
+        div.innerHTML = `<div class="q-intitule">${i+1}. ${q.q}</div>${opts}`;
+        zone.appendChild(div);
+    });
+    ov.classList.add('open');
+}
+function choisirQuizReponse(i, j, el) {
+    _quizReponses[i] = j;
+    const parent = el.parentElement;
+    parent.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+}
+function fermerTutoExpress() {
+    const ov = document.getElementById('tuto-express-overlay');
+    if (ov) ov.classList.remove('open');
+}
+function validerTutoExpress() {
+    let bonnes = 0;
+    TUTO_QUIZ.forEach((q, i) => {
+        if (_quizReponses[i] !== undefined && q.options[_quizReponses[i]].correct) bonnes++;
+    });
+    fermerTutoExpress();
+    if (bonnes >= 2) {
+        // Réussi
+        for (let lvl = 0; lvl <= 9; lvl++) {
+            if (!profil['tuto_' + lvl]) {
+                profil['tuto_' + lvl] = true;
+                profil.coins += 500;
+                profil.tutoCoinsGagnes = (profil.tutoCoinsGagnes || 0) + 500;
+                const carteId = carteRecompenseTuto(lvl);
+                if (carteId) {
+                    initColl(carteId);
+                    const r = defCarte(carteId).rarete;
+                    collectionJoueur[carteId][r] = (collectionJoueur[carteId][r] || 0) + 1;
+                    if (!Array.isArray(profil.tutoCartesGagnees)) profil.tutoCartesGagnees = [];
+                    profil.tutoCartesGagnees.push(carteId);
                 }
-                sauvegarderProgression();
-                majTopBarCoins();
-                ajouterXP(30);
-                progresserQuete('tutos', 1);
+                profil['tutoReward_' + lvl] = true;
             }
-            afficherGainRecompense(`🎓 Tuto ${niveau} terminé !`, gain, idCarte);
-            afficherGainArgent(gain);
-            jouerSon('coin');
-            const oldClose = window.fermerReward;
-            window.fermerReward = function() {
-                const ov = document.getElementById('reward-overlay');
-                if (ov) ov.classList.remove('open');
-                changerEcran('tuto-screen');
-                majTutoUI();
-                window.fermerReward = oldClose;
-            };
-        };
+        }
+        profil.tutoExpressReussi = true;
+        profil.tutoComplet = true;
+        ajouterXP(300);
+        sauvegarderProgression();
+        majTutoUI();
+        jouerSon('victory');
+        alert('🎓 Quiz réussi ! Tu débloques toutes les récompenses du tuto.');
+        setTimeout(() => afficherTutoFinal(), 500);
+    } else {
+        alert(`❌ ${bonnes}/${TUTO_QUIZ.length} bonnes réponses. Lance les tutos un par un pour apprendre en jouant !`);
     }
 }
 
-/* ---------- Mulligan ---------- */
+/* Carte de progression */
+function ouvrirTutoMap() {
+    const ov = document.getElementById('tuto-map-overlay');
+    if (!ov) return;
+    const content = document.getElementById('tuto-map-content');
+    if (!content) return;
+    content.innerHTML = '';
+    const titres = [
+        '📜 Bienvenue dans la Famille',
+        '🔍 Découvrir le plateau',
+        '🎴 Poser une carte',
+        '⚔️ Attaquer',
+        '⚡ La Charge',
+        '🛡️ La Provocation',
+        '💪 Les Effets — Boost',
+        '📚 Pioche & Cimetière',
+        '💧 Mana progressif',
+        '🏡 Terrains & Fusion'
+    ];
+    let currentFound = false;
+    for (let lvl = 0; lvl <= 9; lvl++) {
+        const done = !!profil['tuto_' + lvl];
+        const isCurrent = !done && !currentFound;
+        if (isCurrent) currentFound = true;
+        const div = document.createElement('div');
+        div.className = 'tuto-map-node' + (done ? ' done' : '') + (isCurrent ? ' current' : '');
+        div.innerHTML = `<div class="tuto-map-icon">${done ? '✓' : (lvl)}</div>
+            <div class="tuto-map-titre">${titres[lvl]}</div>
+            <div class="tuto-map-statut">${done ? 'TERMINÉ' : (isCurrent ? 'À FAIRE' : 'VERROUILLÉ')}</div>`;
+        div.onclick = () => {
+            if (done || isCurrent) {
+                fermerTutoMap();
+                lancerTuto(lvl);
+            }
+        };
+        div.style.cursor = (done || isCurrent) ? 'pointer' : 'not-allowed';
+        content.appendChild(div);
+    }
+    ov.classList.add('open');
+}
+function fermerTutoMap() {
+    const ov = document.getElementById('tuto-map-overlay');
+    if (ov) ov.classList.remove('open');
+}
+
+/* Challenge post-tuto */
+function ouvrirChallengeTuto() {
+    const ov = document.getElementById('tuto-challenge-overlay');
+    const txt = document.getElementById('tuto-challenge-text');
+    if (txt) txt.innerText = 'Bats le bot en 5 tours ou moins !';
+    if (ov) ov.classList.add('open');
+}
+function accepterChallengeTuto() {
+    fermerChallengeTuto();
+    modeChallenge = true;
+    // Lance une partie spéciale
+    lancerPartieChallenge();
+}
+function refuserChallengeTuto() {
+    fermerChallengeTuto();
+    flashInfo('Peut-être plus tard !');
+}
+function fermerChallengeTuto() {
+    const ov = document.getElementById('tuto-challenge-overlay');
+    if (ov) ov.classList.remove('open');
+}
+function lancerPartieChallenge() {
+    // Utilise la même logique que lancerPartie() mais avec partieFinie reset et modeChallenge=true
+    modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false; modeTournoi = false;
+    // Cherche un deck complet
+    const completIdx = mesDecks.findIndex(d => calculerCartesPossedeesPourDeck(d.cartes) === 20);
+    if (completIdx < 0) { flashInfo('Aucun deck complet pour le challenge.'); return; }
+    const i = completIdx;
+    J = nouveauCote('J', J.nom || 'Toi');
+    B = nouveauCote('B', 'Bot');
+    const h = document.getElementById('hero-name');
+    if (h) h.innerText = J.nom;
+    const opp = document.getElementById('opp-name');
+    if (opp) opp.innerText = 'Bot (Défi)';
+    _deckUtiliseEnCours = mesDecks[i].nom;
+    recordDeckJoue(_deckUtiliseEnCours);
+    J.deck = mesDecks[i].cartes.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'J', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
+    melanger(J.deck);
+    B.deck = hasard(decksPreconstruits).cartes.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'B', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
+    melanger(B.deck);
+    initialiserPartie(Math.random() > 0.5);
+    changerEcran('game-screen');
+    rafraichirJeu();
+    ouvrirMulligan();
+    flashInfo('🎯 Défi : gagne en 5 tours max !');
+}
+
+/* ===========================================================
+   MULLIGAN
+   =========================================================== */
 function ouvrirMulligan() {
     if(modeTuto) return;
     const zone = document.getElementById('mulligan-cards');
@@ -1979,7 +2191,6 @@ function ouvrirMulligan() {
     if (ov) ov.classList.add('open');
     clearTimeout(_timerMulligan);
 }
-
 function validerMulligan(auto) {
     clearTimeout(_timerMulligan);
     const zone = document.getElementById('mulligan-cards');
@@ -2005,7 +2216,6 @@ function validerMulligan(auto) {
     if (tourActuel === 'joueur') debutTourJoueur();
     else jouerTourBot();
 }
-
 function afficherAttente(titre) {
     const ov = document.getElementById('attente-overlay');
     const t = document.getElementById('attente-titre');
@@ -2020,7 +2230,9 @@ function melanger(a) {
     }
 }
 
-/* ---------- Helpers FX (avec particules v8) ---------- */
+/* ===========================================================
+   FX HELPERS
+   =========================================================== */
 function elOf(uid) { return document.querySelector(`[data-uid="${uid}"]`); }
 function elHero(side) { return document.querySelector(side === J ? '.hero-panel.you' : '.hero-panel.opp'); }
 function fxDepuisRect(rect, texte, type) {
@@ -2060,6 +2272,7 @@ function appliquerDegatsCreature(m, n) {
     jouerSon('hurt');
     const p = POUVOIRS[m.id];
     if (p && p.blesse && !m.silence && m.vie > 0) p.blesse({ moi: coteDe(m), ennemi: autre(coteDe(m)), source: m });
+    validerEtapeTuto();
 }
 function degatsHero(side, n) {
     side.patience -= n;
@@ -2099,13 +2312,9 @@ function invoquerJeton(side, nom, atk, vie, emoji, motsCles) {
     if (inst) {
         inst.malade = true;
         side.plateau.push(inst);
-        // Particules d'invocation
         setTimeout(() => {
             const el = elOf(inst.uid);
-            if (el) {
-                const r = el.getBoundingClientRect();
-                creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 10);
-            }
+            if (el) { const r = el.getBoundingClientRect(); creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 10); }
         }, 80);
         jouerSon('summon');
     }
@@ -2193,6 +2402,9 @@ function pousserAction(action) {
     try { fbDB.ref('salles/' + window.multiPartie.partieId + '/queue/' + id).set({ id: id, par: monPseudo, role: monRole, action: action, ts: Date.now() }); } catch(e) {}
 }
 
+/* ===========================================================
+   CLICS PLATEAU
+   =========================================================== */
 function clicCarteMain(index) {
     if (partieFinie) return;
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
@@ -2201,6 +2413,23 @@ function clicCarteMain(index) {
 
     const c = J.main[index];
     if (!c) return;
+
+    // Feedback d'erreur pédagogique en tuto
+    if (modeTuto) {
+        const coutEff = coutEffectif(J, c);
+        if (c.motsCles.includes('Fusion') && fusionsPossibles(J, c).length === 0) {
+            afficherErreurTuto('Tu ne réunis pas les 2 composants requis pour cette Fusion.');
+            return;
+        }
+        if (J.manaActuel < coutEff) {
+            afficherErreurTuto(`💧 Cette carte coûte ${coutEff} mana, tu n'en as que ${J.manaActuel} !`);
+            return;
+        }
+        if (c.famille !== 'Sort' && c.famille !== 'Terrain' && J.plateau.length >= 5) {
+            afficherErreurTuto('🎴 Ton plateau est plein (5 créatures maximum).');
+            return;
+        }
+    }
 
     if (c.motsCles.includes('Fusion')) {
         const dispo = fusionsPossibles(J, c);
@@ -2221,7 +2450,7 @@ function clicCarteMain(index) {
 
     const cout = coutEffectif(J, c);
     if (J.manaActuel < cout) return info('Pas assez de mana.');
-    if (c.famille !== 'Sort' && c.famille !== 'Terrain' && J.plateau.length >= 5) return info('Ton plateau est plein (5 créatures).');
+    if (c.famille !== 'Sort' && c.famille !== 'Terrain' && J.plateau.length >= 5) return info('Ton plateau est plein.');
 
     const p = POUVOIRS[c.id];
     if (p && p.cible) {
@@ -2241,13 +2470,21 @@ function clicCarteMain(index) {
     jouerCarte(J, index, null);
 }
 
+function afficherErreurTuto(msg) {
+    const el = document.createElement('div');
+    el.className = 'tuto-error-msg';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    jouerSon('error');
+    setTimeout(() => el.remove(), 2500);
+}
+
 function ciblesValides(side, spec) {
     const ennemi = autre(side);
     let liste = [];
     if (spec.camp === 'ennemi') liste = [...ennemi.plateau];
     else if (spec.camp === 'allie') liste = [...side.plateau];
     else liste = [...side.plateau, ...ennemi.plateau];
-
     liste = liste.filter(m => {
         if (coteDe(m) === side) return true;
         const pl = coteDe(m).plateau, i = pl.indexOf(m);
@@ -2277,30 +2514,20 @@ function jouerCarte(side, index, cible) {
     if (side.manaActuel < cout) return;
     side.manaActuel -= cout;
     side.main.splice(index, 1);
-
     ajouterLog(c.emoji, `${side.nom} joue ${c.prenom}`, side);
-
     if (side === J && c.id && !c.id.startsWith('jeton_')) recordCarteJouee(c.id);
-
     const ennemi = autre(side), p = POUVOIRS[c.id];
     if (c.famille === 'Sort') {
         animerSort(c, () => {});
-        if (ennemi.contreSort) {
-            ennemi.contreSort = false;
-            info(`${c.prenom} est annulé par Islem !`);
-            banniere('Sort annulé');
-        } else if (p && p.jouer) {
-            p.jouer({ moi:side, ennemi, source:c, cible });
-            info(`${c.prenom} lancé.`);
-        }
+        if (ennemi.contreSort) { ennemi.contreSort = false; info(`${c.prenom} est annulé par Islem !`); banniere('Sort annulé'); }
+        else if (p && p.jouer) { p.jouer({ moi:side, ennemi, source:c, cible }); info(`${c.prenom} lancé.`); }
         side.cimetiere.push({id: c.id, rarete: c.rarete});
     } else if (c.famille === 'Terrain') {
         if(side.terrain) side.cimetiere.push({id: side.terrain.id, rarete: side.terrain.rarete});
         side.terrain = c;
-        side.terrainTours = 3; // Actif 3 tours
+        side.terrainTours = 3;
         if (p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
         info(`Terrain ${c.prenom} en jeu (3 tours).`);
-        // FOND VISUEL
         const gs = document.getElementById('game-screen');
         if (gs) {
             dbCartes.filter(x => x.famille === 'Terrain').forEach(x => gs.classList.remove('terrain-' + x.id));
@@ -2312,17 +2539,12 @@ function jouerCarte(side, index, cible) {
         side.plateau.push(c);
         if (p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
         info(`${c.prenom} entre en jeu.`);
-        // Particules invocation
         setTimeout(() => {
             const el = elOf(c.uid);
-            if (el) {
-                const r = el.getBoundingClientRect();
-                creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 12);
-            }
+            if (el) { const r = el.getBoundingClientRect(); creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 12); }
         }, 80);
         jouerSon('summon');
     }
-
     recalcAuras();
     nettoyerMorts();
     setTimeout(() => { rafraichirJeu(); verifierFin(); validerEtapeTuto(); }, 60);
@@ -2346,7 +2568,6 @@ function clicCreatureAlliee(m) {
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
     if (tourActuel !== 'joueur' && !modeEnLigne && !modeTuto) return;
     if (ciblage) return choisirCible(m);
-
     if (m.gele > 0) return info(`${m.prenom} est endormi.`);
     if (m.malade) return info(`${m.prenom} ne peut pas encore attaquer.`);
     if (m.aAttaque) return info(`${m.prenom} a déjà attaqué.`);
@@ -2362,7 +2583,10 @@ function clicCreatureEnnemie(m) {
     if (ciblage) return choisirCible(m);
     if (tourActuel !== 'joueur' || !selection) return;
     const provocations = B.plateau.filter(x => x.motsCles.includes('Provocation'));
-    if (provocations.length && !m.motsCles.includes('Provocation')) return info('Tu dois d\'abord attaquer une Provocation.');
+    if (provocations.length && !m.motsCles.includes('Provocation')) {
+        if (modeTuto) afficherErreurTuto('🛡️ Tu dois d\'abord détruire la Provocation.');
+        return info('Tu dois d\'abord attaquer une Provocation.');
+    }
     attaquer(selection, m);
 }
 function clicHeroAdverse() {
@@ -2370,7 +2594,10 @@ function clicHeroAdverse() {
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
     if (ciblage) return choisirCible(B);
     if (tourActuel !== 'joueur' || !selection) return;
-    if (B.plateau.some(x => x.motsCles.includes('Provocation'))) return info('Une Provocation protège l\'adversaire.');
+    if (B.plateau.some(x => x.motsCles.includes('Provocation'))) {
+        if (modeTuto) afficherErreurTuto('🛡️ Une Provocation protège l\'adversaire !');
+        return info('Une Provocation protège l\'adversaire.');
+    }
     attaquer(selection, B);
 }
 
@@ -2380,9 +2607,7 @@ async function attaquer(attaquant, cible) {
         if (cible.uid) { campCible = cible.cote; idxCible = coteDe(cible).plateau.indexOf(cible); }
         pousserAction({ type:'attaque', idxAttaquant: J.plateau.indexOf(attaquant), idxCible, campCible, cibleHero: cible.uid ? null : cible.cle });
     }
-
     ajouterLog('⚔', `${attaquant.prenom} attaque`, coteDe(attaquant));
-
     const elA = elOf(attaquant.uid), elC = cible.uid ? elOf(cible.uid) : elHero(cible);
     selection = null;
     if (elA && elC) {
@@ -2395,11 +2620,9 @@ async function attaquer(attaquant, cible) {
         elA.style.transform = `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(1.05)`;
         await pause(170);
     }
-
     if (cible.uid) echangeDegats(attaquant, cible); else degatsHero(cible, atkTot(attaquant));
     attaquant.aAttaque = true;
     if (elA) { elA.style.transform = ''; await pause(140); }
-
     recalcAuras();
     nettoyerMorts();
     await pause(260);
@@ -2408,15 +2631,15 @@ async function attaquer(attaquant, cible) {
     validerEtapeTuto();
 }
 
-/* ---------- Tours ---------- */
+/* ===========================================================
+   TOURS
+   =========================================================== */
 function prochainManaMax(side) {
     side.numTour++;
     if (side.numTour === 1) side.manaMax = side.premier ? 2 : 3;
     else side.manaMax = Math.min(10, side.manaMax + 2);
     side.manaActuel = side.manaMax;
 }
-
-/* Terrains : compteur de tours */
 function decrementerTerrains() {
     [J, B].forEach(side => {
         if (side.terrain && side.terrainTours > 0) {
@@ -2426,16 +2649,12 @@ function decrementerTerrains() {
                 fxSurHero(side, 'Terrain terminé', 'buff');
                 side.cimetiere.push({ id: side.terrain.id, rarete: side.terrain.rarete });
                 side.terrain = null;
-                // Retire le fond visuel
                 const gs = document.getElementById('game-screen');
-                if (gs) {
-                    dbCartes.filter(x => x.famille === 'Terrain').forEach(x => gs.classList.remove('terrain-' + x.id));
-                }
+                if (gs) dbCartes.filter(x => x.famille === 'Terrain').forEach(x => gs.classList.remove('terrain-' + x.id));
             }
         }
     });
 }
-
 function debutTourJoueur() {
     if (partieFinie) return;
     if (modeTuto) return;
@@ -2459,17 +2678,13 @@ function finDeTour() {
     if (partieFinie) return;
     if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
     if (tourActuel !== 'joueur') return;
-
     annulerCiblage();
     clearInterval(timer);
     appliquerFinDeTour(J);
     if (partieFinie) return;
     J.surcout = 0;
     if (J.voitMainAdverse > 0) J.voitMainAdverse--;
-
-    // Terrains : décompte
     decrementerTerrains();
-
     if (modeEnLigne) {
         pousserAction({ type: 'fin' });
         modeAttente = true; tourActuel = 'bot';
@@ -2484,9 +2699,7 @@ function finDeTour() {
         B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
         piocher(B, 1);
         rafraichirJeu();
-    } else if (!modeTuto) {
-        jouerTourBot();
-    }
+    } else if (!modeTuto) jouerTourBot();
 }
 function appliquerFinDeTour(side) {
     side.plateau.forEach(m => {
@@ -2519,16 +2732,12 @@ function majTimer() {
 async function jouerTourBot() {
     if (modeEnLigne || modeTuto) return;
     if (partieFinie) return;
-
     if (!B.deck || B.deck.length === 0) {
         const banned = window.cartesBannies || [];
-        B.deck = hasard(decksPreconstruits).cartes
-            .filter(c => !banned.includes(typeof c === 'string' ? c : c.id))
-            .map(c => { const id = typeof c === 'string' ? c : c.id; return instancier(defCarte(id), 'B'); })
-            .filter(x => x);
+        B.deck = hasard(decksPreconstruits).cartes.filter(c => !banned.includes(typeof c === 'string' ? c : c.id))
+            .map(c => { const id = typeof c === 'string' ? c : c.id; return instancier(defCarte(id), 'B'); }).filter(x => x);
         melanger(B.deck);
     }
-
     tourActuel = 'bot'; selection = null; clearInterval(timer);
     const ti = document.getElementById('tour-indicateur');
     if (ti) ti.innerText = 'Tour du bot';
@@ -2537,22 +2746,18 @@ async function jouerTourBot() {
     const be = document.getElementById('btn-endturn');
     if (be) be.classList.add('inactif');
     banniere('Tour du bot');
-
     prochainManaMax(B);
     B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
     piocher(B, 1);
     rafraichirJeu();
     await pause(700);
-
     let action = true, securite = 0;
     while (action && !partieFinie && securite < 20) {
-        securite++;
-        action = false;
+        securite++; action = false;
         const jouables = B.main.map((c, i) => ({ c, i })).filter(o => {
             if (o.c.motsCles.includes('Fusion')) return fusionsPossibles(B, o.c).length > 0 && coutEffectif(B, o.c) <= B.manaActuel;
             return coutEffectif(B, o.c) <= B.manaActuel && (o.c.famille === 'Sort' || o.c.famille === 'Terrain' || B.plateau.length < 5);
         }).sort((a, b) => b.c.cout - a.c.cout);
-
         if (jouables.length) {
             const choix = jouables[0];
             if (choix.c.motsCles.includes('Fusion')) { sacrifierPourFusion(B, choix.c.id); jouerCarte(B, choix.i, null); }
@@ -2603,7 +2808,7 @@ function verifierFin() {
         partieFinie = true;
         clearInterval(timer);
         const gagne = B.patience <= 0 && J.patience > 0;
-        const mode = modeEnLigne ? 'multi' : (modeTournoi ? 'tournoi' : 'bot');
+        const mode = modeEnLigne ? 'multi' : (modeTournoi ? 'tournoi' : (modeChallenge ? 'challenge' : 'bot'));
         enregistrerResultat(gagne, mode);
         banniere(gagne ? 'Victoire !' : 'Défaite…');
         jouerSon(gagne ? 'victory' : 'defeat');
@@ -2611,105 +2816,62 @@ function verifierFin() {
         if (bfNav) bfNav.hidden = true;
         const attente = document.getElementById('attente-overlay');
         if (attente) attente.classList.remove('open');
-
         let gain = 0;
         if (mode === 'bot') gain = gagne ? 50 : 15;
         else if (mode === 'multi') gain = gagne ? 100 : 30;
         else if (mode === 'tournoi') gain = gagne ? 250 : 80;
-
+        else if (mode === 'challenge') gain = gagne ? 300 : 0;
         profil.coins += gain;
         sauvegarderProgression();
         majTopBarCoins();
-        afficherGainArgent(gain);
-
-        // XP
+        if (gain > 0) afficherGainArgent(gain);
         if (gagne) {
             ajouterXP(mode === 'multi' ? 40 : (mode === 'tournoi' ? 60 : 25));
             if (mode === 'bot') progresserQuete('victoires_bot', 1);
             if (mode === 'multi') progresserQuete('victoires_multi', 1);
-        } else {
-            ajouterXP(10);
-        }
-
-        // Enregistre stats deck
+        } else ajouterXP(10);
         if (_deckUtiliseEnCours) enregistrerVictoire(_deckUtiliseEnCours, gagne);
-
-        // Historique
         if (!Array.isArray(profil.historique)) profil.historique = [];
-        profil.historique.unshift({
-            date: Date.now(),
-            adversaire: modeEnLigne ? (B.nom || 'Adversaire') : (modeTournoi ? 'Tournoi' : 'Bot'),
-            deck: _deckUtiliseEnCours || '—',
-            gagne: gagne,
-            mode: mode
-        });
+        profil.historique.unshift({ date: Date.now(), adversaire: modeEnLigne ? (B.nom || 'Adversaire') : (modeTournoi ? 'Tournoi' : 'Bot'), deck: _deckUtiliseEnCours || '—', gagne: gagne, mode: mode });
         profil.historique = profil.historique.slice(0, 20);
-
         sauvegarderProgression();
-
-        // Si tournoi, on enchaîne
-        if (modeTournoi && gagne) {
-            setTimeout(() => avancerTournoi(true), 2000);
-            return;
-        } else if (modeTournoi && !gagne) {
-            setTimeout(() => avancerTournoi(false), 2000);
-            return;
-        }
-
+        if (modeTournoi && gagne) { setTimeout(() => avancerTournoi(true), 2000); return; }
+        else if (modeTournoi && !gagne) { setTimeout(() => avancerTournoi(false), 2000); return; }
+        if (modeChallenge) { modeChallenge = false; setTimeout(() => { if (gagne) alert('🏆 DÉFI RÉUSSI ! Tu es un vrai membre de la Famille !'); changerEcran('menu-screen'); }, 2200); return; }
         setTimeout(() => { changerEcran('menu-screen'); }, 2200);
     }
 }
-
 function info(txt) { const el = document.getElementById('combat-info'); if (el) el.innerText = txt; }
-
 function enregistrerResultat(gagne, mode) {
-    if (gagne !== null && gagne !== undefined) {
-        stats.parties++;
-        if (gagne) stats.victoires++; else stats.defaites++;
-    }
+    if (gagne !== null && gagne !== undefined) { stats.parties++; if (gagne) stats.victoires++; else stats.defaites++; }
     const ratio = stats.parties > 0 ? Math.round(stats.victoires / stats.parties * 100) : 0;
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
     set('stat-parties', stats.parties);
     set('stat-victoires', stats.victoires);
     set('stat-defaites', stats.defaites);
     set('stat-ratio', ratio + '%');
-
     let bestDeck = '—', bestDeckN = 0;
-    if (profil.statsDecks) {
-        Object.entries(profil.statsDecks).forEach(([nom, n]) => {
-            if (n > bestDeckN) { bestDeckN = n; bestDeck = nom; }
-        });
-    }
+    if (profil.statsDecks) Object.entries(profil.statsDecks).forEach(([nom, n]) => { if (n > bestDeckN) { bestDeckN = n; bestDeck = nom; } });
     set('stat-deck-fav', bestDeck);
     set('stat-deck-fav-count', bestDeckN);
-
     let bestCarte = '—', bestCarteN = 0;
-    if (profil.statsCartes) {
-        Object.entries(profil.statsCartes).forEach(([id, n]) => {
-            if (n > bestCarteN) {
-                bestCarteN = n;
-                const c = defCarte(id);
-                bestCarte = c ? c.prenom : id;
-            }
-        });
-    }
+    if (profil.statsCartes) Object.entries(profil.statsCartes).forEach(([id, n]) => { if (n > bestCarteN) { bestCarteN = n; const c = defCarte(id); bestCarte = c ? c.prenom : id; } });
     set('stat-carte-fav', bestCarte);
     set('stat-carte-fav-count', bestCarteN);
 }
 
-/* ---------- TOURNOI ---------- */
+/* ===========================================================
+   TOURNOI
+   =========================================================== */
 function afficherEtatTournoi() {
     const el = document.getElementById('tournoi-etat');
     if (!el) return;
-    if (!tournoiEnCours) {
-        el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>';
-        return;
-    }
+    if (!tournoiEnCours) { el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>'; return; }
     const t = tournoiEnCours;
-    let html = `<h3>Tournoi ${t.taille} joueurs — Tour ${t.tourActuel + 1}</h3>`;
+    let html = `<h3>Tournoi ${t.taille} joueurs — Match ${t.tourActuel + 1}/${t.matchs.length}</h3>`;
     html += '<div class="tournoi-bracket">';
     t.matchs.forEach((m, i) => {
-        if (m.joue && m.gagnant !== undefined) {
+        if (m.joue) {
             const jeSuisGagnant = m.gagnant === 'Vous';
             html += `<div class="tournoi-match ${jeSuisGagnant ? 'win' : 'lose'}">
                 <div class="tournoi-joueur ${m.gagnant === 'Vous' ? 'winner' : ''}"><span>Vous</span><span>${m.gagnant === 'Vous' ? '✓' : '✗'}</span></div>
@@ -2721,17 +2883,13 @@ function afficherEtatTournoi() {
                 <div class="tournoi-joueur">${m.adversaire || '?'}</div>
             </div>`;
         } else {
-            html += `<div class="tournoi-match" style="opacity:.4;">
-                <div class="tournoi-joueur">?</div>
-                <div class="tournoi-joueur">?</div>
-            </div>`;
+            html += `<div class="tournoi-match" style="opacity:.4;"><div class="tournoi-joueur">?</div><div class="tournoi-joueur">?</div></div>`;
         }
     });
     html += '</div>';
     if (t.gainTotal) html += `<p style="color:var(--menthe);font-weight:700;margin-top:12px;">Gains : ${t.gainTotal} 💰</p>`;
     el.innerHTML = html;
 }
-
 function demarrerTournoi(taille) {
     const cout = taille === 4 ? 500 : 1000;
     if (profil.coins < cout) return flashInfo(`Il te faut ${cout} 💰 pour ce tournoi.`);
@@ -2739,25 +2897,19 @@ function demarrerTournoi(taille) {
     profil.coins -= cout;
     sauvegarderProgression();
     majTopBarCoins();
-
     const noms = ['Bot Alpha','Bot Bravo','Bot Charlie','Bot Delta','Bot Echo','Bot Foxtrot','Bot Golf'];
     const adversaires = noms.sort(() => Math.random() - 0.5).slice(0, taille - 1);
     const matchs = [];
-    // Simplifié : matchs en série
-    for (let i = 0; i < taille - 1; i++) {
-        matchs.push({ adversaire: adversaires[i] || ('Bot ' + (i+1)), joue: false, gagnant: undefined });
-    }
+    for (let i = 0; i < taille - 1; i++) matchs.push({ adversaire: adversaires[i] || ('Bot ' + (i+1)), joue: false, gagnant: undefined });
     tournoiEnCours = { taille, matchs, tourActuel: 0, gainTotal: 0, cout };
     afficherEtatTournoi();
     flashInfo(`🏆 Tournoi lancé ! ${matchs.length} matchs à gagner.`);
     setTimeout(() => lancerProchainMatchTournoi(), 1000);
 }
-
 function lancerProchainMatchTournoi() {
     if (!tournoiEnCours) return;
     const t = tournoiEnCours;
     if (t.tourActuel >= t.matchs.length) {
-        // Victoire tournoi
         const bonus = t.taille === 8 ? 3000 : 1500;
         profil.coins += bonus;
         sauvegarderProgression();
@@ -2769,24 +2921,16 @@ function lancerProchainMatchTournoi() {
         return;
     }
     const m = t.matchs[t.tourActuel];
-    // Lance une partie bot
     modeTournoi = true;
     lancerPartieTournoi(m.adversaire);
 }
-
 function lancerPartieTournoi(nomAdversaire) {
     modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false;
     const sel = document.getElementById('deck-select');
     let i = sel ? parseInt(sel.value) : 0;
     if (!mesDecks[i] || calculerCartesPossedeesPourDeck(mesDecks[i].cartes) !== 20) {
-        // Cherche un deck complet
         const complet = mesDecks.findIndex(d => calculerCartesPossedeesPourDeck(d.cartes) === 20);
-        if (complet < 0) {
-            alert('Aucun deck complet ! Tournoi annulé.');
-            tournoiEnCours = null;
-            changerEcran('menu-screen');
-            return;
-        }
+        if (complet < 0) { alert('Aucun deck complet ! Tournoi annulé.'); tournoiEnCours = null; changerEcran('menu-screen'); return; }
         i = complet;
     }
     J = nouveauCote('J', J.nom || 'Toi');
@@ -2795,92 +2939,72 @@ function lancerPartieTournoi(nomAdversaire) {
     if (h) h.innerText = J.nom;
     const opp = document.getElementById('opp-name');
     if (opp) opp.innerText = nomAdversaire || 'Bot';
-
     _deckUtiliseEnCours = mesDecks[i].nom;
     recordDeckJoue(_deckUtiliseEnCours);
-
     J.deck = mesDecks[i].cartes.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'J', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
     melanger(J.deck);
-
     B.deck = hasard(decksPreconstruits).cartes.map(c => instancier(defCarte(typeof c === 'string' ? c : c.id), 'B', false, defCarte(typeof c === 'string' ? c : c.id).rarete)).filter(x => x);
     melanger(B.deck);
-
     initialiserPartie(Math.random() > 0.5);
     changerEcran('game-screen');
     rafraichirJeu();
     ouvrirMulligan();
     flashInfo(`⚔ Match ${tournoiEnCours.tourActuel + 1}/${tournoiEnCours.matchs.length}`);
 }
-
 function avancerTournoi(gagne) {
     if (!tournoiEnCours) return;
     const t = tournoiEnCours;
     const m = t.matchs[t.tourActuel];
     m.joue = true;
     m.gagnant = gagne ? 'Vous' : m.adversaire;
-    if (gagne) {
-        t.gainTotal += (t.taille === 8 ? 250 : 150);
-    }
+    if (gagne) t.gainTotal += (t.taille === 8 ? 250 : 150);
     t.tourActuel++;
     afficherEtatTournoi();
     changerEcran('tournoi-screen');
-    if (gagne) {
-        setTimeout(() => lancerProchainMatchTournoi(), 1500);
-    } else {
-        setTimeout(() => {
-            alert(`❌ Éliminé du tournoi. Gains conservés : ${t.gainTotal} 💰`);
-            profil.coins += t.gainTotal;
-            sauvegarderProgression();
-            majTopBarCoins();
-            tournoiEnCours = null;
-            changerEcran('menu-screen');
-        }, 500);
-    }
+    if (gagne) setTimeout(() => lancerProchainMatchTournoi(), 1500);
+    else setTimeout(() => {
+        alert(`❌ Éliminé du tournoi. Gains conservés : ${t.gainTotal} 💰`);
+        profil.coins += t.gainTotal;
+        sauvegarderProgression();
+        majTopBarCoins();
+        tournoiEnCours = null;
+        changerEcran('menu-screen');
+    }, 500);
 }
+function fermerTournoi() { const ov = document.getElementById('tournoi-overlay'); if (ov) ov.classList.remove('open'); }
 
-/* ---------- SPECTATEUR ---------- */
+/* ===========================================================
+   SPECTATEUR
+   =========================================================== */
 function rafraichirSpectateur() {
     const el = document.getElementById('spectateur-liste');
     if (!el) return;
-    if (typeof fbDB === 'undefined' || !fbDB) {
-        el.innerHTML = '<p class="hint">Firebase non connecté.</p>';
-        return;
-    }
+    if (typeof fbDB === 'undefined' || !fbDB) { el.innerHTML = '<p class="hint">Firebase non connecté.</p>'; return; }
     el.innerHTML = '<p class="hint">Recherche de parties…</p>';
     fbDB.ref('salles').once('value').then(snap => {
         const salles = snap.val() || {};
         const enCours = Object.entries(salles).filter(([id, s]) => s && s.joueurs && Object.keys(s.joueurs).length === 2);
-        if (enCours.length === 0) {
-            el.innerHTML = '<p class="hint">Aucune partie en cours actuellement.</p>';
-            return;
-        }
+        if (enCours.length === 0) { el.innerHTML = '<p class="hint">Aucune partie en cours actuellement.</p>'; return; }
         el.innerHTML = '';
         enCours.forEach(([id, s]) => {
             const joueurs = Object.keys(s.joueurs);
             const div = document.createElement('div');
             div.className = 'spectateur-item';
-            div.innerHTML = `<div>
-                <div style="font-weight:700;color:var(--laiton-clair);">${joueurs[0]} vs ${joueurs[1]}</div>
-                <div class="hint" style="font-size:11px;">Salle ${id.slice(0, 12)}...</div>
-            </div>
-            <button onclick="rejoindreSpectateur('${id}')">👀 Regarder</button>`;
+            div.innerHTML = `<div><div style="font-weight:700;color:var(--laiton-clair);">${joueurs[0]} vs ${joueurs[1]}</div>
+                <div class="hint" style="font-size:11px;">Salle ${id.slice(0, 12)}...</div></div>
+                <button onclick="rejoindreSpectateur('${id}')">👀 Regarder</button>`;
             el.appendChild(div);
         });
     }).catch(() => el.innerHTML = '<p class="hint">Erreur.</p>');
 }
-
 function rejoindreSpectateur(partieId) {
-    // Simplifié : affiche un message
     alert("Le mode spectateur est simplifié dans cette version.\nTu vas observer la salle " + partieId + " sans interagir.");
-    // Dans une vraie implémentation, on lirait la queue de la salle en lecture seule
 }
 
-/* ---------- CHAT INGAME ---------- */
-function toggleIngameChat() {
-    const ic = document.getElementById('ingame-chat');
-    if (ic) ic.classList.toggle('open');
-}
-
+/* ===========================================================
+   CHAT INGAME
+   =========================================================== */
+function toggleIngameChat() { const ic = document.getElementById('ingame-chat'); if (ic) ic.classList.toggle('open'); }
 function envoyerIngameChat() {
     const inp = document.getElementById('ingame-chat-input');
     if (!inp) return;
@@ -2888,17 +3012,14 @@ function envoyerIngameChat() {
     if (!txt) return;
     inp.value = '';
     afficherMsgIngame(txt, true);
-    if (modeEnLigne && window.multiPartie && window.multiPartie.active) {
-        pousserAction({ type:'chat', text: txt });
-    } else {
-        // Bot répond ?
+    if (modeEnLigne && window.multiPartie && window.multiPartie.active) pousserAction({ type:'chat', text: txt });
+    else {
         setTimeout(() => {
             const reponses = ['Bien joué !', 'Oula...', 'On verra !', 'GG', '😅', 'Tu m\'as eu'];
             afficherMsgIngame(reponses[Math.floor(Math.random()*reponses.length)], false);
         }, 1200);
     }
 }
-
 function afficherMsgIngame(txt, moi) {
     const el = document.getElementById('ingame-chat-messages');
     if (!el) return;
@@ -2909,9 +3030,10 @@ function afficherMsgIngame(txt, moi) {
     el.scrollTop = el.scrollHeight;
 }
 
-/* ---------- PROFIL ---------- */
+/* ===========================================================
+   PROFIL
+   =========================================================== */
 var AVATARS_DISPO = ['🧑','👨🏻','👩🏻','🧔🏽','👵🏻','👴🏽','👦🏻','👧🏽','🧕','🐈'];
-
 function toggleAvatarPicker() {
     const p = document.getElementById('avatar-picker');
     if (!p) return;
@@ -2935,17 +3057,12 @@ function toggleAvatarPicker() {
         });
     }
 }
-
 function copierCodeAmi() {
     const code = profil.codeAmi;
     if (!code) return;
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(code).then(() => flashInfo('Code copié ! 📋')).catch(() => prompt('Copie ce code :', code));
-    } else {
-        prompt('Copie ce code :', code);
-    }
+    if (navigator.clipboard) navigator.clipboard.writeText(code).then(() => flashInfo('Code copié ! 📋')).catch(() => prompt('Copie ce code :', code));
+    else prompt('Copie ce code :', code);
 }
-
 function afficherProfil() {
     const p = document.getElementById('profil-pseudo');
     if (p) p.innerText = J.nom || 'Joueur';
@@ -2958,7 +3075,6 @@ function afficherProfil() {
     afficherDemandesAmis();
     afficherAmis();
 }
-
 function afficherDemandesAmis() {
     const box = document.getElementById('demandes-ami-liste');
     if (!box) return;
@@ -2979,58 +3095,41 @@ function afficherDemandesAmis() {
         box.appendChild(div);
     });
 }
-
 function accepterDemandeAmiPar(code) {
     if (!Array.isArray(profil.amis)) profil.amis = [];
     if (!profil.amis.includes(code)) profil.amis.push(code);
     profil.demandesAmisRecues = (profil.demandesAmisRecues || []).filter(d => d.code !== code);
     sauvegarderProgression();
-    if (typeof fbDB !== 'undefined' && fbDB && monId) {
-        try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
-    }
+    if (typeof fbDB !== 'undefined' && fbDB && monId) try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
     afficherProfil();
     flashInfo('Ami accepté !');
 }
-
 function refuserDemandeAmiPar(code) {
     profil.demandesAmisRecues = (profil.demandesAmisRecues || []).filter(d => d.code !== code);
     sauvegarderProgression();
-    if (typeof fbDB !== 'undefined' && fbDB && monId) {
-        try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
-    }
+    if (typeof fbDB !== 'undefined' && fbDB && monId) try { fbDB.ref('demandesAmis/' + monId).remove(); } catch(e) {}
     afficherDemandesAmis();
 }
-
 function afficherAmis() {
     const liste = document.getElementById('amis-liste');
     if (!liste) return;
     liste.innerHTML = '';
     const amis = profil.amis || [];
-    if (amis.length === 0) {
-        liste.innerHTML = '<p class="hint">Aucun ami pour l\'instant.</p>';
-        return;
-    }
+    if (amis.length === 0) { liste.innerHTML = '<p class="hint">Aucun ami pour l\'instant.</p>'; return; }
     amis.forEach((codeAmi) => {
         const div = document.createElement('div');
         div.className = 'ami-item';
-        div.innerHTML = `
-            <div class="ami-info">
-                <div class="ami-avatar">🧑</div>
-                <div>
-                    <div class="ami-nom">${codeAmi}</div>
-                    <div class="ami-etat" id="ami-etat-${codeAmi.replace(/[^a-zA-Z0-9]/g,'_')}">Chargement…</div>
-                </div>
-            </div>
+        div.innerHTML = `<div class="ami-info"><div class="ami-avatar">🧑</div>
+            <div><div class="ami-nom">${codeAmi}</div>
+            <div class="ami-etat" id="ami-etat-${codeAmi.replace(/[^a-zA-Z0-9]/g,'_')}">Chargement…</div></div></div>
             <div class="ami-actions">
                 <button onclick="ouvrirChat('${codeAmi}')">💬</button>
                 <button class="sec" onclick="retirerAmi('${codeAmi}')">✕</button>
-            </div>
-        `;
+            </div>`;
         liste.appendChild(div);
         chargerFicheAmi(codeAmi);
     });
 }
-
 function ajouterAmi() {
     const inp = document.getElementById('friend-code-input');
     if (!inp) return;
@@ -3047,14 +3146,12 @@ function ajouterAmi() {
         flashInfo(`Demande envoyée à ${pub.pseudo || code} !`);
     }).catch(() => flashInfo('Erreur de recherche.'));
 }
-
 function retirerAmi(code) {
     if (!confirm('Retirer cet ami ?')) return;
     profil.amis = (profil.amis || []).filter(c => c !== code);
     sauvegarderProgression();
     afficherAmis();
 }
-
 function chargerFicheAmi(codeAmi) {
     if (typeof fbDB === 'undefined' || !fbDB) return;
     fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(codeAmi).once('value').then(snap => {
@@ -3071,15 +3168,12 @@ function chargerFicheAmi(codeAmi) {
             el.classList.toggle('on', online);
             const avEl = el.parentElement.parentElement.querySelector('.ami-avatar');
             if (avEl) avEl.innerText = av;
-        } else {
-            el.innerText = 'Inconnu';
-        }
+        } else el.innerText = 'Inconnu';
     }).catch(() => {
         const el = document.getElementById('ami-etat-' + codeAmi.replace(/[^a-zA-Z0-9]/g,'_'));
         if (el) el.innerText = 'Inconnu';
     });
 }
-
 function ouvrirChat(codeAmi) {
     window._amiChatEnCours = codeAmi;
     const t = document.getElementById('chat-title');
@@ -3118,22 +3212,20 @@ function envoyerMessageChat() {
     const cle = [profil.codeAmi, code].sort().join('_');
     fbDB.ref('messagesPrives/' + cle).push({ de: profil.codeAmi, texte: txt, ts: Date.now() });
 }
-
 function ecouterDemandesAmis() {
     if (typeof fbDB === 'undefined' || !fbDB || !monId) return;
     fbDB.ref('demandesAmis/' + monId).on('value', snap => {
         const data = snap.val() || {};
         const arr = Object.entries(data).map(([k, v]) => ({ id: k, code: v.deCode, pseudo: v.dePseudo }));
         profil.demandesAmisRecues = arr;
-        if (arr.length > 0 && document.getElementById('profil-screen').classList.contains('active')) {
-            afficherProfil();
-        } else if (arr.length > 0) {
-            flashInfo(`👋 ${arr.length} demande(s) d'ami !`);
-        }
+        if (arr.length > 0 && document.getElementById('profil-screen').classList.contains('active')) afficherProfil();
+        else if (arr.length > 0) flashInfo(`👋 ${arr.length} demande(s) d'ami !`);
     });
 }
 
-/* ---------- Cimetière, logs, emotes ---------- */
+/* ===========================================================
+   CIMETIÈRE, LOGS, EMOTES
+   =========================================================== */
 function voirCimetiere(cle) {
     const side = cle === 'J' ? J : B;
     const ov = document.getElementById('graveyard-overlay');
@@ -3142,15 +3234,11 @@ function voirCimetiere(cle) {
     if (!ov || !cards) return;
     if (title) title.innerText = 'Cimetière — ' + side.nom;
     cards.innerHTML = '';
-    side.cimetiere.forEach(c => {
-        const def = defCarte(c.id);
-        if (def) cards.appendChild(creerHTMLCarte(def, 'collection'));
-    });
+    side.cimetiere.forEach(c => { const def = defCarte(c.id); if (def) cards.appendChild(creerHTMLCarte(def, 'collection')); });
     ajusterTextes(cards);
     ov.classList.add('open');
 }
 function fermerCimetiere() { const ov = document.getElementById('graveyard-overlay'); if (ov) ov.classList.remove('open'); }
-
 function ajouterLog(emoji, txt, side) {
     const log = document.getElementById('action-log');
     if (!log) return;
@@ -3160,15 +3248,9 @@ function ajouterLog(emoji, txt, side) {
     log.appendChild(d);
     if (log.children.length > 6) log.firstChild.remove();
 }
-
-function toggleEmotes(cle) {
-    const menu = document.getElementById('emotes-' + cle);
-    if (menu) menu.classList.toggle('hidden');
-}
+function toggleEmotes(cle) { const menu = document.getElementById('emotes-' + cle); if (menu) menu.classList.toggle('hidden'); }
 function jouerEmote(txt) {
-    if (!modeEnLigne || !window.multiPartie || !window.multiPartie.active) {
-        afficherEmote(J, txt); return;
-    }
+    if (!modeEnLigne || !window.multiPartie || !window.multiPartie.active) { afficherEmote(J, txt); return; }
     pousserAction({ type:'emote', text: txt });
     afficherEmote(J, txt);
 }
@@ -3182,7 +3264,9 @@ function afficherEmote(side, txt) {
     setTimeout(() => b.remove(), 3000);
 }
 
-/* ---------- Rendu plateau ---------- */
+/* ===========================================================
+   RENDU PLATEAU
+   =========================================================== */
 function rafraichirJeu() {
     recalcAuras();
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
@@ -3194,10 +3278,8 @@ function rafraichirJeu() {
     set('opp-health', B.patience);
     set('opp-deck', B.deck.length);
     set('opp-grave-count', B.cimetiere.length);
-
     const av = document.getElementById('player-portrait');
     if (av) av.innerText = profil.avatar || '🧑';
-
     const cr = document.getElementById('crystals');
     if (cr) {
         cr.innerHTML = '';
@@ -3207,25 +3289,15 @@ function rafraichirJeu() {
             cr.appendChild(d);
         }
     }
-
     const oh = document.getElementById('opp-hand-cards');
     if (oh) {
         oh.innerHTML = '';
         if (J.voitMainAdverse > 0) {
-            B.main.forEach(c => {
-                const el = creerHTMLCarte(c, 'jeu');
-                el.style.setProperty('--cw', '72px');
-                oh.appendChild(el);
-            });
+            B.main.forEach(c => { const el = creerHTMLCarte(c, 'jeu'); el.style.setProperty('--cw', '72px'); oh.appendChild(el); });
         } else {
-            B.main.forEach(() => {
-                const d = document.createElement('div');
-                d.className = 'mini-back';
-                oh.appendChild(d);
-            });
+            B.main.forEach(() => { const d = document.createElement('div'); d.className = 'mini-back'; oh.appendChild(d); });
         }
     }
-
     ['player-terrain', 'opp-terrain'].forEach((id, k) => {
         const zone = document.getElementById(id);
         if (!zone) return;
@@ -3234,14 +3306,12 @@ function rafraichirJeu() {
         if (side.terrain) {
             const el = creerHTMLCarte(side.terrain, 'jeu');
             zone.appendChild(el);
-            // Timer
             const timer = document.createElement('div');
             timer.className = 'terrain-timer';
             timer.textContent = `⏳ ${side.terrainTours}t`;
             zone.appendChild(timer);
         }
     });
-
     const pj = document.getElementById('player-board');
     if (pj) {
         pj.innerHTML = '';
@@ -3257,7 +3327,6 @@ function rafraichirJeu() {
             pj.appendChild(el);
         });
     }
-
     const pb = document.getElementById('opponent-board');
     if (pb) {
         pb.innerHTML = '';
@@ -3271,7 +3340,6 @@ function rafraichirJeu() {
             pb.appendChild(el);
         });
     }
-
     const heroOpp = elHero(B);
     if (heroOpp) {
         heroOpp.classList.toggle('ciblable', !!(selection || (ciblage && ciblage.cibles.includes(B))));
@@ -3279,7 +3347,6 @@ function rafraichirJeu() {
     }
     const heroJ = elHero(J);
     if (heroJ) heroJ.onclick = () => { if (ciblage && ciblage.cibles.includes(J)) choisirCible(J); };
-
     const main = document.getElementById('player-hand');
     if (main) {
         main.innerHTML = '';
@@ -3299,7 +3366,6 @@ function rafraichirJeu() {
     const gs = document.getElementById('game-screen');
     if (gs) ajusterTextes(gs);
 }
-
 function ajusterChevauchementMain() {
     const rail = document.querySelector('.hand-rail'), main = document.getElementById('player-hand'), n = J.main.length;
     if (!rail || !main || n === 0) return;
@@ -3312,12 +3378,10 @@ function ajusterChevauchementMain() {
     }
     main.style.setProperty('--chevauchement', marge + 'px');
 }
-
 window.addEventListener('resize', () => {
     const gs = document.getElementById('game-screen');
     if (gs && gs.classList.contains('active')) ajusterChevauchementMain();
 });
-
 function declarerForfait() {
     if (partieFinie) return;
     const gs = document.getElementById('game-screen');
@@ -3344,16 +3408,226 @@ function declarerForfait() {
     setTimeout(() => { changerEcran('menu-screen'); }, 2000);
 }
 
-/* ---------- DÉMARRAGE ---------- */
+/* ===========================================================
+   ADMIN
+   =========================================================== */
+var EMOJIS_DISPO = [
+    '🃏','🎴','🀄','🎲','🎯','👨🏻','👩🏻','🧑','👦🏻','👧🏻',
+    '👨🏽','👩🏽','🧔🏽','👦🏽','👧🏽','👨🏼','👩🏼','🧔🏻','👦🏼','👧🏼',
+    '👴🏽','👵🏻','👨‍🦳','👩‍🦳','🧓','🧕','👳‍♂️','🧑‍🦱','👩‍🦰','👨‍🦰',
+    '🐈','🐱','🐶','🐕','🐰','🐇','🦜','🕊️','🐦','🦊',
+    '🐺','🦁','🐯','🐻','🐼','🎭','👑','💎','⚡','🔥',
+    '💀','💢','🍲','🧹','🧸','🏺','🎁','🚗','📺','📱',
+    '💻','📸','🍵','☕','🌍','🏙️','🏡','🌳','🛫','🌴',
+    '🚇','😴','😂','🤼','👫','👬','👭','💑','👨‍👩‍👧‍👦','🧑‍🍼'
+];
+function adminInitEmojiPicker() {
+    const picker = document.getElementById('emoji-picker');
+    const hidden = document.getElementById('new-card-emoji');
+    if (!picker) return;
+    picker.innerHTML = '';
+    EMOJIS_DISPO.forEach(e => {
+        const b = document.createElement('div');
+        b.className = 'emoji-btn' + (hidden && hidden.value === e ? ' selected' : '');
+        b.textContent = e;
+        b.onclick = () => {
+            if (hidden) hidden.value = e;
+            picker.querySelectorAll('.emoji-btn').forEach(x => x.classList.remove('selected'));
+            b.classList.add('selected');
+        };
+        picker.appendChild(b);
+    });
+}
+function adminTab(tab) {
+    ['actions','cartes','creation','stats','bannir','bonus','annonces'].forEach(t => {
+        const el = document.getElementById('admin-tab-' + t);
+        if (el) el.classList.toggle('hidden', t !== tab);
+    });
+    if (tab === 'cartes') adminAfficherToutesCartes();
+    if (tab === 'stats') adminAfficherStats();
+    if (tab === 'bannir') adminAfficherCartesBannies();
+    if (tab === 'creation') adminInitEmojiPicker();
+    if (tab === 'bonus') adminAfficherBonus();
+}
+function adminAfficherToutesCartes() {
+    const grid = document.getElementById('admin-cartes-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    dbCartes.forEach(c => {
+        const el = creerHTMLCarte(c, 'collection', { qty: getTot(c.id) });
+        el.onclick = () => {
+            initColl(c.id);
+            collectionJoueur[c.id].commune += 1;
+            collectionJoueur[c.id].rare += 1;
+            collectionJoueur[c.id].epique += 1;
+            collectionJoueur[c.id].legendaire += 1;
+            sauvegarderProgression();
+            adminAfficherToutesCartes();
+        };
+        grid.appendChild(el);
+    });
+    ajusterTextes(grid);
+}
+function adminAfficherStats() {
+    const el = document.getElementById('admin-stats-content');
+    if (!el) return;
+    el.innerHTML = '<p>Chargement…</p>';
+    if (typeof fbDB === 'undefined' || !fbDB) { el.innerHTML = '<p class="hint">Firebase non connecté.</p>'; return; }
+    fbDB.ref('joueurs').once('value').then(snap => {
+        const joueurs = snap.val() || {};
+        const total = Object.keys(joueurs).length;
+        const enLigne = Object.values(joueurs).filter(j => Date.now() - (j.dernierPing || 0) < 120000).length;
+        const enCombat = Object.values(joueurs).filter(j => j.etat === 'en_combat').length;
+        let totalParties = 0;
+        const joueursActifs = [];
+        const refs = [];
+        Object.keys(joueurs).forEach(uid => {
+            refs.push(fbDB.ref('profils/' + uid + '/save').once('value').then(s => {
+                const v = s.val() || {};
+                const pseudo = joueurs[uid].pseudo || (v.profil && v.profil.pseudo) || 'Inconnu';
+                const parties = (v.profil && v.profil.statsDecks) ? Object.values(v.profil.statsDecks).reduce((a, b) => a + b, 0) : 0;
+                totalParties += parties;
+                joueursActifs.push({ pseudo, parties, niveau: (v.profil && v.profil.niveau) || 1 });
+            }).catch(() => {}));
+        });
+        Promise.all(refs).then(() => {
+            joueursActifs.sort((a, b) => b.parties - a.parties);
+            let html = `<div class="admin-stat-grid">
+                <div class="admin-stat-card"><div class="num">${total}</div><div class="label">Comptes</div></div>
+                <div class="admin-stat-card"><div class="num">${enLigne}</div><div class="label">En ligne</div></div>
+                <div class="admin-stat-card"><div class="num">${enCombat}</div><div class="label">En combat</div></div>
+            </div><div class="admin-stat-grid">
+                <div class="admin-stat-card"><div class="num">${totalParties}</div><div class="label">Parties (total)</div></div>
+            </div>
+            <h4 style="color:var(--laiton-clair); margin-top:20px;">Joueurs actifs</h4>
+            <table><tr><th>Pseudo</th><th>Niv.</th><th>Parties</th></tr>
+            ${joueursActifs.slice(0, 30).map(j => `<tr><td>${j.pseudo}</td><td>${j.niveau}</td><td>${j.parties}</td></tr>`).join('')}</table>`;
+            el.innerHTML = html;
+        });
+    }).catch(() => el.innerHTML = '<p class="hint">Erreur.</p>');
+}
+function adminAfficherCartesBannies() {
+    const grid = document.getElementById('admin-ban-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    dbCartes.forEach(c => {
+        const banned = carteEstBannie(c.id);
+        const el = creerHTMLCarte(c, 'collection', { qty: getTot(c.id), banned: banned });
+        el.onclick = () => {
+            if (banned) {
+                if (!confirm(`Débannir « ${c.prenom} » ?`)) return;
+                window.cartesBannies = (window.cartesBannies || []).filter(x => x !== c.id);
+            } else {
+                if (!confirm(`Bannir « ${c.prenom} » ?`)) return;
+                if (!Array.isArray(window.cartesBannies)) window.cartesBannies = [];
+                window.cartesBannies.push(c.id);
+            }
+            if (typeof fbDB !== 'undefined' && fbDB) try { fbDB.ref('cartesBannies').set(window.cartesBannies || []); } catch(e) {}
+            adminAfficherCartesBannies();
+        };
+        grid.appendChild(el);
+    });
+    ajusterTextes(grid);
+}
+function adminDonnerBonusTemporaire() {
+    const code = (document.getElementById('bonus-code-ami')?.value || '').trim().toUpperCase();
+    const duree = parseInt(document.getElementById('bonus-duree')?.value || '30');
+    if (!code) return alert('Code ami requis.');
+    if (typeof fbDB === 'undefined' || !fbDB) return alert('Firebase non connecté.');
+    fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(code).once('value').then(snap => {
+        const data = snap.val();
+        if (!data) return alert('Code introuvable.');
+        const uid = Object.keys(data)[0];
+        const expireAt = Date.now() + duree * 60000;
+        fbDB.ref('profils/' + uid + '/bonusTemporaire').set({ expireAt, duree });
+        alert(`✅ Bonus donné à ${code} pour ${duree} min !`);
+        adminAfficherBonus();
+    }).catch(() => alert('Erreur.'));
+}
+function adminAfficherBonus() {
+    const el = document.getElementById('admin-bonus-liste');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Recherche…</p>';
+    if (typeof fbDB === 'undefined' || !fbDB) return el.innerHTML = '<p class="hint">Firebase non connecté.</p>';
+    fbDB.ref('profils').once('value').then(snap => {
+        const data = snap.val() || {};
+        const actifs = Object.entries(data).filter(([uid, p]) => p.bonusTemporaire && p.bonusTemporaire.expireAt > Date.now());
+        if (actifs.length === 0) { el.innerHTML = '<p class="hint">Aucun bonus actif.</p>'; return; }
+        el.innerHTML = '<h4 style="color:var(--laiton-clair);">Bonus actifs</h4>';
+        actifs.forEach(([uid, p]) => {
+            const reste = Math.ceil((p.bonusTemporaire.expireAt - Date.now()) / 60000);
+            const div = document.createElement('div');
+            div.className = 'bonus-item';
+            div.innerHTML = `<span>${p.public?.codeAmi || '?'} — ${p.pseudo || 'Inconnu'} (${reste} min)</span>
+                <button onclick="adminRetirerBonus('${uid}')">Retirer</button>`;
+            el.appendChild(div);
+        });
+    });
+}
+function adminRetirerBonus(uid) {
+    if (typeof fbDB === 'undefined' || !fbDB) return;
+    fbDB.ref('profils/' + uid + '/bonusTemporaire').remove();
+    adminAfficherBonus();
+}
+function adminToutDebloquer(n) {
+    dbCartes.forEach(c => {
+        initColl(c.id);
+        collectionJoueur[c.id].commune = n;
+        collectionJoueur[c.id].rare = n;
+        collectionJoueur[c.id].epique = n;
+        collectionJoueur[c.id].legendaire = n;
+    });
+    sauvegarderProgression();
+    alert(`✅ ${n} de chaque carte ajouté !`);
+}
+function adminMaxCoins() {
+    profil.coins = 9999999;
+    sauvegarderProgression();
+    majTopBarCoins();
+    alert("💰 Coins au max !");
+}
+function adminCreerCarte() {
+    const prenom = document.getElementById('new-card-prenom').value.trim();
+    if (!prenom) return alert("Prénom requis");
+    const famille = document.getElementById('new-card-famille').value;
+    const cout = parseInt(document.getElementById('new-card-cout').value) || 0;
+    const atk = parseInt(document.getElementById('new-card-atk').value) || 0;
+    const vie = parseInt(document.getElementById('new-card-vie').value) || 0;
+    const rarete = document.getElementById('new-card-rarete').value;
+    const emoji = document.getElementById('new-card-emoji').value || '🃏';
+    const desc = document.getElementById('new-card-desc').value || '';
+    const motsCles = document.getElementById('new-card-motscles').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const id = 'custom_' + Date.now();
+    const nouvelleCarte = C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji);
+    dbCartes.push(nouvelleCarte);
+    parId[id] = nouvelleCarte;
+    initColl(id);
+    collectionJoueur[id][rarete] = 10;
+    sauvegarderProgression();
+    alert(`✨ Carte "${prenom}" créée !`);
+    document.getElementById('new-card-prenom').value = '';
+    document.getElementById('new-card-desc').value = '';
+    adminTab('cartes');
+}
+function deconnexion() {
+    try {
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().signOut().then(() => location.reload()).catch(() => location.reload());
+        } else location.reload();
+    } catch(e) { location.reload(); }
+}
+
+/* ===========================================================
+   DÉMARRAGE
+   =========================================================== */
 document.addEventListener('DOMContentLoaded', function() {
-   // Détection mobile (ajoute classe pour CSS conditionnel)
+    // Détection mobile fiable
     const estVraiMobile = ('ontouchstart' in window)
         && (navigator.maxTouchPoints > 0)
         && window.matchMedia('(pointer: coarse)').matches
         && window.innerWidth <= 1024;
-    if (estVraiMobile) {
-        document.body.classList.add('is-mobile');
-    }
+    if (estVraiMobile) document.body.classList.add('is-mobile');
+
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
@@ -3391,247 +3665,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => { if (typeof ecouterDemandesAmis === 'function') ecouterDemandesAmis(); }, 2000);
 });
 
-/* ---------- ADMIN ---------- */
-var EMOJIS_DISPO = [
-    '🃏','🎴','🀄','🎲','🎯','👨🏻','👩🏻','🧑','👦🏻','👧🏻',
-    '👨🏽','👩🏽','🧔🏽','👦🏽','👧🏽','👨🏼','👩🏼','🧔🏻','👦🏼','👧🏼',
-    '👴🏽','👵🏻','👨‍🦳','👩‍🦳','🧓','🧕','👳‍♂️','🧑‍🦱','👩‍🦰','👨‍🦰',
-    '🐈','🐱','🐶','🐕','🐰','🐇','🦜','🕊️','🐦','🦊',
-    '🐺','🦁','🐯','🐻','🐼','🎭','👑','💎','⚡','🔥',
-    '💀','💢','🍲','🧹','🧸','🏺','🎁','🚗','📺','📱',
-    '💻','📸','🍵','☕','🌍','🏙️','🏡','🌳','🛫','🌴',
-    '🚇','😴','😂','🤼','👫','👬','👭','💑','👨‍👩‍👧‍👦','🧑‍🍼'
-];
-
-function adminInitEmojiPicker() {
-    const picker = document.getElementById('emoji-picker');
-    const hidden = document.getElementById('new-card-emoji');
-    if (!picker) return;
-    picker.innerHTML = '';
-    EMOJIS_DISPO.forEach(e => {
-        const b = document.createElement('div');
-        b.className = 'emoji-btn' + (hidden && hidden.value === e ? ' selected' : '');
-        b.textContent = e;
-        b.onclick = () => {
-            if (hidden) hidden.value = e;
-            picker.querySelectorAll('.emoji-btn').forEach(x => x.classList.remove('selected'));
-            b.classList.add('selected');
-        };
-        picker.appendChild(b);
-    });
-}
-
-function adminTab(tab) {
-    ['actions','cartes','creation','stats','bannir','bonus','annonces'].forEach(t => {
-        const el = document.getElementById('admin-tab-' + t);
-        if (el) el.classList.toggle('hidden', t !== tab);
-    });
-    if (tab === 'cartes') adminAfficherToutesCartes();
-    if (tab === 'stats') adminAfficherStats();
-    if (tab === 'bannir') adminAfficherCartesBannies();
-    if (tab === 'creation') adminInitEmojiPicker();
-    if (tab === 'bonus') adminAfficherBonus();
-}
-
-function adminAfficherToutesCartes() {
-    const grid = document.getElementById('admin-cartes-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    dbCartes.forEach(c => {
-        const el = creerHTMLCarte(c, 'collection', { qty: getTot(c.id) });
-        el.onclick = () => {
-            initColl(c.id);
-            collectionJoueur[c.id].commune += 1;
-            collectionJoueur[c.id].rare += 1;
-            collectionJoueur[c.id].epique += 1;
-            collectionJoueur[c.id].legendaire += 1;
-            sauvegarderProgression();
-            adminAfficherToutesCartes();
-        };
-        grid.appendChild(el);
-    });
-    ajusterTextes(grid);
-}
-
-function adminAfficherStats() {
-    const el = document.getElementById('admin-stats-content');
-    if (!el) return;
-    el.innerHTML = '<p>Chargement…</p>';
-    if (typeof fbDB === 'undefined' || !fbDB) {
-        el.innerHTML = '<p class="hint">Firebase non connecté.</p>';
-        return;
-    }
-    fbDB.ref('joueurs').once('value').then(snap => {
-        const joueurs = snap.val() || {};
-        const total = Object.keys(joueurs).length;
-        const enLigne = Object.values(joueurs).filter(j => Date.now() - (j.dernierPing || 0) < 120000).length;
-        const enCombat = Object.values(joueurs).filter(j => j.etat === 'en_combat').length;
-
-        let totalParties = 0;
-        const joueursActifs = [];
-        const refs = [];
-        Object.keys(joueurs).forEach(uid => {
-            refs.push(fbDB.ref('profils/' + uid + '/save').once('value').then(s => {
-                const v = s.val() || {};
-                const pseudo = joueurs[uid].pseudo || (v.profil && v.profil.pseudo) || 'Inconnu';
-                const parties = (v.profil && v.profil.statsDecks)
-                    ? Object.values(v.profil.statsDecks).reduce((a, b) => a + b, 0) : 0;
-                totalParties += parties;
-                joueursActifs.push({ pseudo, parties, niveau: v.profil?.niveau || 1 });
-            }).catch(() => {}));
-        });
-
-        Promise.all(refs).then(() => {
-            joueursActifs.sort((a, b) => b.parties - a.parties);
-            let html = `
-                <div class="admin-stat-grid">
-                    <div class="admin-stat-card"><div class="num">${total}</div><div class="label">Comptes</div></div>
-                    <div class="admin-stat-card"><div class="num">${enLigne}</div><div class="label">En ligne</div></div>
-                    <div class="admin-stat-card"><div class="num">${enCombat}</div><div class="label">En combat</div></div>
-                </div>
-                <div class="admin-stat-grid">
-                    <div class="admin-stat-card"><div class="num">${totalParties}</div><div class="label">Parties (total)</div></div>
-                </div>
-                <h4 style="color:var(--laiton-clair); margin-top:20px;">Joueurs actifs</h4>
-                <table>
-                    <tr><th>Pseudo</th><th>Niv.</th><th>Parties</th></tr>
-                    ${joueursActifs.slice(0, 30).map(j => `
-                        <tr><td>${j.pseudo}</td><td>${j.niveau}</td><td>${j.parties}</td></tr>
-                    `).join('')}
-                </table>
-            `;
-            el.innerHTML = html;
-        });
-    }).catch(() => el.innerHTML = '<p class="hint">Erreur.</p>');
-}
-
-function adminAfficherCartesBannies() {
-    const grid = document.getElementById('admin-ban-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    dbCartes.forEach(c => {
-        const banned = carteEstBannie(c.id);
-        const el = creerHTMLCarte(c, 'collection', { qty: getTot(c.id), banned: banned });
-        el.onclick = () => {
-            if (banned) {
-                if (!confirm(`Débannir « ${c.prenom} » ?`)) return;
-                window.cartesBannies = (window.cartesBannies || []).filter(x => x !== c.id);
-            } else {
-                if (!confirm(`Bannir « ${c.prenom} » ?`)) return;
-                if (!Array.isArray(window.cartesBannies)) window.cartesBannies = [];
-                window.cartesBannies.push(c.id);
-            }
-            if (typeof fbDB !== 'undefined' && fbDB) {
-                try { fbDB.ref('cartesBannies').set(window.cartesBannies || []); } catch(e) {}
-            }
-            adminAfficherCartesBannies();
-        };
-        grid.appendChild(el);
-    });
-    ajusterTextes(grid);
-}
-
-/* Bonus temporaire admin */
-function adminDonnerBonusTemporaire() {
-    const code = (document.getElementById('bonus-code-ami')?.value || '').trim().toUpperCase();
-    const duree = parseInt(document.getElementById('bonus-duree')?.value || '30');
-    if (!code) return alert('Code ami requis.');
-    if (typeof fbDB === 'undefined' || !fbDB) return alert('Firebase non connecté.');
-
-    fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(code).once('value').then(snap => {
-        const data = snap.val();
-        if (!data) return alert('Code introuvable.');
-        const uid = Object.keys(data)[0];
-        const expireAt = Date.now() + duree * 60000;
-        fbDB.ref('profils/' + uid + '/bonusTemporaire').set({ expireAt, duree });
-        alert(`✅ Bonus donné à ${code} pour ${duree} min !`);
-        adminAfficherBonus();
-    }).catch(() => alert('Erreur.'));
-}
-
-function adminAfficherBonus() {
-    const el = document.getElementById('admin-bonus-liste');
-    if (!el) return;
-    el.innerHTML = '<p class="hint">Recherche…</p>';
-    if (typeof fbDB === 'undefined' || !fbDB) return el.innerHTML = '<p class="hint">Firebase non connecté.</p>';
-    fbDB.ref('profils').once('value').then(snap => {
-        const data = snap.val() || {};
-        const actifs = Object.entries(data).filter(([uid, p]) => p.bonusTemporaire && p.bonusTemporaire.expireAt > Date.now());
-        if (actifs.length === 0) {
-            el.innerHTML = '<p class="hint">Aucun bonus actif.</p>';
-            return;
-        }
-        el.innerHTML = '<h4 style="color:var(--laiton-clair);">Bonus actifs</h4>';
-        actifs.forEach(([uid, p]) => {
-            const reste = Math.ceil((p.bonusTemporaire.expireAt - Date.now()) / 60000);
-            const div = document.createElement('div');
-            div.className = 'bonus-item';
-            div.innerHTML = `<span>${p.public?.codeAmi || '?'} — ${p.pseudo || 'Inconnu'} (${reste} min)</span>
-                <button onclick="adminRetirerBonus('${uid}')">Retirer</button>`;
-            el.appendChild(div);
-        });
-    });
-}
-
-function adminRetirerBonus(uid) {
-    if (typeof fbDB === 'undefined' || !fbDB) return;
-    fbDB.ref('profils/' + uid + '/bonusTemporaire').remove();
-    adminAfficherBonus();
-}
-
-function adminToutDebloquer(n) {
-    dbCartes.forEach(c => {
-        initColl(c.id);
-        collectionJoueur[c.id].commune = n;
-        collectionJoueur[c.id].rare = n;
-        collectionJoueur[c.id].epique = n;
-        collectionJoueur[c.id].legendaire = n;
-    });
-    sauvegarderProgression();
-    alert(`✅ ${n} de chaque carte ajouté !`);
-}
-
-function adminMaxCoins() {
-    profil.coins = 9999999;
-    sauvegarderProgression();
-    majTopBarCoins();
-    alert("💰 Coins au max !");
-}
-
-function adminCreerCarte() {
-    const prenom = document.getElementById('new-card-prenom').value.trim();
-    if (!prenom) return alert("Prénom requis");
-    const famille = document.getElementById('new-card-famille').value;
-    const cout = parseInt(document.getElementById('new-card-cout').value) || 0;
-    const atk = parseInt(document.getElementById('new-card-atk').value) || 0;
-    const vie = parseInt(document.getElementById('new-card-vie').value) || 0;
-    const rarete = document.getElementById('new-card-rarete').value;
-    const emoji = document.getElementById('new-card-emoji').value || '🃏';
-    const desc = document.getElementById('new-card-desc').value || '';
-    const motsCles = document.getElementById('new-card-motscles').value.split(',').map(s=>s.trim()).filter(Boolean);
-
-    const id = 'custom_' + Date.now();
-    const nouvelleCarte = C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji);
-    dbCartes.push(nouvelleCarte);
-    parId[id] = nouvelleCarte;
-    initColl(id);
-    collectionJoueur[id][rarete] = 10;
-    sauvegarderProgression();
-    alert(`✨ Carte "${prenom}" créée !`);
-    document.getElementById('new-card-prenom').value = '';
-    document.getElementById('new-card-desc').value = '';
-    adminTab('cartes');
-}
-
-function deconnexion() {
-    try {
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().signOut().then(() => location.reload()).catch(() => location.reload());
-        } else location.reload();
-    } catch(e) { location.reload(); }
-}
-
-/* ---------- ADMIN Firebase helpers (appelés dans multi.js) ---------- */
+/* ===========================================================
+   HELPERS ADMIN Firebase
+   =========================================================== */
 function adminNettoyerSalles() {
     if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
     fbDB.ref('salles').once('value').then(snap => {
@@ -3642,7 +3678,6 @@ function adminNettoyerSalles() {
         alert(count + " salle(s) nettoyée(s).");
     });
 }
-
 function adminEnvoyerMotd() {
     if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
     const el = document.getElementById('admin-motd');
