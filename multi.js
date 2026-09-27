@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v8)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v9)
    =========================================================== */
 
 const firebaseConfig = {
@@ -27,7 +27,7 @@ let _ecouteurDefiEnvoye = null;
 let _salleRef = null;
 let _ecouteurDemandesAmis = null;
 let _ecouteurBonusTemporaire = null;
-let _ecouteurChatIngame = null;
+let _ecouteurMessagesPrives = null;
 
 function normaliserPseudo(p) {
     return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20);
@@ -201,7 +201,7 @@ function chargerCartesBannies() {
     });
 }
 
-/* ---------- BONUS TEMPORAIRE (écoute en direct) ---------- */
+/* ---------- BONUS TEMPORAIRE ---------- */
 function demarrerEcouteBonusTemporaire() {
     if (!fbDB || !monId) return;
     if (_ecouteurBonusTemporaire) _ecouteurBonusTemporaire.off();
@@ -256,7 +256,9 @@ function demarrerEcouteMessagesPrives() {
         const monCode = pub.codeAmi || (typeof profil !== 'undefined' ? profil.codeAmi : null);
         if (!monCode) return;
 
-        fbDB.ref('messagesPrives').on('child_added', child => {
+        if (_ecouteurMessagesPrives) _ecouteurMessagesPrives.off();
+        _ecouteurMessagesPrives = fbDB.ref('messagesPrives');
+        _ecouteurMessagesPrives.on('child_added', child => {
             const cle = child.key;
             if (!cle.includes(monCode)) return;
             const msg = child.val();
@@ -297,7 +299,7 @@ function setupFirebaseListeners() {
         const banner = document.getElementById('motd-banner');
         if (banner) {
             if(msg) { banner.innerText = msg; banner.classList.remove('hidden'); }
-            else { banner.classList.add('hidden'); }
+            else banner.classList.add('hidden');
         }
     });
 
@@ -368,7 +370,6 @@ function demanderAmi(codeCible) {
     if (!fbDB || !profil.codeAmi || !codeCible) return;
     if (codeCible === profil.codeAmi) return flashInfo('C\'est ton propre code !');
     if ((profil.amis || []).includes(codeCible)) return flashInfo('Déjà ami.');
-
     fbDB.ref('profils').orderByChild('public/codeAmi').equalTo(codeCible).once('value').then(snap => {
         const data = snap.val();
         if (!data) return flashInfo('Joueur introuvable.');
@@ -649,7 +650,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 /* ===========================================================
-   ADMIN Firebase — appelés depuis app.js
+   ADMIN Firebase
    =========================================================== */
 function adminNettoyerSalles() {
     if (!fbDB) return alert("Firebase non connecté.");
