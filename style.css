@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — feuille de style (v14)
-   Portrait mobile + Fix hover + Fix tuto + Points anatomie
+   FAMILLE TCG — feuille de style (v15)
+   Positions anatomie corrigées + Mobile optimisé portrait
    =========================================================== */
 
 :root{
@@ -120,7 +120,6 @@ body:has(#game-screen.active){overflow-y:auto;overflow-x:hidden;}
 }
 #main-nav.scrolled .nav-brand{font-size:16px;}
 
-/* Nav cachée en partie sur mobile */
 body.is-mobile #main-nav.nav-hidden-in-game {
     transform: translateY(-120%);
     position: fixed;
@@ -191,7 +190,6 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     border-radius:999px;
 }
 
-/* Bouton toggle nav en jeu (mobile) */
 .btn-toggle-nav{
     position:fixed;
     top:8px;
@@ -546,7 +544,6 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 }
 .menu-box h2{font-family:'Cinzel',serif;color:var(--laiton-clair);text-shadow:0 2px 12px rgba(217,164,65,.5);font-size:26px;}
 
-/* Emoji picker */
 .emoji-picker{
     display:grid;
     grid-template-columns:repeat(10,1fr);
@@ -577,7 +574,7 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .emoji-picker .emoji-btn.selected{background:var(--laiton);border-color:var(--laiton-clair);box-shadow:0 0 10px rgba(217,164,65,.7);}
 
 /* ===========================================================
-   TUTO — Wrapper + Bulle + Carte anatomie
+   TUTO — Wrapper + Bulle
    =========================================================== */
 .tuto-wrapper{
     display:flex;
@@ -883,7 +880,9 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .quiz-option:hover{border-color:var(--laiton);background:#1a2634;}
 .quiz-option.selected{border-color:var(--menthe);background:rgba(61,220,151,.15);color:var(--menthe);}
 
-/* TUTO carte anatomie - CORRIGÉ : plus de débordement */
+/* ===========================================================
+   TUTO CARTE ANATOMIE — Positions corrigées précisément
+   =========================================================== */
 .tuto-carte-zoom{
     position:fixed;
     inset:0;
@@ -916,12 +915,13 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     justify-content:center;
     width: 100%;
     flex-shrink: 0;
+    padding: 20px 40px;
 }
 .tuto-carte-container #tuto-carte-display .card-wrapper{
-    --cw: 280px !important;
+    --cw: 260px !important;
     animation:none !important;
 }
-/* Points de légende repositionnés précisément sur la carte */
+/* Points de légende - positionnés précisément par rapport à la carte */
 .tuto-carte-container #tuto-carte-display .legend-dot{
     position:absolute;
     width:32px;
@@ -943,14 +943,16 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     0%,100%{transform:scale(1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
     50%{transform:scale(1.1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
 }
-/* Positionnement basé sur une carte de 280x392px centrée */
-.legend-dot.dot-1{top:1%;left:-8%;}    /* Mana (haut gauche) */
-.legend-dot.dot-2{top:1%;left:50%;transform:translateX(-50%);}  /* Nom (haut centre) */
-.legend-dot.dot-3{top:26%;left:50%;transform:translateX(-50%);} /* Illustration (centre haut) */
-.legend-dot.dot-4{top:52%;left:50%;transform:translateX(-50%);} /* Famille (barre milieu) */
-.legend-dot.dot-5{top:68%;left:-8%;}   /* Description (gauche) */
+/* Carte de référence : 260px de large, 364px de haut. Le point est positionné par rapport au centre de la carte. */
+/* On utilise une grille virtuelle : la carte est centrée, donc 0% = bord gauche de la carte, 100% = bord droit */
+/* Positionnement en % par rapport au conteneur qui englobe la carte (carte + padding) */
+.legend-dot.dot-1{top:5%;left:12%;}    /* Mana (en haut à gauche de la carte) */
+.legend-dot.dot-2{top:2%;left:50%;transform:translateX(-50%);} /* Nom (en haut au centre) */
+.legend-dot.dot-3{top:30%;left:50%;transform:translateX(-50%);} /* Illustration (centre) */
+.legend-dot.dot-4{top:53%;left:50%;transform:translateX(-50%);} /* Famille (barre milieu) */
+.legend-dot.dot-5{top:70%;left:12%;}   /* Description (à gauche de la description) */
 .legend-dot.dot-6{top:85%;left:50%;transform:translateX(-50%);} /* Mots-clés (bas centre) */
-.legend-dot.dot-7{top:98%;left:-8%;}   /* Stats (bas gauche) */
+.legend-dot.dot-7{top:97%;left:12%;}   /* Stats (bas gauche) */
 
 .tuto-carte-legend{
     background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
@@ -1247,7 +1249,6 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     font-size:2.4em;box-shadow:0 0 1.5em rgba(217,164,65,.45);
 }
 
-/* Dos de carte pour les cartes cachées (Bluff) */
 .card-wrapper.hidden-card .card-back{
     background:linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
     border-color:#a86bff;
@@ -1270,41 +1271,11 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     50%{box-shadow:0 0 40px rgba(168,107,255,.8), inset 0 0 50px rgba(168,107,255,.4);}
 }
 
-/* EFFET DE HOVER SUPPRIMÉ : la carte ne s'agrandit plus, ne floute plus */
+/* Survol PC : pas de flou, juste un léger soulèvement */
 .card-wrapper:hover .card{
     transform:translateY(-2px);
     z-index:10;
     transition:transform .2s ease;
-}
-
-.card-wrapper:hover .card.bg-Meridja{box-shadow:0 0 20px rgba(214,48,49,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-.card-wrapper:hover .card.bg-Marouf{box-shadow:0 0 20px rgba(10,132,216,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-.card-wrapper:hover .card.bg-Kerkache{box-shadow:0 0 20px rgba(0,168,120,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-.card-wrapper:hover .card.bg-Belgacemi{box-shadow:0 0 20px rgba(240,169,59,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-.card-wrapper:hover .card.bg-Sort{box-shadow:0 0 20px rgba(108,75,219,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-.card-wrapper:hover .card.bg-Nouvelle{box-shadow:0 0 20px rgba(201,0,156,.5), 0 .5em 1.4em rgba(0,0,0,.6);}
-
-/* Carte Bluff posée face visible : grisée car pas d'effet */
-.card-wrapper.bluff-visible-grise .card {
-    filter: grayscale(0.85) brightness(0.7) !important;
-    opacity: 0.85;
-    box-shadow: 0 0 12px rgba(147,163,180,.4) !important;
-}
-.card-wrapper.bluff-visible-grise::before {
-    content: '⚠️ Visible (pas d\'effet)';
-    position: absolute;
-    bottom: -18px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(147,163,180,.9);
-    color: #0b1118;
-    font-size: 9px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 999px;
-    white-space: nowrap;
-    z-index: 25;
-    letter-spacing: .03em;
 }
 
 .bg-Meridja{background:linear-gradient(150deg,#ff9a8b,#d63031)}
@@ -1536,6 +1507,29 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .card-wrapper .missing-badge{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:var(--braise);color:#fff;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:1px;z-index:30;box-shadow:0 4px 12px rgba(255,92,71,.5);white-space:nowrap;}
 .card-wrapper.banned .card{filter:grayscale(1) brightness(.3) !important;}
 .card-wrapper .banned-badge{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:#000;color:#ff5c47;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:2px;z-index:30;border:1px solid var(--braise);}
+
+/* Carte Bluff posée visible : grisée car pas d'effet */
+.card-wrapper.bluff-visible-grise .card {
+    filter: grayscale(0.85) brightness(0.7) !important;
+    opacity: 0.85;
+    box-shadow: 0 0 12px rgba(147,163,180,.4) !important;
+}
+.card-wrapper.bluff-visible-grise::before {
+    content: '⚠️ Visible (pas d\'effet)';
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(147,163,180,.9);
+    color: #0b1118;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    z-index: 25;
+    letter-spacing: .03em;
+}
 
 /* Détail / Zoom */
 #card-detail-overlay{display:none;position:fixed;inset:0;z-index:1100;background:rgba(4,8,12,.92);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
@@ -1818,7 +1812,6 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .hand-area .card-wrapper.jouable .card{box-shadow:0 0 1.2em var(--menthe),0 .5em 1.4em rgba(0,0,0,.6);}
 .hand-area .card-wrapper.injouable .card{filter:brightness(.55) saturate(.6);}
 
-/* Main agrandie (clic sur une carte) */
 #hand-rail.hand-expanded{
     height: auto;
     padding: 12px 10px 10px;
@@ -2044,7 +2037,7 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .bonus-item button{background:var(--braise);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0;min-height:40px;}
 
 /* ===========================================================
-   MOBILE — Portrait optimisé
+   MOBILE — Portrait optimisé (v15)
    =========================================================== */
 body.is-mobile {
     overflow-y: auto;
@@ -2090,8 +2083,8 @@ body.is-mobile .nav-level {
 }
 body.is-mobile {
     --cw-collection: 100px;
-    --cw-jeu: clamp(68px, 10vh, 110px);
-    --cw-main: clamp(78px, 10vh, 120px);
+    --cw-jeu: clamp(72px, 11vh, 115px);
+    --cw-main: clamp(82px, 11vh, 125px);
     --cw-zoom: 240px;
     --cw-booster: 170px;
 }
@@ -2107,7 +2100,7 @@ body.is-mobile .btn-toggle-nav {
 /* En partie sur mobile : optimiser le plateau (vue compacte portrait) */
 body.is-mobile.game-in-progress #game-screen {
     grid-template-rows: auto auto 1fr auto 1fr auto;
-    gap: 2px;
+    gap: 4px;
     height: 100vh;
     overflow: hidden;
     padding-bottom: 0;
@@ -2138,27 +2131,37 @@ body.is-mobile.game-in-progress .btn-forfait-ingame {
     min-height: 26px;
 }
 body.is-mobile.game-in-progress .side {
-    padding: 2px 4px;
-    gap: 3px;
+    padding: 4px 6px;
+    gap: 4px;
+    min-height: 0;
 }
 body.is-mobile.game-in-progress .hero-panel {
-    padding: 3px 5px;
-    gap: 4px;
+    padding: 4px 6px;
+    gap: 5px;
+    flex-shrink: 0;
 }
 body.is-mobile.game-in-progress .hero-portrait {
-    width: 34px;
-    height: 34px;
-    font-size: 18px;
-    min-width: 34px;
-    min-height: 34px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    min-width: 40px;
+    min-height: 40px;
     border-width: 2px;
 }
 body.is-mobile.game-in-progress .hero-name {
-    font-size: 10px;
+    font-size: 11px;
 }
 body.is-mobile.game-in-progress .badge {
-    font-size: 8px;
-    padding: 1px 5px;
+    font-size: 9px;
+    padding: 2px 6px;
+}
+body.is-mobile.game-in-progress .badge.hp { font-size: 10px; padding: 2px 8px; }
+body.is-mobile.game-in-progress .badge.mana { font-size: 9px; padding: 2px 6px; }
+body.is-mobile.game-in-progress .badge.deck {
+    font-size: 9px;
+    padding: 2px 6px;
+    min-width: 28px;
+    min-height: 24px;
 }
 body.is-mobile.game-in-progress .crystals {
     max-width: 70px;
@@ -2170,40 +2173,54 @@ body.is-mobile.game-in-progress .crystal {
     height: 9px;
 }
 body.is-mobile.game-in-progress .terrain-slot {
-    width: 48px;
+    width: 40px;
 }
 body.is-mobile.game-in-progress .terrain-slot .card-wrapper {
-    --cw: 42px;
+    --cw: 38px;
 }
 body.is-mobile.game-in-progress .board-area {
-    min-height: calc(var(--cw-jeu) * 1.42);
+    min-height: 0;
     gap: 4px;
-    padding: 0 4px;
+    padding: 4px 6px;
     overflow-x: auto;
+    overflow-y: hidden;
     flex-wrap: nowrap;
-    justify-content: flex-start;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+body.is-mobile.game-in-progress .board-area:empty {
+    min-height: calc(var(--cw-jeu) * 1.42);
+}
+body.is-mobile.game-in-progress .board-area:empty::after {
+    content: '';
+    width: 60%;
+    height: calc(var(--cw-jeu) * 1.1);
+    border-radius: 14px;
+    border: 1px dashed rgba(255,255,255,.08);
 }
 body.is-mobile.game-in-progress .board-divider {
-    height: 4px;
-    margin: 1px 0;
+    height: 6px;
+    margin: 2px 0;
 }
 body.is-mobile.game-in-progress .board-divider::before {
-    font-size: 6px;
-    letter-spacing: .2em;
+    font-size: 8px;
+    letter-spacing: .3em;
 }
 body.is-mobile.game-in-progress .hand-rail {
-    padding: 0 2px;
+    padding: 0 4px;
+    min-height: 90px;
 }
 body.is-mobile.game-in-progress .hand-area {
     height: auto;
-    padding: 2px 6px 4px;
+    padding: 4px 8px 6px;
     justify-content: flex-start;
-    gap: 2px;
+    gap: 4px;
     overflow-x: auto;
 }
 body.is-mobile.game-in-progress .hand-area .card-wrapper {
     margin-left: 0 !important;
-    --cw: clamp(56px, 14vw, 72px);
+    --cw: clamp(62px, 16vw, 82px);
     transition: transform .25s cubic-bezier(.2,.9,.3,1.3);
 }
 body.is-mobile.game-in-progress .action-log {
@@ -2327,5 +2344,4 @@ html, body {
     *{animation-duration:.01ms !important;transition-duration:.01ms !important}
 }
 
-/* Suppression de l'overlay rotate : on ne force plus le paysage */
 #rotate-overlay{display:none !important;}
