@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v10)
-   Esthétique v11 + Portabilité + Fix connexion
+   FAMILLE TCG — moteur de jeu (Édition Ultime v11)
+   Esthétique v12 + Portabilité + Fix connexion + Bluff + Mobile
    =========================================================== */
 
 var collectionJoueur = {};
@@ -306,6 +306,7 @@ var dbCartes = [
     C('t6','Los Angeles','Terrain',4,0,0,'rare','Cri de guerre : pile ou face. Pile, gagne 1 mana ce tour. Face, il ne se passe rien.',[],'🌴'),
     C('t7','Pontault-Combault','Terrain',3,0,0,'commune','Cri de guerre : lance un dé. 4 ou plus, soigne ton héros de 2 PV.',[],'🏘️'),
     C('t8','Clamart','Terrain',3,0,0,'rare','Cri de guerre : pile ou face. Pile, l\'adversaire défausse une carte. Face, il ne se passe rien.',[],'🚇'),
+    C('t9','Le Parc Ballanger','Terrain',4,0,0,'epique','Les créatures Bluff coûtent 1 mana de moins. Quand une créature Bluff est révélée, pioche une carte.',[],'🌳'),
 
     C('s1','Va ranger ta chambre !','Sort',2,0,0,'commune','Renvoie une créature ennemie dans la main de son propriétaire.',[],'🧹'),
     C('s2','Qui a touché au thermostat ?','Sort',4,0,0,'epique','Inflige 2 dégâts à toutes les créatures.',[],'🌡️'),
@@ -347,6 +348,13 @@ var dbCartes = [
     C('s38','Le café de Karima','Sort',1,0,0,'commune','Gagne 2 mana ce tour.',[],'☕'),
     C('s39','La bénédiction de Mima','Sort',5,0,0,'epique','Donne +2/+2 à toutes tes créatures.',[],'🙏'),
     C('s40','La malédiction de Khaled','Sort',4,0,0,'rare','Réduit l\'attaque de toutes les créatures ennemies de 2.',[],'💀'),
+    
+    // Sorts Bluff
+    C('sb1','Cache-cache','Sort',2,0,0,'commune','Révèle une carte Bluff alliée. Elle gagne +2/+2.',[],'🙈'),
+    C('sb2','Surprise !','Sort',3,0,0,'rare','Révèle une carte Bluff alliée. Inflige 3 dégâts au héros adverse.',[],'🎉'),
+    C('sb3','Mensonge','Sort',1,0,0,'commune','Révèle une carte Bluff alliée. Pioche une carte.',[],'🤥'),
+    C('sb4','Embuscade','Sort',4,0,0,'epique','Révèle une carte Bluff alliée. Détruit une créature ennemie.',[],'🗡️'),
+    C('sb5','Le grand secret','Sort',5,0,0,'legendaire','Révèle toutes les cartes Bluff alliées. Elles gagnent +3/+3 et Charge.',[],'🤫'),
 
     C('f1','Naila x Nassim','Nouvelle famille',8,7,7,'legendaire','Fusion : nécessite Naila et Nassim. Cri de guerre : inflige 4 dégâts.',['Fusion'],'💑'),
     C('f2','Amina x Marouane','Nouvelle famille',8,6,8,'legendaire','Fusion : nécessite Amina et Marouane. Cri de guerre : donne +3/+3 aux autres.',['Fusion'],'💑'),
@@ -366,6 +374,18 @@ var dbCartes = [
     C('c10','La table des enfants','Sort',4,0,0,'rare','Invoque deux Cousins éloignés 1/1 avec Provocation.',[],'🧒'),
     C('c11','Le grand repas','Sort',5,0,0,'epique','Déclenche l\'effet de Destruction de toutes tes créatures sans les tuer.',[],'🍽️'),
     C('c12','Cherchell','Terrain',3,0,0,'rare','Tes créatures Cousins coûtent 1 mana de moins.',[],'🏖️'),
+
+    // Les Turbulents (Bluff)
+    C('tb1','Farid le malicieux','Meridja',4,3,4,'epique','Bluff. Quand révélé : Inflige 2 dégâts à une créature ennemie au hasard.',['Bluff'],'😏'),
+    C('tb2','Naila l\'intrepide','Belgacemi',3,4,2,'rare','Bluff. Quand révélé : Pioche une carte.',['Bluff'],'🤩'),
+    C('tb3','Kamel le gamer fou','Belgacemi',3,2,5,'rare','Bluff. Quand révélé : Gagne +2/+2.',['Bluff'],'🎮'),
+    C('tb4','Hanna la sauvage','Belgacemi',2,3,1,'commune','Bluff. Quand révélé : Inflige 1 dégât à toutes les créatures ennemies.',['Bluff'],'😤'),
+    C('tb5','Imran le casse cou','Meridja',2,2,2,'commune','Bluff. Quand révélé : Gagne Charge.',['Bluff'],'🤸'),
+    C('tb6','Meriem la griboulleuse','Meridja',3,2,4,'rare','Bluff. Quand révélé : Soigne ton héros de 3 PV.',['Bluff'],'🤲'),
+    C('tb7','Kika le cerveau','Marouf',4,3,5,'epique','Bluff. Quand révélé : Réduit l\'attaque d\'une créature ennemie de 2.',['Bluff'],'🧠'),
+    C('tb8','Ryma la pilote','Kerkache',3,3,3,'rare','Bluff. Quand révélé : Donne Charge à une créature alliée au hasard.',['Bluff'],'🏎️'),
+    C('tb9','Islem l\'audacieux','Marouf',4,4,4,'epique','Bluff. Quand révélé : Annule le prochain sort adverse.',['Bluff'],'😎'),
+    C('tb10','Malek l\'indomptable','Kerkache',5,5,4,'epique','Bluff. Quand révélé : Gagne +0/+3 et Provocation.',['Bluff','Provocation'],'🛡️'),
 
     C('u1','La Famille Unie','Famille Unifiée',1,1,1,'legendaire','✨ CARTE UNIQUE ✨ L\'union sacrée des quatre familles. Une force minuscule, mais un symbole éternel.',['Unifiée'],'👨‍👩‍👧‍👦')
 ];
@@ -443,6 +463,7 @@ var POUVOIRS = {
     t1:{mode:'infini',aura:true}, t2:{mode:'infini',aura:true}, t3:{mode:'infini',finTourGlobal:()=>{soinHero(J,2);soinHero(B,2);}}, t4:{mode:'infini',aura:true},
     t5:{mode:'eclair',jouer:({moi})=>{const v=lancerDe();if(v<=3)degatsHero(moi,2);}}, t6:{mode:'eclair',jouer:({moi})=>{const pile=lancerPileOuFace();if(pile)moi.manaActuel+=1;}},
     t7:{mode:'eclair',jouer:({moi})=>{const v=lancerDe();if(v>=4)soinHero(moi,2);}}, t8:{mode:'eclair',jouer:({ennemi})=>{const pile=lancerPileOuFace();if(pile)defausseAleatoire(ennemi);}},
+    t9:{mode:'infini',aura:true,finTourGlobal:()=>{}},
 
     s1:{mode:'eclair',cible:{camp:'ennemi',texte:'Renvoie une créature en main'},jouer:({cible,ennemi})=>{if(cible)renvoyerEnMain(cible,ennemi);}},
     s2:{mode:'eclair',jouer:({moi,ennemi})=>[...moi.plateau,...ennemi.plateau].forEach(m=>fraper(m,2))},
@@ -485,6 +506,13 @@ var POUVOIRS = {
     s39:{mode:'eclair',jouer:({moi})=>moi.plateau.forEach(m=>buff(m,2,2))},
     s40:{mode:'eclair',jouer:({ennemi})=>ennemi.plateau.forEach(m=>{m.atk=Math.max(0,m.atk-2);fxSur(m,'-2 ⚔','degat');})},
 
+    // Sorts Bluff
+    sb1:{mode:'eclair',cible:{camp:'allie',filtre:m=>m.motsCles.includes('Bluff'),texte:'Choisis une créature Bluff'},jouer:({cible})=>{if(cible)revelerBluff(cible,{buff:[2,2]});}},
+    sb2:{mode:'eclair',cible:{camp:'allie',filtre:m=>m.motsCles.includes('Bluff'),texte:'Choisis une créature Bluff'},jouer:({cible,ennemi})=>{if(cible){revelerBluff(cible,{degatsHero:3});degatsHero(ennemi,3);}}},
+    sb3:{mode:'eclair',cible:{camp:'allie',filtre:m=>m.motsCles.includes('Bluff'),texte:'Choisis une créature Bluff'},jouer:({cible,moi})=>{if(cible){revelerBluff(cible,{pioche:1});piocher(moi,1);}}},
+    sb4:{mode:'eclair',cible:{camp:'allie',filtre:m=>m.motsCles.includes('Bluff'),texte:'Choisis une créature Bluff'},jouer:({cible,ennemi})=>{if(cible){revelerBluff(cible,{detruireCible:true});if(ennemi.plateau.length)fraper(hasard(ennemi.plateau),999);}}},
+    sb5:{mode:'eclair',jouer:({moi})=>{moi.plateau.filter(m=>m.motsCles.includes('Bluff')).forEach(m=>revelerBluff(m,{buff:[3,3],charge:true}));}},
+
     f1:{mode:'eclair',jouer:({ennemi})=>{for(let i=0;i<4;i++){const c=hasard(ennemi.plateau);if(c)fraper(c,1);else degatsHero(ennemi,1);}}},
     f2:{mode:'eclair',jouer:({moi,source})=>moi.plateau.filter(m=>m!==source).forEach(m=>buff(m,3,3))},
     f3:{mode:'eclair',jouer:({moi})=>{moi.contreSort=true;piocher(moi,1);}},
@@ -518,7 +546,8 @@ var decksPreconstruitsBrut = [
     { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','k9','k10','s2','s5','s6','s11','s18'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
     { nom:'Les Infiltrés', cartes:['f1','f2','f3','f4','f5','ka5','ka6','m4','m5','ma3','ma4','ka7','ka8','ka3','ka4','m11','m12','ma11','ka11','n7'] },
-    { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] }
+    { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] },
+    { nom:'Les Turbulents', cartes:['tb1','tb1','tb2','tb2','tb3','tb3','tb4','tb4','tb5','tb5','tb6','tb6','tb7','tb8','tb9','tb10','sb1','sb2','sb3','t9'] }
 ];
 
 var decksPreconstruits = decksPreconstruitsBrut.map(function(d) {
@@ -969,7 +998,7 @@ const estChat = m => m.motsCles.includes('Chat');
 
 function instancier(def, cle, jeton, overrideRarete) {
     if (!def) return null;
-    return { uid:'u'+(uidSeq++), id:def.id, prenom:def.prenom, famille:def.famille, cout:def.cout, atk:def.atk, vie:def.vie, vieMax:def.vie, rarete: overrideRarete || def.rarete, desc:def.desc, emoji:def.emoji, motsCles:[...def.motsCles], cote:cle, auraAtk:0, auraVieAppliquee:0, aAttaque:false, malade:true, gele:0, silence:false, jeton:!!jeton };
+    return { uid:'u'+(uidSeq++), id:def.id, prenom:def.prenom, famille:def.famille, cout:def.cout, atk:def.atk, vie:def.vie, vieMax:def.vie, rarete: overrideRarete || def.rarete, desc:def.desc, emoji:def.emoji, motsCles:[...def.motsCles], cote:cle, auraAtk:0, auraVieAppliquee:0, aAttaque:false, malade:true, gele:0, silence:false, jeton:!!jeton, revele: !def.motsCles.includes('Bluff') };
 }
 
 function recordCarteJouee(idCarte) {
@@ -1028,8 +1057,24 @@ function changerEcran(id) {
     if (cible) cible.classList.add('active');
     const nav = document.getElementById('main-nav');
     if (nav) { if(id !== 'login-screen') nav.classList.remove('hidden'); else nav.classList.add('hidden'); }
+    
+    // Gestion du bouton forfait
     const bfNav = document.getElementById('btn-forfait');
     if (bfNav) bfNav.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
+    
+    // Gestion du menu mobile en partie
+    const btnToggleNav = document.getElementById('btn-toggle-nav');
+    if (btnToggleNav) {
+        if (id === 'game-screen') {
+            btnToggleNav.classList.remove('hidden');
+            document.body.classList.add('game-in-progress');
+        } else {
+            btnToggleNav.classList.add('hidden');
+            document.body.classList.remove('game-in-progress');
+            if (nav) nav.classList.remove('show-over-game');
+        }
+    }
+
     if (id === 'deckbuilder-screen') chargerListeDecks();
     if (id === 'collection-screen') { afficherBoutique(triCourant); setTimeout(majCollectionHeader, 50); }
     if (id === 'menu-screen') { chargerDropdownDecks(); verifierResetQuetes(); }
@@ -1052,6 +1097,10 @@ function changerEcran(id) {
 function toggleNavMenu() {
     const links = document.querySelector('.nav-links');
     if (links) links.classList.toggle('open');
+}
+function toggleNavGame() {
+    const nav = document.getElementById('main-nav');
+    if (nav) nav.classList.toggle('show-over-game');
 }
 function ouvrirAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.add('open'); }
 function fermerAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.remove('open'); }
@@ -1077,6 +1126,19 @@ function creerHTMLCarte(c, ctx, opts) {
 
     const estCarteUnifiee = (c.id === 'u1');
     const displayRarete = opts.overrideRarete ? opts.overrideRarete : c.rarete;
+    
+    // Gestion Bluff : si c'est une carte Bluff non révélée en jeu
+    const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && !c.revele && (ctx === 'jeu' || ctx === 'main'));
+
+    if (estBluffCache) {
+        w.classList.add('hidden-card');
+        // On crée une fausse carte pour l'affichage du dos
+        const divBack = document.createElement('div');
+        divBack.className = 'card-inner';
+        divBack.innerHTML = '<div class="card-back">?</div>';
+        w.appendChild(divBack);
+        return w;
+    }
 
     if (estCarteUnifiee) w.classList.add('unifiee');
     else if (displayRarete === 'legendaire') w.classList.add('legendaire');
@@ -1618,7 +1680,7 @@ function lancerPartie() {
     progresserQuete('parties_bot', 1);
     jouerSon('click');
 }
-function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
+function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds, ts) {
     modeEnLigne = true; modeAttente = false; mulliganValide = false; modeTuto = false;
     _dernierIdTraite = 0; _compteurAction = 0; _replayEnCours = false;
     J = nouveauCote('J', J.nom || 'Toi');
@@ -1644,7 +1706,7 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
 }
 
 /* ===========================================================
-   TUTO v9 — Étapes
+   TUTO v10 — Étapes
    =========================================================== */
 var TUTO_ETAPES = {
     0: {
@@ -1665,13 +1727,19 @@ var TUTO_ETAPES = {
         ]
     },
     2: {
+        titre: "Anatomie d'une carte",
+        etapes: [
+            { txt: `Regardons une carte de plus près. Clique sur le bouton ci-dessous pour voir une carte en grand.`, cible: null, action: 'anatomie', appris: ["Les cartes ont plusieurs éléments à connaître"] }
+        ]
+    },
+    3: {
         titre: "Poser une carte",
         etapes: [
             { txt: `Tu as <b>3 mana</b>. Regarde tes 2 cartes : l'une coûte 3, l'autre 4.<br><br>❌ Impossible de poser celle à 4 (grisée).<br>✅ Clique sur celle à 3 mana !`, cible: "#player-hand", attendre: () => J.plateau.length > 0, appris: ["On ne peut pas poser une carte trop chère", "Les cartes injouables sont grisées"] },
             { txt: `Parfait ! Ta créature est sur le plateau. 🎉<br><br>Elle a une attaque ⚔ et des points de vie ❤. Les cristaux utilisés sont épuisés.`, cible: "#player-board", appris: ["La carte arrive sur le plateau", "Les cristaux utilisés deviennent gris"] }
         ]
     },
-    3: {
+    4: {
         titre: "Attaquer",
         etapes: [
             { txt: `⚠️ Une créature <b>fraîchement posée</b> ne peut PAS attaquer ce tour !<br><br>Il faut attendre le tour suivant (sauf avec Charge ⚡).`, cible: "#player-board", appris: ["Une créature a le mal du tour", "Elle ne peut pas attaquer immédiatement"] },
@@ -1679,7 +1747,7 @@ var TUTO_ETAPES = {
             { txt: `C'est reparti ! Ta créature n'est plus fatiguée : elle brille ✨.<br><br>Clique dessus, puis choisis une cible :<br>• une <b>créature ennemie</b><br>• ou le <b>héros adverse</b> !`, cible: "#player-board", attendre: () => B.patience < 30 || B.plateau.length < 1, appris: ["On peut attaquer une créature ou le héros", "Clique attaquant puis cible"] }
         ]
     },
-    4: {
+    5: {
         titre: "La Charge ⚡",
         etapes: [
             { txt: `Le mot-clé <b>Charge ⚡</b> permet d'attaquer <b>dès l'invocation</b>, sans attendre un tour.<br><br>C'est indiqué par le badge bleu sur la carte.`, cible: "#player-hand", appris: ["Charge = attaque immédiate", "Pas besoin d'attendre un tour"] },
@@ -1687,7 +1755,7 @@ var TUTO_ETAPES = {
             { txt: `Elle brille immédiatement : clique dessus puis sur le héros adverse !`, cible: "#opp-portrait", attendre: () => B.patience < 30, appris: ["Une créature avec Charge attaque dès son arrivée"] }
         ]
     },
-    5: {
+    6: {
         titre: "La Provocation 🛡️",
         etapes: [
             { txt: `L'adversaire a une créature avec <b>Provocation 🛡️</b>.<br><br>Tu ne peux <b>PAS</b> attaquer son héros tant qu'elle est en vie !`, cible: "#opponent-board", appris: ["Provocation force à attaquer cette créature", "Elle protège le héros"] },
@@ -1695,28 +1763,21 @@ var TUTO_ETAPES = {
             { txt: `Bien joué ! La voie est libre, tu peux attaquer le héros.`, cible: "#opp-portrait", attendre: () => B.patience < 30, appris: ["Sans Provocation, on peut taper le héros"] }
         ]
     },
-    6: {
-        titre: "Les Effets — Boost 💪",
+    7: {
+        titre: "Le Bluff",
         etapes: [
-            { txt: `Cette carte donne un <b>bonus permanent</b> à une créature alliée.<br><br>Les buffs permettent de transformer une petite créature en tueuse !`, cible: "#player-hand", appris: ["Les buffs augmentent force/vie", "Ils sont permanents tant que la créature vit"] },
-            { txt: `Joue le boost sur ta créature :<br>clique sur le sort, puis sur ta créature sur le plateau.`, cible: "#player-board", attendre: () => J.plateau.some(m => m.auraAtk > 0 || (defCarte(m.id) && atkTot(m) > defCarte(m.id).atk)), appris: ["Un buff se cible sur une créature alliée", "Ses stats montent immédiatement"] },
-            { txt: `BOOM ! Ta créature a maintenant plus de force.<br><br>Elle peut détruire des créatures qu'elle ne pouvait pas avant !`, cible: "#opponent-board", appris: ["Un buff change l'équilibre du combat"] }
+            { txt: `Certaines cartes ont le mot-clé <b>Bluff 🎭</b>. Elles peuvent être posées face cachée.`, cible: "#player-hand", appris: ["Les cartes Bluff peuvent être posées face cachée", "Elles coûtent le même prix"] },
+            { txt: `Une carte Bluff face cachée ne peut pas attaquer et ne révèle pas son effet.<br><br>Pour la révéler, tu dois remplir sa condition (souvent en jouant un sort ou en attaquant).`, cible: "#player-board", appris: ["Une carte Bluff cachée ne fait rien", "Elle se révèle quand sa condition est remplie"] },
+            { txt: `Pose une carte Bluff face cachée en cliquant dessus !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Bluff') && !m.revele), appris: ["On pose une carte Bluff face cachée"] },
+            { txt: `Maintenant, joue le sort <b>« Cache-cache »</b> pour révéler ta carte !`, cible: "#player-hand", attendre: () => J.plateau.some(m => m.motsCles.includes('Bluff') && m.revele), appris: ["Un sort peut révéler une carte Bluff", "Une fois révélée, elle gagne son effet"] }
         ]
     },
-    7: {
+    8: {
         titre: "Pioche & Cimetière",
         etapes: [
             { txt: `Regarde en bas à droite de ton héros : le nombre restant dans ta <b>pioche</b> 📚.<br><br>Chaque tour, tu pioches automatiquement 1 carte.`, cible: "#player-deck", appris: ["Tu pioches 1 carte par tour", "Le chiffre descend à chaque pioche"] },
             { txt: `⚠️ Si ta pioche est <b>vide</b>, tu perds <b>3 patience</b> à chaque pioche ratée.<br><br>C'est la <b>règle de fatigue</b> !`, cible: "#player-deck", appris: ["Pioche vide = 3 dégâts par tour", "Une partie peut se perdre par épuisement"] },
             { txt: `Le <b>cimetière</b> 💀 (à côté) garde toutes les cartes jouées et détruites.<br><br>Clique dessus pour voir ce qui s'y trouve.`, cible: "#player-grave-btn", appris: ["Cimetière = cartes utilisées", "Utile pour se souvenir de ce qui a été joué"] }
-        ]
-    },
-    8: {
-        titre: "Mana progressif",
-        etapes: [
-            { txt: `Ton mana <b>augmente à chaque tour</b>.<br><br>Tour 1 : 2 mana. Tour 2 : 4 mana. Tour 3 : 6 mana... jusqu'à un plafond de 10.`, cible: "#player-mana", appris: ["Le mana augmente de +2 par tour", "Plafond à 10 mana"] },
-            { txt: `Observe ton compteur de mana : il affiche <b>« actuel / max »</b>.<br><br>Tu peux utiliser TOUT ton mana à chaque tour.`, cible: "#player-mana", appris: ["Tu as droit à mana max à chaque tour", "Le mana non utilisé est perdu"] },
-            { txt: `C'est pour ça que les grosses cartes à 8-10 mana ne se jouent qu'en milieu de partie !<br><br>Patience... 🌱`, cible: "#player-mana", appris: ["Les grosses cartes arrivent plus tard", "Il faut planifier plusieurs tours à l'avance"] }
         ]
     },
     9: {
@@ -1806,27 +1867,28 @@ function lancerTuto(niveau) {
     if (niveau === 0) {}
     else if (niveau === 1) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); } }
     else if (niveau === 2) {
+        // Pas de cartes en main, on va utiliser l'overlay
+    }
+    else if (niveau === 3) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
         const c2 = instancier(defCarte('m1'), 'J'); if (c2) { c2.cout = 4; J.main.push(c2); }
-    } else if (niveau === 3) {
+    } else if (niveau === 4) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.plateau.push(c1);
         if (c1) c1.malade = true;
         J.manaMax = 5; J.manaActuel = 5;
-    } else if (niveau === 4) { const c = instancier(defCarte('m8'), 'J'); if (c) J.main.push(c); }
-    else if (niveau === 5) {
+    } else if (niveau === 5) { const c = instancier(defCarte('m8'), 'J'); if (c) J.main.push(c); }
+    else if (niveau === 6) {
         const c1 = instancier(defCarte('n6'), 'B'); if (c1) B.plateau.push(c1);
         const c2 = instancier(defCarte('s22'), 'J'); if (c2) J.main.push(c2);
         const c3 = instancier(defCarte('m5'), 'J'); if (c3) J.main.push(c3);
-    } else if (niveau === 6) {
-        const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.plateau.push(c1);
-        const c2 = instancier(defCarte('s9'), 'J'); if (c2) { c2.cout = 1; J.main.push(c2); }
-        const c3 = instancier(defCarte('n6'), 'B'); if (c3) B.plateau.push(c3);
-        J.manaMax = 5; J.manaActuel = 5;
     } else if (niveau === 7) {
+        const c1 = instancier(defCarte('tb1'), 'J'); if (c1) J.main.push(c1);
+        const c2 = instancier(defCarte('sb1'), 'J'); if (c2) J.main.push(c2);
+        J.manaMax = 5; J.manaActuel = 5;
+    } else if (niveau === 8) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1);
         J.manaMax = 5; J.manaActuel = 5;
-    } else if (niveau === 8) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1); }
-    else if (niveau === 9) {
+    } else if (niveau === 9) {
         const c1 = instancier(defCarte('ka5'), 'J'); if (c1) J.plateau.push(c1);
         const c2 = instancier(defCarte('ka6'), 'J'); if (c2) J.plateau.push(c2);
         const c3 = instancier(defCarte('f1'), 'J'); if (c3) J.main.push(c3);
@@ -1860,7 +1922,7 @@ function afficherEtapeTuto() {
     const etapeLabel = document.getElementById('tuto-etape-label');
     const tutoTitre = document.getElementById('tuto-titre');
     const miniFill = document.getElementById('tuto-mini-fill');
-    const icones = ['📜','🔍','🎴','⚔️','⚡','🛡️','💪','📚','💧','🏡'];
+    const icones = ['📜','🔍','🎴','⚔️','⚡','🛡️','💪','🎭','📚','🏡'];
     if (tutoIcon) tutoIcon.textContent = icones[currentTutoLevel] || '🎓';
     if (etapeLabel) etapeLabel.textContent = `Étape ${etapeTuto + 1}/${config.etapes.length}`;
     if (tutoTitre) tutoTitre.textContent = config.titre;
@@ -1880,6 +1942,14 @@ function afficherEtapeTuto() {
     if (btnSkip) {
         btnSkip.classList.remove('hidden');
         btnSkip.onclick = () => skipEtapeTuto();
+    }
+
+    // Gestion des actions spéciales
+    if (etape.action === 'anatomie') {
+        btn.innerText = "Voir la carte en grand 🔍";
+        btn.classList.add('ready');
+        btn.onclick = () => { ouvrirTutoCarteAnatomie(); };
+        return;
     }
 
     if (etape.attendre) {
@@ -2004,7 +2074,7 @@ function afficherTutoFinal() {
         "Invoquer une carte", "Comprendre le mana", "Attaquer",
         "Gérer Provocation & Charge", "Déclencher des effets",
         "Comprendre la pioche & le cimetière", "Comprendre le mana progressif",
-        "Utiliser Terrains & Fusion"
+        "Utiliser Terrains & Fusion", "Maîtriser le Bluff"
     ];
     const compsEl = document.getElementById('tuto-final-competences');
     if (compsEl) compsEl.innerHTML = comps.map(c => `<div>${c}</div>`).join('');
@@ -2025,7 +2095,7 @@ function fermerTutoFinal() {
 }
 
 function carteRecompenseTuto(niveau) {
-    const cartesFixes = { 0:'m6', 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'s23', 8:'s38', 9:'ka5' };
+    const cartesFixes = { 0:'m6', 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'tb1', 8:'s23', 9:'ka5' };
     const idFix = cartesFixes[niveau];
     if (idFix && getTot(idFix) === 0) return idFix;
     const nonPossedees = dbCartesDispo().filter(c => getTot(c.id) === 0);
@@ -2097,6 +2167,48 @@ function validerTutoExpress() {
     }
 }
 
+/* Tuto Anatomie de la carte */
+function ouvrirTutoCarteAnatomie() {
+    const ov = document.getElementById('tuto-carte-zoom');
+    if (!ov) return;
+    const display = document.getElementById('tuto-carte-display');
+    const list = document.getElementById('tuto-carte-legend-list');
+    if (!display || !list) return;
+
+    // On prend une carte exemple, disons 'm6' (Anness) ou une carte générique
+    const carteExemple = defCarte('m6');
+    display.innerHTML = '';
+    display.appendChild(creerHTMLCarte(carteExemple, 'zoom'));
+    
+    // Ajouter les points de légende
+    const dots = [
+        { n: 1, txt: "Coût en mana", pos: "dot-1" },
+        { n: 2, txt: "Nom de la carte", pos: "dot-2" },
+        { n: 3, txt: "Illustration / Emoji", pos: "dot-3" },
+        { n: 4, txt: "Famille / Type", pos: "dot-4" },
+        { n: 5, txt: "Description / Effet", pos: "dot-5" },
+        { n: 6, txt: "Mots-clés (Charge, Provocation...)", pos: "dot-6" },
+        { n: 7, txt: "Force / Vie (ATK/HP)", pos: "dot-7" }
+    ];
+
+    dots.forEach(d => {
+        const dot = document.createElement('div');
+        dot.className = `legend-dot ${d.pos}`;
+        dot.innerText = d.n;
+        display.appendChild(dot);
+    });
+
+    list.innerHTML = dots.map(d => `<li><span class="lg-num">${d.n}</span> ${d.txt}</li>`).join('');
+
+    ov.classList.remove('hidden');
+    ajusterTextes(display);
+}
+
+function fermerTutoCarteZoom() {
+    const ov = document.getElementById('tuto-carte-zoom');
+    if (ov) ov.classList.add('hidden');
+}
+
 function ouvrirTutoMap() {
     const ov = document.getElementById('tuto-map-overlay');
     if (!ov) return;
@@ -2105,9 +2217,9 @@ function ouvrirTutoMap() {
     content.innerHTML = '';
     const titres = [
         '📜 Bienvenue dans la Famille', '🔍 Découvrir le plateau',
-        '🎴 Poser une carte', '⚔️ Attaquer', '⚡ La Charge',
+        '🎴 Anatomie d\'une carte', '⚔️ Poser et attaquer', '⚡ La Charge',
         '🛡️ La Provocation', '💪 Les Effets — Boost',
-        '📚 Pioche & Cimetière', '💧 Mana progressif', '🏡 Terrains & Fusion'
+        '🎭 Le Bluff', '📚 Pioche & Cimetière', '🏡 Terrains & Fusion'
     ];
     let currentFound = false;
     for (let lvl = 0; lvl <= 9; lvl++) {
@@ -2335,6 +2447,29 @@ function silencer(m) { m.silence = true; m.motsCles = []; m.desc = 'Réduit au s
 function transformer(m) { transformerEn(m, 'Paire de chaussettes', 1, 1, '🧦', []); m.desc = 'Ce n\'était vraiment pas le cadeau espéré.'; }
 function echangeDegats(a, b) { appliquerDegatsCreature(b, atkTot(a)); appliquerDegatsCreature(a, atkTot(b)); }
 
+/* Révéler une carte Bluff */
+function revelerBluff(m, effets) {
+    if (m.revele) return;
+    m.revele = true;
+    fxSur(m, 'Révélé !', 'buff');
+    jouerSon('summon');
+    
+    // Appliquer les effets du sort qui révèle
+    if (effets) {
+        if (effets.buff) buff(m, effets.buff[0], effets.buff[1]);
+        if (effets.charge) { if(!m.motsCles.includes('Charge')) m.motsCles.push('Charge'); m.malade = false; }
+        if (effets.pioche) piocher(coteDe(m), effets.pioche);
+        if (effets.degatsHero) degatsHero(autre(coteDe(m)), effets.degatsHero);
+        if (effets.detruireCible) { /* Géré par le sort */ }
+    }
+    
+    // Appliquer l'effet propre de la carte Bluff
+    const p = POUVOIRS[m.id];
+    if (p && p.jouer) p.jouer({ moi: coteDe(m), ennemi: autre(coteDe(m)), source: m });
+    
+    setTimeout(() => rafraichirJeu(), 100);
+}
+
 function recalcAuras() {
     [J, B].forEach(side => {
         const ennemi = autre(side);
@@ -2343,12 +2478,14 @@ function recalcAuras() {
             if (!m.silence) {
                 if (m.id === 'k3' && m.vie < m.vieMax) bonusAtk += 3;
                 if (m.id === 'm3') { const n = ennemi.plateau.filter(x => x.famille === 'Marouf').length; bonusAtk += n; bonusVie += n; }
+                if (m.motsCles.includes('Bluff') && !m.revele) { /* Pas d'aura pour les cachées */ }
             }
             const t = side.terrain;
             if (t) {
                 if (t.id === 't1' && estChat(m)) { bonusAtk += 1; bonusVie += 1; }
                 if (t.id === 't2' && m.motsCles.includes('Provocation')) bonusVie += 2;
                 if (t.id === 't4' && ['Meridja','Marouf','Kerkache','Belgacemi'].includes(m.famille)) bonusAtk += 1;
+                if (t.id === 't9' && m.motsCles.includes('Bluff')) bonusAtk += 1;
             }
             m.auraAtk = bonusAtk;
             const delta = bonusVie - m.auraVieAppliquee;
@@ -2356,7 +2493,16 @@ function recalcAuras() {
         });
     });
 }
-function coutEffectif(side, c) { let cout = c.cout; if (side.terrain && side.terrain.id === 't1' && estChat(c)) cout -= 1; if (side.terrain && side.terrain.id === 'c12' && c.famille === 'Cousins') cout -= 1; cout += side.surcout; return Math.max(0, cout); }
+function coutEffectif(side, c) { 
+    let cout = c.cout; 
+    if (side.terrain) {
+        if (side.terrain.id === 't1' && estChat(c)) cout -= 1; 
+        if (side.terrain.id === 'c12' && c.famille === 'Cousins') cout -= 1; 
+        if (side.terrain.id === 't9' && c.motsCles.includes('Bluff')) cout -= 1;
+    }
+    cout += side.surcout; 
+    return Math.max(0, cout); 
+}
 
 function nettoyerMorts() {
     [J, B].forEach(side => {
@@ -2535,9 +2681,18 @@ function jouerCarte(side, index, cible) {
     } else {
         c.malade = !c.motsCles.includes('Charge');
         c.aAttaque = false;
+        // Si c'est une carte Bluff, elle arrive face cachée
+        if (c.motsCles.includes('Bluff')) {
+            c.revele = false;
+            info(`${c.prenom} est posée face cachée (Bluff).`);
+        } else {
+            c.revele = true;
+            info(`${c.prenom} entre en jeu.`);
+        }
         side.plateau.push(c);
-        if (p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
-        info(`${c.prenom} entre en jeu.`);
+        // Si la carte n'est pas Bluff, on déclenche son effet "jouer"
+        if (!c.motsCles.includes('Bluff') && p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
+        
         setTimeout(() => {
             const el = elOf(c.uid);
             if (el) { const r = el.getBoundingClientRect(); creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 12); }
@@ -2568,6 +2723,10 @@ function clicCreatureAlliee(m) {
     if (tourActuel !== 'joueur' && !modeEnLigne && !modeTuto) return;
     if (ciblage) return choisirCible(m);
     if (m.gele > 0) return info(`${m.prenom} est endormi.`);
+    
+    // Si c'est une carte Bluff non révélée, on ne peut pas attaquer avec
+    if (m.motsCles.includes('Bluff') && !m.revele) return info(`${m.prenom} est face cachée.`);
+
     if (m.malade) return info(`${m.prenom} ne peut pas encore attaquer.`);
     if (m.aAttaque) return info(`${m.prenom} a déjà attaqué.`);
     if (atkTot(m) <= 0) return info(`${m.prenom} n'a pas d'attaque.`);
@@ -2665,7 +2824,11 @@ function debutTourJoueur() {
     const be = document.getElementById('btn-endturn');
     if (be) be.classList.remove('inactif');
     prochainManaMax(J);
-    J.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
+    J.plateau.forEach(m => { 
+        m.aAttaque = false; 
+        m.malade = false; 
+        if (m.gele > 0) m.gele--; 
+    });
     piocher(J, 1);
     banniere('À toi de jouer');
     if (!modeEnLigne && !modeTuto) demarrerTimer();
@@ -2695,7 +2858,11 @@ function finDeTour() {
         if (be) be.classList.add('inactif');
         info('L\'adversaire réfléchit...');
         prochainManaMax(B);
-        B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
+        B.plateau.forEach(m => { 
+            m.aAttaque = false; 
+            m.malade = false; 
+            if (m.gele > 0) m.gele--; 
+        });
         piocher(B, 1);
         rafraichirJeu();
     } else if (!modeTuto) jouerTourBot();
@@ -2746,7 +2913,11 @@ async function jouerTourBot() {
     if (be) be.classList.add('inactif');
     banniere('Tour du bot');
     prochainManaMax(B);
-    B.plateau.forEach(m => { m.aAttaque = false; m.malade = false; if (m.gele > 0) m.gele--; });
+    B.plateau.forEach(m => { 
+        m.aAttaque = false; 
+        m.malade = false; 
+        if (m.gele > 0) m.gele--; 
+    });
     piocher(B, 1);
     rafraichirJeu();
     await pause(700);
@@ -2774,6 +2945,10 @@ async function jouerTourBot() {
     for (const m of [...B.plateau]) {
         if (partieFinie) break;
         if (m.aAttaque || m.malade || m.gele > 0 || atkTot(m) <= 0) continue;
+        // Le bot ne révèle pas ses Bluffs pour l'instant, il attaque avec si c'est possible
+        // (Logique simple : si c'est un Bluff, il ne l'attaque pas car il ne connait pas l'effet)
+        if (m.motsCles.includes('Bluff') && !m.revele) continue; 
+        
         const provocations = J.plateau.filter(x => x.motsCles.includes('Provocation'));
         let cible;
         if (provocations.length) cible = provocations[0];
@@ -2862,10 +3037,18 @@ function enregistrerResultat(gagne, mode) {
 /* ===========================================================
    TOURNOI
    =========================================================== */
+var _timerTournoi = null;
+var _tournoiTimerSecondes = 90;
+
 function afficherEtatTournoi() {
     const el = document.getElementById('tournoi-etat');
     if (!el) return;
-    if (!tournoiEnCours) { el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>'; return; }
+    if (!tournoiEnCours) { 
+        el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>'; 
+        const timerEl = document.getElementById('tournoi-timer');
+        if (timerEl) timerEl.classList.add('hidden');
+        return; 
+    }
     const t = tournoiEnCours;
     let html = `<h3>Tournoi ${t.taille} joueurs — Match ${t.tourActuel + 1}/${t.matchs.length}</h3>`;
     html += '<div class="tournoi-bracket">';
@@ -2889,6 +3072,7 @@ function afficherEtatTournoi() {
     if (t.gainTotal) html += `<p style="color:var(--menthe);font-weight:700;margin-top:12px;">Gains : ${t.gainTotal} 💰</p>`;
     el.innerHTML = html;
 }
+
 function demarrerTournoi(taille) {
     const cout = taille === 4 ? 500 : 1000;
     if (profil.coins < cout) return flashInfo(`Il te faut ${cout} 💰 pour ce tournoi.`);
@@ -2896,15 +3080,73 @@ function demarrerTournoi(taille) {
     profil.coins -= cout;
     sauvegarderProgression();
     majTopBarCoins();
-    const noms = ['Bot Alpha','Bot Bravo','Bot Charlie','Bot Delta','Bot Echo','Bot Foxtrot','Bot Golf'];
-    const adversaires = noms.sort(() => Math.random() - 0.5).slice(0, taille - 1);
+    
+    // Noms de bots
+    const nomsBots = ['Alfred', 'Bernard', 'Charles', 'Dimitri', 'Eugène', 'Fernand', 'Gaston', 'Henri', 'Isidore', 'Jules', 'Kléber', 'Léon', 'Marcel', 'Napoléon', 'Oscar', 'Pascal', 'Quentin', 'Raoul', 'Sébastien', 'Théodore', 'Ulysse', 'Victor', 'Wilfried', 'Xavier', 'Yves', 'Zacharie'];
+    const nomsMelanges = nomsBots.sort(() => Math.random() - 0.5);
+    
+    // On a besoin de taille - 1 adversaires (les autres joueurs)
+    // Mais dans un tournoi à élimination directe, on affronte potentiellement taille - 1 adversaires
+    const adversaires = nomsMelanges.slice(0, taille - 1);
+    
     const matchs = [];
-    for (let i = 0; i < taille - 1; i++) matchs.push({ adversaire: adversaires[i] || ('Bot ' + (i+1)), joue: false, gagnant: undefined });
-    tournoiEnCours = { taille, matchs, tourActuel: 0, gainTotal: 0, cout };
+    for (let i = 0; i < taille - 1; i++) {
+        matchs.push({ 
+            adversaire: adversaires[i] || ('Bot ' + (i+1)), 
+            joue: false, 
+            gagnant: undefined 
+        });
+    }
+    
+    tournoiEnCours = { 
+        taille, 
+        matchs, 
+        tourActuel: 0, 
+        gainTotal: 0, 
+        cout,
+        botsDisponibles: nomsMelanges.slice(taille - 1) // Bots pour remplir si on attend
+    };
+    
     afficherEtatTournoi();
+    
+    // Lancer le timer
+    _tournoiTimerSecondes = 90;
+    const timerEl = document.getElementById('tournoi-timer');
+    const timerTxt = document.getElementById('tournoi-timer-txt');
+    if (timerEl) timerEl.classList.remove('hidden');
+    if (timerTxt) timerTxt.innerText = `En attente de joueurs... ${_tournoiTimerSecondes}s`;
+    
+    if (_timerTournoi) clearInterval(_timerTournoi);
+    _timerTournoi = setInterval(() => {
+        _tournoiTimerSecondes--;
+        if (timerTxt) timerTxt.innerText = `En attente de joueurs... ${_tournoiTimerSecondes}s`;
+        
+        // Toutes les 5 secondes, on simule l'arrivée d'un joueur (ou on remplit avec des bots)
+        if (_tournoiTimerSecondes % 5 === 0 && _tournoiTimerSecondes > 0) {
+            flashInfo(`Un joueur a rejoint le tournoi !`);
+        }
+        
+        if (_tournoiTimerSecondes <= 0) {
+            clearInterval(_timerTournoi);
+            _timerTournoi = null;
+            if (timerEl) timerEl.classList.add('hidden');
+            flashInfo('Le tournoi commence ! Les places restantes sont remplies par des bots.');
+            setTimeout(() => lancerProchainMatchTournoi(), 1000);
+        }
+    }, 1000);
+    
     flashInfo(`🏆 Tournoi lancé ! ${matchs.length} matchs à gagner.`);
-    setTimeout(() => lancerProchainMatchTournoi(), 1000);
 }
+
+function forcerTournoi() {
+    if (!tournoiEnCours) return;
+    if (_timerTournoi) { clearInterval(_timerTournoi); _timerTournoi = null; }
+    const timerEl = document.getElementById('tournoi-timer');
+    if (timerEl) timerEl.classList.add('hidden');
+    flashInfo('Ajout des bots... Le tournoi commence !');
+    setTimeout(() => lancerProchainMatchTournoi(), 800);
+}
+
 function lancerProchainMatchTournoi() {
     if (!tournoiEnCours) return;
     const t = tournoiEnCours;
@@ -3317,7 +3559,7 @@ function rafraichirJeu() {
         J.plateau.forEach(m => {
             const el = creerHTMLCarte(m, 'jeu');
             if (m === selection) el.classList.add('selection');
-            else if (!m.malade && !m.aAttaque && m.gele === 0 && atkTot(m) > 0 && tourActuel === 'joueur') el.classList.add('pret');
+            else if (!m.malade && !m.aAttaque && m.gele === 0 && atkTot(m) > 0 && tourActuel === 'joueur' && (!m.motsCles.includes('Bluff') || m.revele)) el.classList.add('pret');
             if (m.aAttaque || m.malade) el.classList.add('epuise');
             if (m.gele > 0) el.classList.add('gelee');
             if (m.silence) el.classList.add('silencieuse');
@@ -3357,7 +3599,14 @@ function rafraichirJeu() {
             const peutJouer = tourActuel === 'joueur' && !modeAttente;
             if (peutJouer && J.manaActuel >= cout && placePlateau) el.classList.add('jouable');
             else el.classList.add('injouable');
-            el.onclick = () => clicCarteMain(i);
+            el.onclick = (e) => {
+                // Gestion du clic pour agrandir la main
+                if (window.innerWidth <= 1024) {
+                    const rail = document.getElementById('hand-rail');
+                    if (rail) rail.classList.toggle('hand-expanded');
+                }
+                clicCarteMain(i);
+            };
             main.appendChild(el);
         });
     }
@@ -3696,9 +3945,14 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
-            ['m1','ma2','k1','ka1','f1','u1'].forEach(id => {
+            // On ajoute les cartes une par une avec un petit délai pour que l'animation CSS fonctionne
+            ['m1','ma2','k1','ka1','f1','u1'].forEach((id, index) => {
                 const c = defCarte(id);
-                if (c) zone.appendChild(creerHTMLCarte(c, 'zoom'));
+                if (c) {
+                    const el = creerHTMLCarte(c, 'zoom');
+                    el.style.animation = `cardAppear 0.5s ease-out ${index * 0.1}s both`;
+                    zone.appendChild(el);
+                }
             });
             ajusterTextes(zone);
         }
