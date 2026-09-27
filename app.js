@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v9)
-   Tuto narratif complet + toutes fonctionnalités v8
+   FAMILLE TCG — moteur de jeu (Édition Ultime v10)
+   Esthétique v11 + Portabilité + Fix connexion
    =========================================================== */
 
 var collectionJoueur = {};
@@ -61,6 +61,10 @@ var _sortieAutorisee = false;
 window.appPret = false;
 
 var cartesBannies = [];
+
+/* Détection tactile */
+var _tapTimer = null;
+var _tapMoved = false;
 
 /* ===========================================================
    AUDIO
@@ -749,7 +753,7 @@ function verifierConnexionJournaliere() {
         }
         const gain = 50 + profil.streak * 25;
         const btn = document.getElementById('btn-daily-claim');
-        if (btn) btn.innerText = `🎁 Récupérer (+${gain}💰)`;
+        if (btn) btn.innerHTML = `<span class="btn-icon">🎁</span><span class="btn-label"><span class="btn-title">Récupérer</span><span class="btn-sub">+${gain} 💰</span></span><span class="btn-arrow">▶</span>`;
         ov.classList.add('open');
     }, 800);
 }
@@ -1027,7 +1031,7 @@ function changerEcran(id) {
     const bfNav = document.getElementById('btn-forfait');
     if (bfNav) bfNav.hidden = (id !== 'game-screen' || partieFinie || modeTuto);
     if (id === 'deckbuilder-screen') chargerListeDecks();
-    if (id === 'collection-screen') afficherBoutique(triCourant);
+    if (id === 'collection-screen') { afficherBoutique(triCourant); setTimeout(majCollectionHeader, 50); }
     if (id === 'menu-screen') { chargerDropdownDecks(); verifierResetQuetes(); }
     if (id === 'profil-screen') afficherProfil();
     if (id === 'tuto-screen') majTutoUI();
@@ -1035,9 +1039,32 @@ function changerEcran(id) {
     if (id === 'admin-screen') adminTab('actions');
     if (id === 'spectateur-screen') rafraichirSpectateur();
     if (id === 'tournoi-screen') afficherEtatTournoi();
+
+    // Onglet actif dans la nav
+    document.querySelectorAll('#main-nav button[data-screen]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.screen === id);
+    });
+
+    // Fermer le menu hamburger si ouvert
+    const links = document.querySelector('.nav-links');
+    if (links) links.classList.remove('open');
+}
+function toggleNavMenu() {
+    const links = document.querySelector('.nav-links');
+    if (links) links.classList.toggle('open');
 }
 function ouvrirAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.add('open'); }
 function fermerAide() { const el = document.getElementById('aide-overlay'); if(el) el.classList.remove('open'); }
+
+/* Fullscreen manuel */
+function toggleFullscreen() {
+    const el = document.documentElement;
+    if (!document.fullscreenElement) {
+        (el.requestFullscreen?.() || el.webkitRequestFullscreen?.() || Promise.resolve()).catch(() => {});
+    } else {
+        (document.exitFullscreen?.() || document.webkitExitFullscreen?.() || Promise.resolve()).catch(() => {});
+    }
+}
 
 /* ===========================================================
    RENDU CARTES
@@ -1084,7 +1111,10 @@ function creerHTMLCarte(c, ctx, opts) {
     const classeTexte = POUVOIRS[c.id] ? 'pouvoir' : 'lore';
     const clFamille = c.famille === 'Nouvelle famille' ? 'Nouvelle' : (c.famille === 'Famille Unifiée' ? 'Unifiee' : c.famille);
 
-    w.innerHTML = `${qty}${loupe}${tagDeck}${tagNeuf}<div class="card-inner"><div class="card bg-${clFamille} border-${clRarete}"><div class="card-head"><div class="mana-gem">${coutAffiche}</div><div class="card-name">${c.prenom}</div>${badge}</div><div class="card-art">${c.emoji}</div><div class="faction-tag">${c.famille}</div><div class="card-text ${classeTexte}">${c.desc}</div>${kw}${pied}${rareteHtml}</div><div class="card-back">✦</div></div>`;
+    // Rarity gem au coin (hors jeu)
+    const gemHtml = enJeu ? '' : `<div class="rarity-gem ${clRarete}">${displayRarete.charAt(0).toUpperCase()}</div>`;
+
+    w.innerHTML = `${gemHtml}${qty}${loupe}${tagDeck}${tagNeuf}<div class="card-inner"><div class="card bg-${clFamille} border-${clRarete}"><div class="card-head"><div class="mana-gem">${coutAffiche}</div><div class="card-name">${c.prenom}</div>${badge}</div><div class="card-art">${c.emoji}</div><div class="faction-tag">${c.famille}</div><div class="card-text ${classeTexte}">${c.desc}</div>${kw}${pied}${rareteHtml}</div><div class="card-back">✦</div></div>`;
 
     if (opts.missing) {
         w.classList.add('missing');
@@ -1137,6 +1167,27 @@ function fermerZoom() { const el = document.getElementById('card-zoom-overlay');
 /* ===========================================================
    BOUTIQUE
    =========================================================== */
+function majCollectionHeader() {
+    const el1 = document.getElementById('coll-total');
+    const el2 = document.getElementById('coll-total-cards');
+    const el3 = document.getElementById('coll-legendaires');
+    if (el1) {
+        let total = 0;
+        Object.values(collectionJoueur).forEach(c => {
+            total += (c.commune || 0) + (c.rare || 0) + (c.epique || 0) + (c.legendaire || 0);
+        });
+        el1.innerText = total;
+    }
+    if (el2) el2.innerText = dbCartesDispo().length;
+    if (el3) {
+        let leg = 0;
+        dbCartesDispo().forEach(c => {
+            if (c.rarete === 'legendaire' && collectionJoueur[c.id] && collectionJoueur[c.id].legendaire > 0) leg++;
+        });
+        el3.innerText = leg;
+    }
+}
+
 function afficherBoutique(critere) {
     triCourant = critere;
     const ordreRarete = { legendaire:0, epique:1, rare:2, commune:3 };
@@ -1158,6 +1209,7 @@ function afficherBoutique(critere) {
         grid.appendChild(el);
     });
     ajusterTextes(grid);
+    majCollectionHeader();
 }
 
 /* ===========================================================
@@ -1592,32 +1644,16 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds) {
 }
 
 /* ===========================================================
-   TUTO v9 — Structure complète
+   TUTO v9 — Étapes
    =========================================================== */
 var TUTO_ETAPES = {
     0: {
         titre: "Bienvenue dans la Famille",
         etapes: [
-            {
-                txt: `📜 <b>Bienvenue dans la Famille !</b><br><br>Aujourd'hui, c'est le grand repas de famille. Ta tante a préparé son couscous légendaire... et ton cousin <b>Bot</b> a osé dire qu'il était meilleur que celui de ta mère. 😱<br><br>La guerre est déclarée !<br><br><b>🎯 Ton objectif :</b> baisser la <b>patience</b> de ton adversaire de 20 à 0 en jouant tes cartes.`,
-                cible: null,
-                appris: ["Bienvenue dans Famille TCG", "L'objectif : mettre la patience adverse à 0"]
-            },
-            {
-                txt: `Voici ton <b>héros</b> 🧑 (en bas à gauche). C'est <b>toi</b>.<br><br>Tu as <b>20 points de patience</b> ❤. Si tu tombes à 0, tu perds la partie.`,
-                cible: ".hero-panel.you",
-                appris: ["Ton héros a 20 points de patience", "Si tu tombes à 0, tu perds"]
-            },
-            {
-                txt: `En face, ton cousin <b>Bot</b> 🤖 a lui aussi 20 patience.<br><br><b>Ton objectif</b> : le faire descendre à 0 avant qu'il ne te fasse pareil !`,
-                cible: ".hero-panel.opp",
-                appris: ["L'adversaire a aussi 20 patience", "Le premier à 0 perd"]
-            },
-            {
-                txt: `Parfait ! Tu es prêt à défendre l'honneur de ta mère. 🥘<br><br>Prêt pour l'étape suivante ?`,
-                cible: null,
-                appris: ["Tu peux passer à l'étape 1 : découvrir le plateau"]
-            }
+            { txt: `📜 <b>Bienvenue dans la Famille !</b><br><br>Aujourd'hui, c'est le grand repas de famille. Ta tante a préparé son couscous légendaire... et ton cousin <b>Bot</b> a osé dire qu'il était meilleur que celui de ta mère. 😱<br><br>La guerre est déclarée !<br><br><b>🎯 Ton objectif :</b> baisser la <b>patience</b> de ton adversaire de 20 à 0 en jouant tes cartes.`, cible: null, appris: ["Bienvenue dans Famille TCG", "L'objectif : mettre la patience adverse à 0"] },
+            { txt: `Voici ton <b>héros</b> 🧑 (en bas à gauche). C'est <b>toi</b>.<br><br>Tu as <b>20 points de patience</b> ❤. Si tu tombes à 0, tu perds la partie.`, cible: ".hero-panel.you", appris: ["Ton héros a 20 points de patience", "Si tu tombes à 0, tu perds"] },
+            { txt: `En face, ton cousin <b>Bot</b> 🤖 a lui aussi 20 patience.<br><br><b>Ton objectif</b> : le faire descendre à 0 avant qu'il ne te fasse pareil !`, cible: ".hero-panel.opp", appris: ["L'adversaire a aussi 20 patience", "Le premier à 0 perd"] },
+            { txt: `Parfait ! Tu es prêt à défendre l'honneur de ta mère. 🥘<br><br>Prêt pour l'étape suivante ?`, cible: null, appris: ["Tu peux passer à l'étape 1 : découvrir le plateau"] }
         ]
     },
     1: {
@@ -1695,7 +1731,6 @@ var TUTO_ETAPES = {
     }
 };
 
-/* QUIZ EXPRESS */
 var TUTO_QUIZ = [
     { q: "Que fait le mot-clé Charge ⚡ ?", options: [
         { txt: "Attaque immédiatement à l'invocation", correct: true },
@@ -1718,13 +1753,20 @@ var _quizReponses = {};
 /* MAJ UI tuto */
 function majTutoUI() {
     let completes = 0;
+    let currentFound = false;
     for (let lvl = 0; lvl <= 9; lvl++) {
         const btn = document.getElementById('btn-tuto-' + lvl);
         if (btn) {
+            btn.classList.remove('done', 'current', 'locked');
             if (profil['tuto_' + lvl]) {
                 btn.classList.add('done');
                 completes++;
-            } else btn.classList.remove('done');
+            } else if (!currentFound) {
+                btn.classList.add('current');
+                currentFound = true;
+            } else {
+                btn.classList.add('locked');
+            }
         }
     }
     const fill = document.getElementById('tuto-progress-fill');
@@ -1739,7 +1781,6 @@ function majTutoUI() {
     }
 }
 
-/* Lancer un tuto */
 function lancerTuto(niveau) {
     modeEnLigne = false; modeAttente = false; mulliganValide = true; modeTuto = true;
     currentTutoLevel = niveau; etapeTuto = 0;
@@ -1762,21 +1803,17 @@ function lancerTuto(niveau) {
     B.patience = 30;
     tourActuel = 'joueur';
 
-    // Setup selon niveau
-    if (niveau === 0) {
-        // Pas de cartes nécessaires
-    } else if (niveau === 1) {
-        const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
-    } else if (niveau === 2) {
+    if (niveau === 0) {}
+    else if (niveau === 1) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); } }
+    else if (niveau === 2) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) { c1.cout = 3; J.main.push(c1); }
         const c2 = instancier(defCarte('m1'), 'J'); if (c2) { c2.cout = 4; J.main.push(c2); }
     } else if (niveau === 3) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.plateau.push(c1);
         if (c1) c1.malade = true;
         J.manaMax = 5; J.manaActuel = 5;
-    } else if (niveau === 4) {
-        const c = instancier(defCarte('m8'), 'J'); if (c) J.main.push(c);
-    } else if (niveau === 5) {
+    } else if (niveau === 4) { const c = instancier(defCarte('m8'), 'J'); if (c) J.main.push(c); }
+    else if (niveau === 5) {
         const c1 = instancier(defCarte('n6'), 'B'); if (c1) B.plateau.push(c1);
         const c2 = instancier(defCarte('s22'), 'J'); if (c2) J.main.push(c2);
         const c3 = instancier(defCarte('m5'), 'J'); if (c3) J.main.push(c3);
@@ -1788,9 +1825,8 @@ function lancerTuto(niveau) {
     } else if (niveau === 7) {
         const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1);
         J.manaMax = 5; J.manaActuel = 5;
-    } else if (niveau === 8) {
-        const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1);
-    } else if (niveau === 9) {
+    } else if (niveau === 8) { const c1 = instancier(defCarte('m6'), 'J'); if (c1) J.main.push(c1); }
+    else if (niveau === 9) {
         const c1 = instancier(defCarte('ka5'), 'J'); if (c1) J.plateau.push(c1);
         const c2 = instancier(defCarte('ka6'), 'J'); if (c2) J.plateau.push(c2);
         const c3 = instancier(defCarte('f1'), 'J'); if (c3) J.main.push(c3);
@@ -1804,7 +1840,6 @@ function lancerTuto(niveau) {
     jouerSon('click');
 }
 
-/* Afficher étape tuto */
 function afficherEtapeTuto() {
     if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
     if (_tutoSuccessInterval) { clearInterval(_tutoSuccessInterval); _tutoSuccessInterval = null; }
@@ -1820,15 +1855,26 @@ function afficherEtapeTuto() {
         if (el) el.classList.add('tuto-highlight');
     }
 
+    // Update header
+    const tutoIcon = document.querySelector('.tuto-icon');
+    const etapeLabel = document.getElementById('tuto-etape-label');
+    const tutoTitre = document.getElementById('tuto-titre');
+    const miniFill = document.getElementById('tuto-mini-fill');
+    const icones = ['📜','🔍','🎴','⚔️','⚡','🛡️','💪','📚','💧','🏡'];
+    if (tutoIcon) tutoIcon.textContent = icones[currentTutoLevel] || '🎓';
+    if (etapeLabel) etapeLabel.textContent = `Étape ${etapeTuto + 1}/${config.etapes.length}`;
+    if (tutoTitre) tutoTitre.textContent = config.titre;
+    if (miniFill) miniFill.style.width = ((etapeTuto + 1) / config.etapes.length * 100) + '%';
+
     const bulle = document.getElementById('tuto-bubble');
     const txt = document.getElementById('tuto-text');
     const btn = document.getElementById('btn-tuto-next');
     const btnSkip = document.getElementById('btn-tuto-skip');
     if (!bulle || !txt || !btn) return;
 
-    txt.innerHTML = `<b>${config.titre}</b> — Étape ${etapeTuto + 1}/${config.etapes.length}<br>${etape.txt}`;
+    txt.innerHTML = etape.txt;
     bulle.classList.remove('hidden');
-    btn.classList.remove('hidden');
+    btn.classList.remove('hidden', 'ready');
     btn.innerText = 'Continuer ▶';
     btn.onclick = () => { etapeTuto++; afficherEtapeTuto(); };
     if (btnSkip) {
@@ -1843,7 +1889,7 @@ function afficherEtapeTuto() {
             try { ok = etape.attendre(); } catch(e) { ok = false; }
             if (ok) {
                 clearInterval(_tutoInterval); _tutoInterval = null;
-                if (btn) btn.innerText = 'Continuer ▶ ✅';
+                if (btn) { btn.innerText = 'Continuer ▶ ✅'; btn.classList.add('ready'); }
             }
         }, 300);
     }
@@ -1851,6 +1897,8 @@ function afficherEtapeTuto() {
 function etapeTutoSuivante() {
     const config = TUTO_ETAPES[currentTutoLevel];
     if (!config) return;
+    const btn = document.getElementById('btn-tuto-next');
+    if (btn) btn.classList.remove('ready');
     etapeTuto++;
     afficherEtapeTuto();
 }
@@ -1861,11 +1909,8 @@ function skipEtapeTuto() {
     etapeTuto++;
     afficherEtapeTuto();
 }
-function validerEtapeTuto() {
-    // Appelé après certaines actions : permet d'afficher ✅ quand la condition est OK
-}
+function validerEtapeTuto() {}
 
-/* Animations tuto */
 function animerReussiteEtape() {
     const burst = document.createElement('div');
     burst.className = 'tuto-success-burst';
@@ -1876,26 +1921,19 @@ function animerReussiteEtape() {
     jouerSon('tutoDone');
 }
 
-/* Terminer une étape */
 function terminerEtapeTuto() {
     if (_tutoInterval) { clearInterval(_tutoInterval); _tutoInterval = null; }
     const config = TUTO_ETAPES[currentTutoLevel];
     if (!config) return;
-
-    // Marquer complète
-    if (!profil['tuto_' + currentTutoLevel]) {
-        profil['tuto_' + currentTutoLevel] = true;
-    }
+    if (!profil['tuto_' + currentTutoLevel]) profil['tuto_' + currentTutoLevel] = true;
     modeTuto = false;
     const bulle = document.getElementById('tuto-bubble');
     if (bulle) bulle.classList.add('hidden');
     document.querySelectorAll('.tuto-highlight').forEach(el => el.classList.remove('tuto-highlight'));
 
-    // Compilation des apprentissages
     const apprisSet = new Set();
     config.etapes.forEach(e => { if (e.appris) e.appris.forEach(a => apprisSet.add(a)); });
 
-    // Gain
     const gain = 500;
     const carteId = carteRecompenseTuto(currentTutoLevel);
 
@@ -1925,9 +1963,7 @@ function afficherResumeEtape(niveau, appris, gain, carteId) {
     const titre = document.getElementById('tuto-resume-titre');
     if (titre) titre.innerText = `✅ Étape ${niveau} terminée !`;
     const apprisEl = document.getElementById('tuto-resume-appris');
-    if (apprisEl) {
-        apprisEl.innerHTML = '<ul>' + appris.map(a => `<li>${a}</li>`).join('') + '</ul>';
-    }
+    if (apprisEl) apprisEl.innerHTML = '<ul>' + appris.map(a => `<li>${a}</li>`).join('') + '</ul>';
     const gainEl = document.getElementById('tuto-resume-gain');
     if (gainEl) gainEl.innerText = `+${gain} 💰`;
     const carteEl = document.getElementById('tuto-resume-carte');
@@ -1935,21 +1971,13 @@ function afficherResumeEtape(niveau, appris, gain, carteId) {
         carteEl.innerHTML = '';
         if (carteId) {
             const c = defCarte(carteId);
-            if (c) {
-                const el = creerHTMLCarte(c, 'zoom', { overrideRarete: getHighRarity(carteId), nouveau: true });
-                carteEl.appendChild(el);
-                ajusterTextes(carteEl);
-            }
+            if (c) { const el = creerHTMLCarte(c, 'zoom', { overrideRarete: getHighRarity(carteId), nouveau: true }); carteEl.appendChild(el); ajusterTextes(carteEl); }
         }
     }
-    // Adapter le bouton "suivant"
     const btnNext = document.getElementById('btn-tuto-resume-next');
     if (btnNext) {
-        if (niveau < 9) {
-            btnNext.innerText = `Étape ${niveau + 1} ▶`;
-        } else {
-            btnNext.innerText = '🎓 Voir le récap final';
-        }
+        if (niveau < 9) btnNext.innerText = `Étape ${niveau + 1} ▶`;
+        else btnNext.innerText = '🎓 Voir le récap final';
     }
     ov.classList.add('open');
     jouerSon('coin');
@@ -1959,11 +1987,8 @@ function fermerTutoResumeEtSuivant() {
     const ov = document.getElementById('tuto-resume-overlay');
     if (ov) ov.classList.remove('open');
     majTutoUI();
-    if (currentTutoLevel < 9) {
-        setTimeout(() => lancerTuto(currentTutoLevel + 1), 400);
-    } else {
-        setTimeout(() => afficherTutoFinal(), 400);
-    }
+    if (currentTutoLevel < 9) setTimeout(() => lancerTuto(currentTutoLevel + 1), 400);
+    else setTimeout(() => afficherTutoFinal(), 400);
 }
 function fermerTutoResumeEtMenu() {
     const ov = document.getElementById('tuto-resume-overlay');
@@ -1972,18 +1997,13 @@ function fermerTutoResumeEtMenu() {
     majTutoUI();
 }
 
-/* Récap final */
 function afficherTutoFinal() {
     const ov = document.getElementById('tuto-final-overlay');
     if (!ov) return;
     const comps = [
-        "Invoquer une carte",
-        "Comprendre le mana",
-        "Attaquer",
-        "Gérer Provocation & Charge",
-        "Déclencher des effets",
-        "Comprendre la pioche & le cimetière",
-        "Comprendre le mana progressif",
+        "Invoquer une carte", "Comprendre le mana", "Attaquer",
+        "Gérer Provocation & Charge", "Déclencher des effets",
+        "Comprendre la pioche & le cimetière", "Comprendre le mana progressif",
         "Utiliser Terrains & Fusion"
     ];
     const compsEl = document.getElementById('tuto-final-competences');
@@ -2004,7 +2024,6 @@ function fermerTutoFinal() {
     setTimeout(() => ouvrirChallengeTuto(), 600);
 }
 
-/* Carte récompense */
 function carteRecompenseTuto(niveau) {
     const cartesFixes = { 0:'m6', 1:'m6', 2:'m7', 3:'m4', 4:'m8', 5:'s9', 6:'s22', 7:'s23', 8:'s38', 9:'ka5' };
     const idFix = cartesFixes[niveau];
@@ -2015,9 +2034,7 @@ function carteRecompenseTuto(niveau) {
     return pool.length ? hasard(pool).id : 'm6';
 }
 
-/* ===========================================================
-   TUTO EXPRESS (quiz)
-   =========================================================== */
+/* Quiz express */
 function ouvrirTutoExpress() {
     const ov = document.getElementById('tuto-express-overlay');
     if (!ov) return;
@@ -2051,7 +2068,6 @@ function validerTutoExpress() {
     });
     fermerTutoExpress();
     if (bonnes >= 2) {
-        // Réussi
         for (let lvl = 0; lvl <= 9; lvl++) {
             if (!profil['tuto_' + lvl]) {
                 profil['tuto_' + lvl] = true;
@@ -2081,7 +2097,6 @@ function validerTutoExpress() {
     }
 }
 
-/* Carte de progression */
 function ouvrirTutoMap() {
     const ov = document.getElementById('tuto-map-overlay');
     if (!ov) return;
@@ -2089,16 +2104,10 @@ function ouvrirTutoMap() {
     if (!content) return;
     content.innerHTML = '';
     const titres = [
-        '📜 Bienvenue dans la Famille',
-        '🔍 Découvrir le plateau',
-        '🎴 Poser une carte',
-        '⚔️ Attaquer',
-        '⚡ La Charge',
-        '🛡️ La Provocation',
-        '💪 Les Effets — Boost',
-        '📚 Pioche & Cimetière',
-        '💧 Mana progressif',
-        '🏡 Terrains & Fusion'
+        '📜 Bienvenue dans la Famille', '🔍 Découvrir le plateau',
+        '🎴 Poser une carte', '⚔️ Attaquer', '⚡ La Charge',
+        '🛡️ La Provocation', '💪 Les Effets — Boost',
+        '📚 Pioche & Cimetière', '💧 Mana progressif', '🏡 Terrains & Fusion'
     ];
     let currentFound = false;
     for (let lvl = 0; lvl <= 9; lvl++) {
@@ -2110,12 +2119,7 @@ function ouvrirTutoMap() {
         div.innerHTML = `<div class="tuto-map-icon">${done ? '✓' : (lvl)}</div>
             <div class="tuto-map-titre">${titres[lvl]}</div>
             <div class="tuto-map-statut">${done ? 'TERMINÉ' : (isCurrent ? 'À FAIRE' : 'VERROUILLÉ')}</div>`;
-        div.onclick = () => {
-            if (done || isCurrent) {
-                fermerTutoMap();
-                lancerTuto(lvl);
-            }
-        };
+        div.onclick = () => { if (done || isCurrent) { fermerTutoMap(); lancerTuto(lvl); } };
         div.style.cursor = (done || isCurrent) ? 'pointer' : 'not-allowed';
         content.appendChild(div);
     }
@@ -2126,7 +2130,6 @@ function fermerTutoMap() {
     if (ov) ov.classList.remove('open');
 }
 
-/* Challenge post-tuto */
 function ouvrirChallengeTuto() {
     const ov = document.getElementById('tuto-challenge-overlay');
     const txt = document.getElementById('tuto-challenge-text');
@@ -2136,7 +2139,6 @@ function ouvrirChallengeTuto() {
 function accepterChallengeTuto() {
     fermerChallengeTuto();
     modeChallenge = true;
-    // Lance une partie spéciale
     lancerPartieChallenge();
 }
 function refuserChallengeTuto() {
@@ -2148,9 +2150,7 @@ function fermerChallengeTuto() {
     if (ov) ov.classList.remove('open');
 }
 function lancerPartieChallenge() {
-    // Utilise la même logique que lancerPartie() mais avec partieFinie reset et modeChallenge=true
     modeEnLigne = false; modeAttente = false; mulliganValide = false; modeTuto = false; modeTournoi = false;
-    // Cherche un deck complet
     const completIdx = mesDecks.findIndex(d => calculerCartesPossedeesPourDeck(d.cartes) === 20);
     if (completIdx < 0) { flashInfo('Aucun deck complet pour le challenge.'); return; }
     const i = completIdx;
@@ -2414,7 +2414,6 @@ function clicCarteMain(index) {
     const c = J.main[index];
     if (!c) return;
 
-    // Feedback d'erreur pédagogique en tuto
     if (modeTuto) {
         const coutEff = coutEffectif(J, c);
         if (c.motsCles.includes('Fusion') && fusionsPossibles(J, c).length === 0) {
@@ -3367,6 +3366,12 @@ function rafraichirJeu() {
     if (gs) ajusterTextes(gs);
 }
 function ajusterChevauchementMain() {
+    const estTactile = window.matchMedia('(pointer: coarse)').matches;
+    if (estTactile) {
+        const main = document.getElementById('player-hand');
+        if (main) main.style.setProperty('--chevauchement', '0px');
+        return;
+    }
     const rail = document.querySelector('.hand-rail'), main = document.getElementById('player-hand'), n = J.main.length;
     if (!rail || !main || n === 0) return;
     const cw = parseFloat(getComputedStyle(main.querySelector('.card-wrapper') || main).width) || 200;
@@ -3618,6 +3623,66 @@ function deconnexion() {
 }
 
 /* ===========================================================
+   FEEDBACK TACTILE + ZOOM LONG PRESS
+   =========================================================== */
+function initTouchFeedback() {
+    const estTactile = window.matchMedia('(pointer: coarse)').matches;
+    if (!estTactile) return;
+
+    document.addEventListener('touchstart', (e) => {
+        const target = e.target.closest('button, .card-wrapper, .badge.deck');
+        if (target && navigator.vibrate) navigator.vibrate(10);
+    }, { passive: true });
+
+    let localTimer = null;
+    let localMoved = false;
+
+    document.addEventListener('touchstart', (e) => {
+        const card = e.target.closest('.card-wrapper');
+        if (!card) return;
+        localMoved = false;
+        localTimer = setTimeout(() => {
+            if (localMoved) return;
+            const name = card.querySelector('.card-name')?.textContent?.trim();
+            const def = dbCartes.find(c => c.prenom === name);
+            if (def && navigator.vibrate) navigator.vibrate(20);
+            if (def) zoomCarte(null, def.id);
+        }, 500);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', () => {
+        localMoved = true;
+        clearTimeout(localTimer);
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        clearTimeout(localTimer);
+    }, { passive: true });
+}
+
+/* ===========================================================
+   HELPERS ADMIN Firebase
+   =========================================================== */
+function adminNettoyerSalles() {
+    if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
+    fbDB.ref('salles').once('value').then(snap => {
+        const salles = snap.val();
+        if(!salles) return alert("Aucune salle.");
+        let count = 0;
+        Object.keys(salles).forEach(id => { fbDB.ref('salles/' + id).remove(); count++; });
+        alert(count + " salle(s) nettoyée(s).");
+    });
+}
+function adminEnvoyerMotd() {
+    if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
+    const el = document.getElementById('admin-motd');
+    if (!el) return;
+    const msg = el.value.trim();
+    if(msg === "") { fbDB.ref('motd').remove(); alert("Effacé"); }
+    else { fbDB.ref('motd').set(msg); alert("Diffusé !"); }
+}
+
+/* ===========================================================
    DÉMARRAGE
    =========================================================== */
 document.addEventListener('DOMContentLoaded', function() {
@@ -3652,6 +3717,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) {}
 
+    // Update collection header au démarrage
+    if (document.getElementById('boutique-grid')) majCollectionHeader();
+
+    // Scroll nav
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('main-nav');
+        if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
+    }, { passive: true });
+
+    // Touch feedback
+    initTouchFeedback();
+
     window.appPret = true;
     if (typeof window.onAppPret === 'function') window.onAppPret();
 
@@ -3664,25 +3741,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setTimeout(() => { if (typeof ecouterDemandesAmis === 'function') ecouterDemandesAmis(); }, 2000);
 });
-
-/* ===========================================================
-   HELPERS ADMIN Firebase
-   =========================================================== */
-function adminNettoyerSalles() {
-    if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
-    fbDB.ref('salles').once('value').then(snap => {
-        const salles = snap.val();
-        if(!salles) return alert("Aucune salle.");
-        let count = 0;
-        Object.keys(salles).forEach(id => { fbDB.ref('salles/' + id).remove(); count++; });
-        alert(count + " salle(s) nettoyée(s).");
-    });
-}
-function adminEnvoyerMotd() {
-    if (typeof fbDB === 'undefined' || !fbDB) return alert("Firebase non connecté.");
-    const el = document.getElementById('admin-motd');
-    if (!el) return;
-    const msg = el.value.trim();
-    if(msg === "") { fbDB.ref('motd').remove(); alert("Effacé"); }
-    else { fbDB.ref('motd').set(msg); alert("Diffusé !"); }
-}
