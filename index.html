@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -96,15 +96,6 @@
     </div>
 </div>
 
-<!-- Tournoi -->
-<div id="tournoi-overlay" class="tournoi-overlay">
-    <div class="tournoi-box">
-        <h2>🏆 Tournoi</h2>
-        <div id="tournoi-content"></div>
-        <button class="btn-action full" onclick="fermerTournoi()">Fermer</button>
-    </div>
-</div>
-
 <!-- Aide -->
 <div id="aide-overlay" onclick="fermerAide()">
     <div class="aide-box" onclick="event.stopPropagation()">
@@ -118,6 +109,7 @@
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
                 <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
                 <li><strong>Terrain</strong> 🏡 : Actif 3 tours puis disparaît.</li>
+                <li><strong>Bluff</strong> 🎭 : Peut être posée face cachée. Attend sa condition pour se révéler avec un bonus.</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -146,6 +138,18 @@
     <div class="tuto-actions-row">
         <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer ▶</button>
         <button id="btn-tuto-skip" class="tuto-skip-btn" onclick="skipEtapeTuto()">Je connais déjà →</button>
+    </div>
+</div>
+
+<!-- ANALYSE CARTE (nouveau tuto : voir les éléments d'une carte) -->
+<div id="tuto-carte-zoom" class="tuto-carte-zoom hidden">
+    <div class="tuto-carte-container">
+        <div id="tuto-carte-display"></div>
+        <div class="tuto-carte-legend">
+            <h3 id="tuto-carte-legend-titre">Éléments d'une carte</h3>
+            <ul id="tuto-carte-legend-list"></ul>
+        </div>
+        <button class="btn-large" onclick="fermerTutoCarteZoom()">Compris !</button>
     </div>
 </div>
 
@@ -342,6 +346,9 @@
     </div>
 </nav>
 
+<!-- Bouton toggle nav en game (mobile) -->
+<button id="btn-toggle-nav" class="btn-toggle-nav hidden" onclick="toggleNavGame()" title="Menu">☰</button>
+
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
     <div class="login-stage">
@@ -384,105 +391,107 @@
 
 <!-- TUTO SCREEN -->
 <div id="tuto-screen" class="screen">
-    <div class="box menu-box" style="max-width:700px; max-height:88vh; overflow-y:auto;">
-        <h2>🎓 Académie de la Famille</h2>
-        <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
+    <div class="tuto-wrapper">
+        <div class="box menu-box" style="max-width:700px;">
+            <h2>🎓 Académie de la Famille</h2>
+            <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
 
-        <div class="tuto-progress-bar">
-            <div class="tuto-progress-fill" id="tuto-progress-fill" style="width:0%"></div>
-        </div>
-        <p class="hint" id="tuto-progress-text" style="margin-bottom:14px;">0 / 10 étapes complétées</p>
+            <div class="tuto-progress-bar">
+                <div class="tuto-progress-fill" id="tuto-progress-fill" style="width:0%"></div>
+            </div>
+            <p class="hint" id="tuto-progress-text" style="margin-bottom:14px;">0 / 10 étapes complétées</p>
 
-        <button class="btn-large btn-spec" onclick="ouvrirTutoExpress()" style="margin-bottom:14px;">
-            <span class="btn-icon">⚡</span>
-            <span class="btn-label">
-                <span class="btn-title">Je sais déjà jouer</span>
-                <span class="btn-sub">Quiz rapide • Débloquer toutes les récompenses</span>
-            </span>
-            <span class="btn-arrow">▶</span>
-        </button>
-
-        <div id="tuto-liste-etapes">
-            <button class="btn-large tuto-btn" onclick="lancerTuto(0)" id="btn-tuto-0" data-lvl="0">
-                <span class="btn-icon">📜</span>
-                <span class="btn-label">
-                    <span class="btn-title">Bienvenue dans la Famille</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(1)" id="btn-tuto-1" data-lvl="1">
-                <span class="btn-icon">🔍</span>
-                <span class="btn-label">
-                    <span class="btn-title">Découvrir le plateau</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(2)" id="btn-tuto-2" data-lvl="2">
-                <span class="btn-icon">🎴</span>
-                <span class="btn-label">
-                    <span class="btn-title">Poser une carte</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(3)" id="btn-tuto-3" data-lvl="3">
-                <span class="btn-icon">⚔️</span>
-                <span class="btn-label">
-                    <span class="btn-title">Attaquer</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(4)" id="btn-tuto-4" data-lvl="4">
+            <button class="btn-large btn-spec" onclick="ouvrirTutoExpress()" style="margin-bottom:14px;">
                 <span class="btn-icon">⚡</span>
                 <span class="btn-label">
-                    <span class="btn-title">La Charge</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    <span class="btn-title">Je sais déjà jouer</span>
+                    <span class="btn-sub">Quiz rapide • Débloquer toutes les récompenses</span>
                 </span>
                 <span class="btn-arrow">▶</span>
             </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(5)" id="btn-tuto-5" data-lvl="5">
-                <span class="btn-icon">🛡️</span>
-                <span class="btn-label">
-                    <span class="btn-title">La Provocation</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(6)" id="btn-tuto-6" data-lvl="6">
-                <span class="btn-icon">💪</span>
-                <span class="btn-label">
-                    <span class="btn-title">Les Effets — Boost</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(7)" id="btn-tuto-7" data-lvl="7">
-                <span class="btn-icon">📚</span>
-                <span class="btn-label">
-                    <span class="btn-title">Pioche & Cimetière</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(8)" id="btn-tuto-8" data-lvl="8">
-                <span class="btn-icon">💧</span>
-                <span class="btn-label">
-                    <span class="btn-title">Mana progressif</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
-            <button class="btn-large tuto-btn" onclick="lancerTuto(9)" id="btn-tuto-9" data-lvl="9">
-                <span class="btn-icon">🏡</span>
-                <span class="btn-label">
-                    <span class="btn-title">Terrains & Fusion</span>
-                    <span class="btn-sub">Gain: +500💰 + 1 carte</span>
-                </span>
-                <span class="btn-arrow">▶</span>
-            </button>
+
+            <div id="tuto-liste-etapes" class="tuto-scroll-area">
+                <button class="btn-large tuto-btn" onclick="lancerTuto(0)" id="btn-tuto-0" data-lvl="0">
+                    <span class="btn-icon">📜</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Bienvenue dans la Famille</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(1)" id="btn-tuto-1" data-lvl="1">
+                    <span class="btn-icon">🔍</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Découvrir le plateau</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(2)" id="btn-tuto-2" data-lvl="2">
+                    <span class="btn-icon">🎴</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Anatomie d'une carte</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(3)" id="btn-tuto-3" data-lvl="3">
+                    <span class="btn-icon">⚔️</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Poser et attaquer</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(4)" id="btn-tuto-4" data-lvl="4">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-label">
+                        <span class="btn-title">La Charge</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(5)" id="btn-tuto-5" data-lvl="5">
+                    <span class="btn-icon">🛡️</span>
+                    <span class="btn-label">
+                        <span class="btn-title">La Provocation</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(6)" id="btn-tuto-6" data-lvl="6">
+                    <span class="btn-icon">💪</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Les Effets — Boost</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(7)" id="btn-tuto-7" data-lvl="7">
+                    <span class="btn-icon">🎭</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Le Bluff</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(8)" id="btn-tuto-8" data-lvl="8">
+                    <span class="btn-icon">📚</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Pioche & Cimetière</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(9)" id="btn-tuto-9" data-lvl="9">
+                    <span class="btn-icon">🏡</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Terrains & Fusion</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -508,9 +517,9 @@
 <div id="tournoi-screen" class="screen">
     <div class="box menu-box" style="max-width:700px">
         <h2>🏆 Tournoi</h2>
-        <p class="subtitle">Affronte des bots en série. 4 ou 8 participants, élimination directe.</p>
+        <p class="subtitle">Rejoins un tournoi en ligne. Les bots complètent après 1min30.</p>
         <div class="tournoi-choix">
-            <button class="btn-large btn-rare" onclick="demarrerTournoi(4)">
+            <button class="btn-large btn-rare" onclick="rejoindreTournoi(4)">
                 <span class="btn-icon">🏅</span>
                 <span class="btn-label">
                     <span class="btn-title">Tournoi 4 joueurs</span>
@@ -518,7 +527,7 @@
                 </span>
                 <span class="btn-arrow">▶</span>
             </button>
-            <button class="btn-large btn-rare" onclick="demarrerTournoi(8)">
+            <button class="btn-large btn-rare" onclick="rejoindreTournoi(8)">
                 <span class="btn-icon">👑</span>
                 <span class="btn-label">
                     <span class="btn-title">Tournoi 8 joueurs</span>
@@ -528,6 +537,10 @@
             </button>
         </div>
         <div id="tournoi-etat" style="margin-top:20px;"></div>
+        <div id="tournoi-timer" class="tournoi-timer hidden">
+            <span id="tournoi-timer-txt">En attente de joueurs…</span>
+            <button class="btn-action" onclick="forcerTournoi()" style="margin-top:8px;">🤖 Ajouter des bots maintenant</button>
+        </div>
     </div>
 </div>
 
@@ -566,26 +579,17 @@
             <h3>Actions rapides</h3>
             <button class="btn-large btn-play" onclick="adminToutDebloquer(10)">
                 <span class="btn-icon">🎁</span>
-                <span class="btn-label">
-                    <span class="btn-title">10 de chaque carte & rareté</span>
-                    <span class="btn-sub">Débloquer tout d'un coup</span>
-                </span>
+                <span class="btn-label"><span class="btn-title">10 de chaque carte & rareté</span><span class="btn-sub">Débloquer tout d'un coup</span></span>
                 <span class="btn-arrow">▶</span>
             </button>
             <button class="btn-large" onclick="adminToutDebloquer(1)">
                 <span class="btn-icon">🎁</span>
-                <span class="btn-label">
-                    <span class="btn-title">1 de chaque carte</span>
-                    <span class="btn-sub">Débloquer 1 exemplaire</span>
-                </span>
+                <span class="btn-label"><span class="btn-title">1 de chaque carte</span><span class="btn-sub">Débloquer 1 exemplaire</span></span>
                 <span class="btn-arrow">▶</span>
             </button>
             <button class="btn-large btn-rare" onclick="adminMaxCoins()">
                 <span class="btn-icon">💰</span>
-                <span class="btn-label">
-                    <span class="btn-title">1M Coins</span>
-                    <span class="btn-sub">Créditer le compte</span>
-                </span>
+                <span class="btn-label"><span class="btn-title">1M Coins</span><span class="btn-sub">Créditer le compte</span></span>
                 <span class="btn-arrow">▶</span>
             </button>
             <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles</button>
@@ -634,10 +638,7 @@
             <textarea id="new-card-desc" placeholder="Description..."></textarea>
             <button class="btn-large btn-play" onclick="adminCreerCarte()">
                 <span class="btn-icon">✨</span>
-                <span class="btn-label">
-                    <span class="btn-title">Créer la carte</span>
-                    <span class="btn-sub">Ajout instantané au jeu</span>
-                </span>
+                <span class="btn-label"><span class="btn-title">Créer la carte</span><span class="btn-sub">Ajout instantané au jeu</span></span>
                 <span class="btn-arrow">▶</span>
             </button>
         </div>
@@ -736,10 +737,7 @@
             <div id="deck-grid" class="deck-list"></div>
             <button class="btn-large btn-play" onclick="sauvegarderDeck()">
                 <span class="btn-icon">💾</span>
-                <span class="btn-label">
-                    <span class="btn-title">Enregistrer</span>
-                    <span class="btn-sub">Sauvegarder ce deck</span>
-                </span>
+                <span class="btn-label"><span class="btn-title">Enregistrer</span><span class="btn-sub">Sauvegarder ce deck</span></span>
                 <span class="btn-arrow">▶</span>
             </button>
             <button class="btn-action full" id="btn-set-default" onclick="definirDeckParDefaut()" style="margin-top:6px;">⭐ Définir par défaut</button>
@@ -806,10 +804,7 @@
         <div id="multi-liste" class="multi-liste"></div>
         <button class="btn-large btn-spec" onclick="rafraichirJoueurs()">
             <span class="btn-icon">🔄</span>
-            <span class="btn-label">
-                <span class="btn-title">Rafraîchir</span>
-                <span class="btn-sub">Actualiser la liste des joueurs</span>
-            </span>
+            <span class="btn-label"><span class="btn-title">Rafraîchir</span><span class="btn-sub">Actualiser la liste</span></span>
             <span class="btn-arrow">▶</span>
         </button>
     </div>
@@ -839,10 +834,7 @@
         <div class="grid booster-grid" id="booster-results"></div>
         <button class="btn-large btn-play hidden" id="btn-again" onclick="preparerBooster()">
             <span class="btn-icon">🎁</span>
-            <span class="btn-label">
-                <span class="btn-title">Ouvrir un autre paquet</span>
-                <span class="btn-sub">50 💰 par booster</span>
-            </span>
+            <span class="btn-label"><span class="btn-title">Ouvrir un autre paquet</span><span class="btn-sub">50 💰 par booster</span></span>
             <span class="btn-arrow">▶</span>
         </button>
     </div>
@@ -910,7 +902,7 @@
         </div>
     </section>
 
-    <div class="hand-rail">
+    <div class="hand-rail" id="hand-rail">
         <div class="hand-area" id="player-hand"></div>
     </div>
     <div id="targeting-banner">Choisis une cible <button onclick="annulerCiblage()">Annuler</button></div>
@@ -920,7 +912,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=11"></script>
-<script src="multi.js?v=11"></script>
+<script src="app.js?v=12"></script>
+<script src="multi.js?v=12"></script>
 </body>
 </html>
