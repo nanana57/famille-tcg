@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -35,7 +35,7 @@
         <div style="text-align:left; background:#101a25; border-radius:10px; padding:14px; margin:14px 0; font-size:13px; line-height:1.7;">
             <div style="margin-bottom:10px;">
                 <b style="color:#a86bff;">🎭 Face cachée :</b><br>
-                Personne ne voit son identité. Elle ne peut pas attaquer. Pour la révéler, tu devras remplir sa condition (souvent avec un sort). Une fois révélée, sa capacité se déclenche !
+                Personne ne voit son identité. Elle ne peut pas attaquer. À ton prochain tour, tu pourras cliquer dessus pour la révéler. Une fois révélée, sa capacité se déclenche !
             </div>
             <div>
                 <b style="color:#93a3b4;">👁️ Face visible :</b><br>
@@ -123,7 +123,7 @@
                 <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
                 <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
                 <li><strong>Terrain</strong> 🏡 : Actif 3 tours puis disparaît.</li>
-                <li><strong>Bluff</strong> 🎭 : Peut être posée face cachée (révèle son effet plus tard) ou face visible (attaque normalement mais pas d'effet).</li>
+                <li><strong>Bluff</strong> 🎭 : Posée face cachée, elle prend une place de créature. Clique dessus à ton prochain tour pour la révéler et déclencher son effet.</li>
             </ul>
         </div>
         <button class="btn-large" onclick="fermerAide()">Compris !</button>
@@ -348,9 +348,6 @@
         <span id="nav-level" class="nav-level">Niv. 1</span>
     </div>
 </nav>
-
-<!-- Bouton toggle nav en game (mobile) -->
-<button id="btn-toggle-nav" class="btn-toggle-nav hidden" onclick="toggleNavGame()" title="Menu">☰</button>
 
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
@@ -951,7 +948,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=14"></script>
-<script src="multi.js?v=14"></script>
+<script src="app.js?v=15"></script>
+<script src="multi.js?v=15"></script>
 </body>
 </html>
