@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — feuille de style (v12)
+   FAMILLE TCG — feuille de style (v13)
    Fix connexion + Mobile optimisé + Bluff + Fix icônes mana
    =========================================================== */
 
@@ -871,7 +871,7 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .tuto-map-node.done .tuto-map-statut{background:var(--menthe);color:#04261a;}
 .tuto-map-node.current .tuto-map-statut{background:var(--laiton);color:#231703;}
 
-#tuto-express-quiz{text-align:left;margin-top:16px;}
+#tuto-express-quiz{text-align:left;margin-top:16px; max-height: 50vh; overflow-y: auto; padding-right: 6px;}
 .quiz-question{background:#101a25;border-radius:10px;padding:14px;margin-bottom:12px;}
 .quiz-question .q-intitule{font-weight:700;color:var(--laiton-clair);margin-bottom:10px;}
 .quiz-option{
@@ -907,11 +907,14 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     gap:24px;
     max-width:1000px;
     width:100%;
+    max-height: 95vh;
+    overflow-y: auto;
 }
 .tuto-carte-container #tuto-carte-display{
     position:relative;
     display:flex;
     justify-content:center;
+    width: 100%;
 }
 .tuto-carte-container #tuto-carte-display .card-wrapper{
     --cw: 320px !important;
@@ -939,13 +942,13 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     0%,100%{transform:scale(1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
     50%{transform:scale(1.12);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
 }
-.legend-dot.dot-1{top:5%;left:5%;}
-.legend-dot.dot-2{top:5%;right:5%;}
-.legend-dot.dot-3{top:25%;left:50%;transform:translateX(-50%);}
-.legend-dot.dot-4{top:48%;left:5%;}
-.legend-dot.dot-5{top:75%;left:5%;}
-.legend-dot.dot-6{top:75%;right:5%;}
-.legend-dot.dot-7{top:92%;left:50%;transform:translateX(-50%);}
+.legend-dot.dot-1{top:4%;left:7%;}
+.legend-dot.dot-2{top:4%;right:7%;}
+.legend-dot.dot-3{top:22%;left:50%;transform:translateX(-50%);}
+.legend-dot.dot-4{top:45%;left:7%;}
+.legend-dot.dot-5{top:68%;left:7%;}
+.legend-dot.dot-6{top:68%;right:7%;}
+.legend-dot.dot-7{top:88%;left:50%;transform:translateX(-50%);}
 
 .tuto-carte-legend{
     background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
