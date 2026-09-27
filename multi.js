@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v9)
+   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v10)
    =========================================================== */
 
 const firebaseConfig = {
@@ -28,6 +28,7 @@ let _salleRef = null;
 let _ecouteurDemandesAmis = null;
 let _ecouteurBonusTemporaire = null;
 let _ecouteurMessagesPrives = null;
+let _intervalPing = null;
 
 function normaliserPseudo(p) {
     return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20);
@@ -170,10 +171,7 @@ function initApresAuth(user) {
             const adminBtn = document.getElementById('nav-admin');
             if(adminBtn) adminBtn.classList.remove('hidden');
         }
-        if (('ontouchstart' in window) && window.innerWidth <= 1366) {
-            const el = document.documentElement;
-            if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-        }
+        // NE PLUS forcer le fullscreen automatiquement (respect utilisateur)
         if(fbDB && user) {
             fbDB.ref('profils/' + user.uid).once('value').then(snap => {
                 let p = snap.val();
@@ -288,7 +286,8 @@ function setupFirebaseListeners() {
         niveau: profil.niveau || 1
     });
 
-    setInterval(() => {
+    if (_intervalPing) clearInterval(_intervalPing);
+    _intervalPing = setInterval(() => {
         if (fbDB && monId) fbUserRef.update({ dernierPing: Date.now(), niveau: profil.niveau || 1 });
     }, 30000);
 
