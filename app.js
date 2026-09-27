@@ -1,5 +1,5 @@
 /* ===========================================================
-   FAMILLE TCG — moteur de jeu (Édition Ultime v11)
+   FAMILLE TCG — moteur de jeu (Édition Ultime v12)
    Esthétique v12 + Portabilité + Fix connexion + Bluff + Mobile
    =========================================================== */
 
@@ -1129,10 +1129,10 @@ function creerHTMLCarte(c, ctx, opts) {
     
     // Gestion Bluff : si c'est une carte Bluff non révélée en jeu
     const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && !c.revele && (ctx === 'jeu' || ctx === 'main'));
-
+    
+    // Si c'est une carte Bluff cachée sur le plateau, on affiche le dos
     if (estBluffCache) {
         w.classList.add('hidden-card');
-        // On crée une fausse carte pour l'affichage du dos
         const divBack = document.createElement('div');
         divBack.className = 'card-inner';
         divBack.innerHTML = '<div class="card-back">?</div>';
@@ -1706,7 +1706,7 @@ function lancerPartieMultijoueur(pseudoAdversaire, monDeckIds, advDeckIds, ts) {
 }
 
 /* ===========================================================
-   TUTO v10 — Étapes
+   TUTO v11 — Étapes
    =========================================================== */
 var TUTO_ETAPES = {
     0: {
@@ -1807,6 +1807,31 @@ var TUTO_QUIZ = [
         { txt: "Tu gagnes immédiatement", correct: false },
         { txt: "Tu pioches depuis ta main", correct: false },
         { txt: "Tu perds 3 patience par pioche", correct: true }
+    ]},
+    { q: "Que fait la Provocation 🛡️ ?", options: [
+        { txt: "Force l'adversaire à attaquer cette créature", correct: true },
+        { txt: "Donne +2 en vie", correct: false },
+        { txt: "Attaque dès l'invocation", correct: false }
+    ]},
+    { q: "Comment révèle-t-on une carte Bluff 🎭 ?", options: [
+        { txt: "En attendant 2 tours", correct: false },
+        { txt: "En jouant un sort spécifique ou en remplissant sa condition", correct: true },
+        { txt: "En payant 3 mana", correct: false }
+    ]},
+    { q: "Que se passe-t-il quand on joue un Terrain 🏡 ?", options: [
+        { txt: "Il reste actif 3 tours", correct: true },
+        { txt: "Il reste actif toute la partie", correct: false },
+        { txt: "Il détruit une créature", correct: false }
+    ]},
+    { q: "Que fait le mot-clé Rage 🔥 ?", options: [
+        { txt: "Déclenche un effet quand la créature est blessée", correct: true },
+        { txt: "Donne +2 en attaque", correct: false },
+        { txt: "Détruit une créature", correct: false }
+    ]},
+    { q: "Que fait le mot-clé Destruction 💀 ?", options: [
+        { txt: "Déclenche un effet quand la créature meurt", correct: true },
+        { txt: "Détruit une carte dans la main", correct: false },
+        { txt: "Inflige 3 dégâts au héros", correct: false }
     ]}
 ];
 var _quizReponses = {};
@@ -2137,7 +2162,7 @@ function validerTutoExpress() {
         if (_quizReponses[i] !== undefined && q.options[_quizReponses[i]].correct) bonnes++;
     });
     fermerTutoExpress();
-    if (bonnes >= 2) {
+    if (bonnes === TUTO_QUIZ.length) { // 100% requis
         for (let lvl = 0; lvl <= 9; lvl++) {
             if (!profil['tuto_' + lvl]) {
                 profil['tuto_' + lvl] = true;
@@ -2160,10 +2185,10 @@ function validerTutoExpress() {
         sauvegarderProgression();
         majTutoUI();
         jouerSon('victory');
-        alert('🎓 Quiz réussi ! Tu débloques toutes les récompenses du tuto.');
+        alert('🎓 Quiz parfait ! Tu débloques toutes les récompenses du tuto.');
         setTimeout(() => afficherTutoFinal(), 500);
     } else {
-        alert(`❌ ${bonnes}/${TUTO_QUIZ.length} bonnes réponses. Lance les tutos un par un pour apprendre en jouant !`);
+        alert(`❌ ${bonnes}/${TUTO_QUIZ.length} bonnes réponses. Il faut 100% de réussite pour valider. Relance les tutos un par un pour apprendre en jouant !`);
     }
 }
 
@@ -2175,8 +2200,8 @@ function ouvrirTutoCarteAnatomie() {
     const list = document.getElementById('tuto-carte-legend-list');
     if (!display || !list) return;
 
-    // On prend une carte exemple, disons 'm6' (Anness) ou une carte générique
-    const carteExemple = defCarte('m6');
+    // On prend une carte exemple avec un mot-clé (n6 - Le voisin relou - Provocation)
+    const carteExemple = defCarte('n6');
     display.innerHTML = '';
     display.appendChild(creerHTMLCarte(carteExemple, 'zoom'));
     
@@ -3850,9 +3875,53 @@ function adminCreerCarte() {
     const rarete = document.getElementById('new-card-rarete').value;
     const emoji = document.getElementById('new-card-emoji').value || '🃏';
     const desc = document.getElementById('new-card-desc').value || '';
-    const motsCles = document.getElementById('new-card-motscles').value.split(',').map(s=>s.trim()).filter(Boolean);
+    
+    // Récupérer les mots-clés sélectionnés
+    const selectMotsCles = document.getElementById('new-card-motscles-select');
+    let motsCles = [];
+    if (selectMotsCles) {
+        for (let i = 0; i < selectMotsCles.options.length; i++) {
+            if (selectMotsCles.options[i].selected) motsCles.push(selectMotsCles.options[i].value);
+        }
+    }
+    // Ajouter les mots-clés personnalisés
+    const customMotsCles = document.getElementById('new-card-motscles-custom').value.split(',').map(s=>s.trim()).filter(Boolean);
+    motsCles = motsCles.concat(customMotsCles);
+
+    // Récupérer le pouvoir sélectionné et ses paramètres
+    const selectPouvoir = document.getElementById('new-card-pouvoir');
+    const pouvoirType = selectPouvoir ? selectPouvoir.value : 'aucun';
+    const param1 = document.getElementById('new-card-pouvoir-param1')?.value || '';
+    const param2 = document.getElementById('new-card-pouvoir-param2')?.value || '';
+
     const id = 'custom_' + Date.now();
     const nouvelleCarte = C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji);
+    
+    // Ajouter le pouvoir personnalisé si sélectionné
+    if (pouvoirType !== 'aucun') {
+        // On stocke les infos du pouvoir dans la carte pour pouvoir le recréer
+        nouvelleCarte.pouvoirCustom = { type: pouvoirType, param1: param1, param2: param2 };
+        
+        // On crée un pouvoir générique basé sur le type
+        if (pouvoirType === 'buff_allie') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'allie',texte:'Choisis une créature'}, jouer:({cible})=>{ if(cible) buff(cible, parseInt(param1)||1, parseInt(param2)||1); } };
+        } else if (pouvoirType === 'degats_cible') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'ennemi',hero:true,texte:'Choisis une cible'}, jouer:({cible})=>{ if(cible) fraper(cible, parseInt(param1)||2); } };
+        } else if (pouvoirType === 'soin_allie') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'allie',hero:true,texte:'Choisis une cible'}, jouer:({cible})=>{ if(cible) soigner(cible, parseInt(param1)||2); } };
+        } else if (pouvoirType === 'pioche') {
+            POUVOIRS[id] = { mode:'eclair', jouer:({moi})=>{ piocher(moi, parseInt(param1)||1); } };
+        } else if (pouvoirType === 'invocation') {
+            POUVOIRS[id] = { mode:'eclair', jouer:({moi})=>{ invoquerJeton(moi, 'Jeton', parseInt(param1)||1, parseInt(param2)||1, '🃏', []); } };
+        } else if (pouvoirType === 'destruction') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'ennemi',texte:'Détruit une créature'}, jouer:({cible})=>{ if(cible) fraper(cible, 999); } };
+        } else if (pouvoirType === 'vol_vie') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'ennemi',hero:true,texte:'Choisis une cible'}, jouer:({cible,moi})=>{ if(cible){ const d = parseInt(param1)||2; fraper(cible, d); soinHero(moi, d); } } };
+        } else if (pouvoirType === 'bouclier') {
+            POUVOIRS[id] = { mode:'eclair', cible:{camp:'allie',texte:'Choisis une créature'}, jouer:({cible})=>{ if(cible) buff(cible, 0, parseInt(param1)||3); } };
+        }
+    }
+
     dbCartes.push(nouvelleCarte);
     parId[id] = nouvelleCarte;
     initColl(id);
