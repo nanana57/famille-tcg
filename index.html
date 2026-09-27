@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 
@@ -141,7 +141,7 @@
     </div>
 </div>
 
-<!-- ANALYSE CARTE (nouveau tuto : voir les éléments d'une carte) -->
+<!-- ANALYSE CARTE (tuto anatomie) -->
 <div id="tuto-carte-zoom" class="tuto-carte-zoom hidden">
     <div class="tuto-carte-container">
         <div id="tuto-carte-display"></div>
@@ -253,7 +253,7 @@
 <div id="tuto-express-overlay" class="confirm-box-overlay">
     <div class="confirm-box" style="max-width:560px;">
         <h3>⚡ Vérification rapide</h3>
-        <p class="subtitle">Réponds à 3 questions pour débloquer toutes les récompenses d'un coup.</p>
+        <p class="subtitle">Réponds à 8 questions pour débloquer toutes les récompenses d'un coup.</p>
         <div id="tuto-express-quiz"></div>
         <div class="confirm-actions" style="margin-top:20px;">
             <button class="btn-action" onclick="fermerTutoExpress()">Annuler</button>
@@ -519,7 +519,7 @@
         <h2>🏆 Tournoi</h2>
         <p class="subtitle">Rejoins un tournoi en ligne. Les bots complètent après 1min30.</p>
         <div class="tournoi-choix">
-            <button class="btn-large btn-rare" onclick="rejoindreTournoi(4)">
+            <button class="btn-large btn-rare" onclick="demarrerTournoi(4)">
                 <span class="btn-icon">🏅</span>
                 <span class="btn-label">
                     <span class="btn-title">Tournoi 4 joueurs</span>
@@ -527,7 +527,7 @@
                 </span>
                 <span class="btn-arrow">▶</span>
             </button>
-            <button class="btn-large btn-rare" onclick="rejoindreTournoi(8)">
+            <button class="btn-large btn-rare" onclick="demarrerTournoi(8)">
                 <span class="btn-icon">👑</span>
                 <span class="btn-label">
                     <span class="btn-title">Tournoi 8 joueurs</span>
@@ -634,8 +634,44 @@
             <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Emoji :</label>
             <div id="emoji-picker" class="emoji-picker"></div>
             <input type="hidden" id="new-card-emoji" value="🃏">
-            <input type="text" id="new-card-motscles" placeholder="Mots-clés (virgules)">
-            <textarea id="new-card-desc" placeholder="Description..."></textarea>
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Mots-clés :</label>
+            <select id="new-card-motscles-select" multiple style="height:100px;">
+                <option value="Charge">Charge</option>
+                <option value="Provocation">Provocation</option>
+                <option value="Rage">Rage</option>
+                <option value="Destruction">Destruction</option>
+                <option value="Chat">Chat</option>
+                <option value="Fusion">Fusion</option>
+                <option value="Bluff">Bluff</option>
+                <option value="Unifiée">Unifiée</option>
+            </select>
+            <input type="text" id="new-card-motscles-custom" placeholder="Autres mots-clés (virgules)">
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Pouvoir personnalisé :</label>
+            <select id="new-card-pouvoir">
+                <option value="aucun">Aucun</option>
+                <option value="buff_allie">Buff une créature alliée (+X/+Y)</option>
+                <option value="degats_cible">Dégâts à une cible (X dégâts)</option>
+                <option value="soin_allie">Soigne une cible (X PV)</option>
+                <option value="pioche">Pioche X cartes</option>
+                <option value="invocation">Invoque un jeton X/Y</option>
+                <option value="destruction">Détruit une créature</option>
+                <option value="vol_vie">Vol de vie (X dégâts)</option>
+                <option value="bouclier">Bouclier (+X vie)</option>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--laiton);font-size:12px;">Param 1</label>
+                    <input type="number" id="new-card-pouvoir-param1" placeholder="Valeur 1" value="1" min="0">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--laiton);font-size:12px;">Param 2</label>
+                    <input type="number" id="new-card-pouvoir-param2" placeholder="Valeur 2" value="1" min="0">
+                </div>
+            </div>
+
+            <textarea id="new-card-desc" placeholder="Description..." style="margin-top:10px;"></textarea>
             <button class="btn-large btn-play" onclick="adminCreerCarte()">
                 <span class="btn-icon">✨</span>
                 <span class="btn-label"><span class="btn-title">Créer la carte</span><span class="btn-sub">Ajout instantané au jeu</span></span>
@@ -912,7 +948,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=12"></script>
-<script src="multi.js?v=12"></script>
+<script src="app.js?v=13"></script>
+<script src="multi.js?v=13"></script>
 </body>
 </html>
