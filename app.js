@@ -4175,6 +4175,55 @@ function adminEnvoyerMotd() {
 }
 
 /* ===========================================================
+   CLIC DROIT POUR ZOOMER SUR UNE CARTE (PC)
+   =========================================================== */
+function initClicDroitZoom() {
+    document.addEventListener('contextmenu', (e) => {
+        const cardWrapper = e.target.closest('.card-wrapper');
+        if (!cardWrapper) return;
+        
+        e.preventDefault();
+        
+        let cardId = null;
+        
+        // Méthode 1 : via le nom de la carte
+        const cardName = cardWrapper.querySelector('.card-name');
+        if (cardName) {
+            const prenom = cardName.textContent.trim();
+            const def = dbCartes.find(c => c.prenom === prenom);
+            if (def) cardId = def.id;
+        }
+        
+        // Méthode 2 : via data-uid (si pas trouvé par nom)
+        if (!cardId && cardWrapper.dataset.uid) {
+            const uid = cardWrapper.dataset.uid;
+            [J, B].forEach(side => {
+                if (cardId) return;
+                const found = side.plateau.find(m => m.uid === uid)
+                    || side.main.find(m => m.uid === uid)
+                    || side.deck.find(m => m.uid === uid);
+                if (found) cardId = found.id;
+            });
+        }
+        
+        if (cardId) {
+            zoomCarte(null, cardId);
+        }
+    });
+    
+    // Clic droit dans le zoom = fermer
+    document.addEventListener('mousedown', (e) => {
+        if (e.button === 2) {
+            const zoomOv = document.getElementById('card-zoom-overlay');
+            if (zoomOv && zoomOv.classList.contains('open') && e.target.closest('#card-zoom-overlay')) {
+                e.preventDefault();
+                fermerZoom();
+            }
+        }
+    });
+}
+
+/* ===========================================================
    DÉMARRAGE
    =========================================================== */
 document.addEventListener('DOMContentLoaded', function() {
@@ -4207,6 +4256,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { passive: true });
 
     initTouchFeedback();
+    initClicDroitZoom();
 
     window.appPret = true;
     if (typeof window.onAppPret === 'function') window.onAppPret();
