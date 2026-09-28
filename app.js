@@ -2590,6 +2590,76 @@ function clicCarteMain(index) {
     const c = J.main[index];
     if (!c) return;
 
+    // SUR MOBILE : on ouvre la visionneuse au lieu de jouer directement
+    const estMobile = document.body.classList.contains('is-mobile')
+        || ('ontouchstart' in window && window.innerWidth <= 1024);
+    if (estMobile && !modeTuto) {
+        ouvrirVisionneuse(index);
+        return;
+    }
+
+    // Sinon (PC) : comportement direct
+    _jouerCarteMainDirect(index);
+}
+
+/* ===========================================================
+   VISIONNEUSE DE CARTE (mobile)
+   =========================================================== */
+var _visionneuseIndex = null;
+
+function ouvrirVisionneuse(index) {
+    const c = J.main[index];
+    if (!c) return;
+    _visionneuseIndex = index;
+
+    const display = document.getElementById('card-viewer-display');
+    const overlay = document.getElementById('card-viewer-overlay');
+    const btnPlay = document.getElementById('card-viewer-play');
+    if (!display || !overlay) return;
+
+    display.innerHTML = '';
+    const cout = coutEffectif(J, c);
+    const el = creerHTMLCarte(c, 'main', { cout });
+    display.appendChild(el);
+    ajusterTextes(display);
+
+    // Détermine si la carte est jouable
+    const peutJouer = tourActuel === 'joueur' && !modeAttente && J.manaActuel >= cout;
+    let placePlateau = c.famille === 'Sort' || c.famille === 'Terrain' || J.plateau.length < 5;
+    if (c.motsCles.includes('Fusion')) placePlateau = J.plateau.length >= 2 && fusionsPossibles(J, c).length > 0;
+
+    if (btnPlay) {
+        btnPlay.disabled = !(peutJouer && placePlateau);
+        if (!peutJouer) {
+            btnPlay.innerText = '💧 Pas assez de mana';
+        } else if (!placePlateau) {
+            btnPlay.innerText = '🚫 Plateau plein';
+        } else {
+            btnPlay.innerText = '▶ Jouer cette carte';
+        }
+    }
+
+    overlay.classList.add('open');
+}
+
+function fermerVisionneuse() {
+    const overlay = document.getElementById('card-viewer-overlay');
+    if (overlay) overlay.classList.remove('open');
+    _visionneuseIndex = null;
+}
+
+function jouerCarteDepuisVisionneuse() {
+    if (_visionneuseIndex === null) return;
+    const index = _visionneuseIndex;
+    fermerVisionneuse();
+    _jouerCarteMainDirect(index);
+}
+
+// Version "directe" du clic qui joue la carte sans passer par la visionneuse
+function _jouerCarteMainDirect(index) {
+    const c = J.main[index];
+    if (!c) return;
+
     if (modeTuto) {
         const coutEff = coutEffectif(J, c);
         if (c.motsCles.includes('Fusion') && fusionsPossibles(J, c).length === 0) {
@@ -2699,7 +2769,7 @@ function poserCarteBluff(index, cible, cache) {
     }
 
     pousserAction({ type:'jouer', id:c.id, idxCible:null, campCible:null, cibleHero:null, bluffVisible: !cache });
-    
+
     J.manaActuel -= cout;
     J.main.splice(index, 1);
     ajouterLog(c.emoji, `${J.nom} joue ${c.prenom} ${cache ? '(face cachée)' : '(face visible)'}`, J);
@@ -2804,7 +2874,7 @@ function jouerCarte(side, index, cible) {
         side.plateau.push(c);
         const nePasDeclencher = c.motsCles.includes('Bluff') && (!c.revele || c.bluffVisible);
         if (!nePasDeclencher && p && p.jouer) p.jouer({ moi:side, ennemi, source:c, cible });
-        
+
         setTimeout(() => {
             const el = elOf(c.uid);
             if (el) { const r = el.getBoundingClientRect(); creerParticules(r.left + r.width/2, r.top + r.height/2, '#d9a441', 12); }
@@ -2877,7 +2947,7 @@ async function attaquer(attaquant, cible) {
     ajouterLog('⚔', `${attaquant.prenom} attaque`, coteDe(attaquant));
     const elA = elOf(attaquant.uid), elC = cible.uid ? elOf(cible.uid) : elHero(cible);
     selection = null;
-    
+
     // Calcul des positions AVANT toute modification du DOM
     let positions = null;
     if (elA && elC) {
@@ -2891,8 +2961,8 @@ async function attaquer(attaquant, cible) {
             dy: (b.top + b.height / 2) - (a.top + a.height / 2)
         };
     }
-    
-    // Animation d'attaque : SEULEMENT visuelle, on bloque le re-render pendant ce temps
+
+    // Animation d'attaque : SEULEMENT visuelle
     if (positions) {
         creerTrail(positions.ax, positions.ay, positions.bx, positions.by);
         jouerSon('attack');
@@ -2903,26 +2973,25 @@ async function attaquer(attaquant, cible) {
         }
         await pause(170);
     }
-    
-    // Appliquer les dégâts (logique pure, pas de rendu ici)
+
+    // Appliquer les dégâts
     if (cible.uid) {
         echangeDegats(attaquant, cible);
     } else {
         degatsHero(cible, atkTot(attaquant));
     }
     attaquant.aAttaque = true;
-    
+
     // Ramener l'attaquant à sa place
     if (elA) {
         elA.style.transform = '';
         await pause(140);
     }
-    
+
     recalcAuras();
     nettoyerMorts();
     await pause(260);
-    
-    // SEULEMENT MAINTENANT on rafraîchit pour afficher les nouveaux états
+
     rafraichirJeu();
     verifierFin();
     validerEtapeTuto();
@@ -2963,10 +3032,10 @@ function debutTourJoueur() {
     const be = document.getElementById('btn-endturn');
     if (be) be.classList.remove('inactif');
     prochainManaMax(J);
-    J.plateau.forEach(m => { 
-        m.aAttaque = false; 
-        m.malade = false; 
-        if (m.gele > 0) m.gele--; 
+    J.plateau.forEach(m => {
+        m.aAttaque = false;
+        m.malade = false;
+        if (m.gele > 0) m.gele--;
     });
     piocher(J, 1);
     banniere('À toi de jouer');
@@ -2997,10 +3066,10 @@ function finDeTour() {
         if (be) be.classList.add('inactif');
         info('L\'adversaire réfléchit...');
         prochainManaMax(B);
-        B.plateau.forEach(m => { 
-            m.aAttaque = false; 
-            m.malade = false; 
-            if (m.gele > 0) m.gele--; 
+        B.plateau.forEach(m => {
+            m.aAttaque = false;
+            m.malade = false;
+            if (m.gele > 0) m.gele--;
         });
         piocher(B, 1);
         rafraichirJeu();
@@ -3041,7 +3110,7 @@ function choisirCibleBotIntelligent(spec, cibles, carteSource, side) {
     if (!cibles.length) return null;
     const estSortAllie = spec.camp === 'allie';
     const estSortEnnemi = spec.camp === 'ennemi';
-    
+
     if (estSortAllie) {
         const creatures = cibles.filter(c => c.uid);
         if (creatures.length === 0) return cibles[0];
@@ -3057,7 +3126,7 @@ function choisirCibleBotIntelligent(spec, cibles, carteSource, side) {
         }
         return creatures.sort((a, b) => atkTot(b) - atkTot(a))[0] || cibles[0];
     }
-    
+
     if (estSortEnnemi) {
         const creatures = cibles.filter(c => c.uid);
         if (carteSource.desc.toLowerCase().includes('détruit') || carteSource.desc.toLowerCase().includes('destruction')) {
@@ -3081,11 +3150,11 @@ function choisirCibleAttaqueBot(attaquant, coteAdverse) {
     const creaturesAdverses = coteAdverse.plateau;
     const heroAdverse = coteAdverse;
     if (creaturesAdverses.length === 0) return heroAdverse;
-    
+
     const atk = atkTot(attaquant);
     const vie = attaquant.vie;
     const ciblesTuables = creaturesAdverses.filter(c => c.vie <= atk);
-    
+
     if (ciblesTuables.length > 0) {
         const meilleureCible = [...ciblesTuables].sort((a, b) => atkTot(b) - atkTot(a))[0];
         if (atkTot(meilleureCible) < vie) return meilleureCible;
@@ -3115,19 +3184,19 @@ async function jouerTourBot() {
     if (be) be.classList.add('inactif');
     banniere('Tour du bot');
     prochainManaMax(B);
-    B.plateau.forEach(m => { 
-        m.aAttaque = false; 
-        m.malade = false; 
-        if (m.gele > 0) m.gele--; 
+    B.plateau.forEach(m => {
+        m.aAttaque = false;
+        m.malade = false;
+        if (m.gele > 0) m.gele--;
     });
     piocher(B, 1);
     rafraichirJeu();
     await pause(700);
 
-    // PHASE 1 : Le bot révèle ses cartes Bluff cachées (30% pour ne pas trop en faire)
+    // PHASE 1 : Révéler ses cartes Bluff cachées (30%)
     for (const m of [...B.plateau]) {
         if (partieFinie) break;
-        if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible && !m.revele) {
+        if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible && !m.bluffReveleSansEffet) {
             if (Math.random() < 0.3) {
                 await pause(300);
                 revelerBluff(m, null);
@@ -3136,7 +3205,7 @@ async function jouerTourBot() {
         }
     }
 
-    // PHASE 2 : Le bot joue ses cartes
+    // PHASE 2 : Jouer des cartes
     let action = true, securite = 0;
     while (action && !partieFinie && securite < 20) {
         securite++; action = false;
@@ -3144,12 +3213,12 @@ async function jouerTourBot() {
             if (o.c.motsCles.includes('Fusion')) return fusionsPossibles(B, o.c).length > 0 && coutEffectif(B, o.c) <= B.manaActuel;
             return coutEffectif(B, o.c) <= B.manaActuel && (o.c.famille === 'Sort' || o.c.famille === 'Terrain' || B.plateau.length < 5);
         }).sort((a, b) => b.c.cout - a.c.cout);
-        
+
         if (jouables.length) {
             const choix = jouables[0];
-            if (choix.c.motsCles.includes('Fusion')) { 
-                sacrifierPourFusion(B, choix.c.id); 
-                jouerCarte(B, choix.i, null); 
+            if (choix.c.motsCles.includes('Fusion')) {
+                sacrifierPourFusion(B, choix.c.id);
+                jouerCarte(B, choix.i, null);
             } else {
                 const p = POUVOIRS[choix.c.id];
                 let cible = null;
@@ -3169,13 +3238,13 @@ async function jouerTourBot() {
         }
     }
 
-    // PHASE 3 : Le bot attaque
+    // PHASE 3 : Attaquer
     await pause(300);
     for (const m of [...B.plateau]) {
         if (partieFinie) break;
         if (m.aAttaque || m.malade || m.gele > 0 || atkTot(m) <= 0) continue;
         if (m.motsCles.includes('Bluff') && !m.revele && !m.bluffVisible) continue;
-        
+
         const provocations = J.plateau.filter(x => x.motsCles.includes('Provocation'));
         let cible;
         if (provocations.length) {
@@ -3188,7 +3257,7 @@ async function jouerTourBot() {
             await pause(280);
         }
     }
-    
+
     if (partieFinie) return;
     appliquerFinDeTour(B);
     B.surcout = 0;
@@ -3275,11 +3344,11 @@ var _tournoiTimerSecondes = 90;
 function afficherEtatTournoi() {
     const el = document.getElementById('tournoi-etat');
     if (!el) return;
-    if (!tournoiEnCours) { 
-        el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>'; 
+    if (!tournoiEnCours) {
+        el.innerHTML = '<p class="hint">Aucun tournoi en cours.</p>';
         const timerEl = document.getElementById('tournoi-timer');
         if (timerEl) timerEl.classList.add('hidden');
-        return; 
+        return;
     }
     const t = tournoiEnCours;
     let html = `<h3>Tournoi ${t.taille} joueurs — Match ${t.tourActuel + 1}/${t.matchs.length}</h3>`;
@@ -3312,7 +3381,7 @@ function demarrerTournoi(taille) {
     profil.coins -= cout;
     sauvegarderProgression();
     majTopBarCoins();
-    
+
     const nomsBots = ['Alfred', 'Bernard', 'Charles', 'Dimitri', 'Eugène', 'Fernand', 'Gaston', 'Henri', 'Isidore', 'Jules', 'Kléber', 'Léon', 'Marcel', 'Napoléon', 'Oscar', 'Pascal', 'Quentin', 'Raoul', 'Sébastien', 'Théodore', 'Ulysse', 'Victor', 'Wilfried', 'Xavier', 'Yves', 'Zacharie'];
     const nomsMelanges = nomsBots.sort(() => Math.random() - 0.5);
     const adversaires = nomsMelanges.slice(0, taille - 1);
@@ -3322,13 +3391,13 @@ function demarrerTournoi(taille) {
     }
     tournoiEnCours = { taille, matchs, tourActuel: 0, gainTotal: 0, cout, botsDisponibles: nomsMelanges.slice(taille - 1) };
     afficherEtatTournoi();
-    
+
     _tournoiTimerSecondes = 90;
     const timerEl = document.getElementById('tournoi-timer');
     const timerTxt = document.getElementById('tournoi-timer-txt');
     if (timerEl) timerEl.classList.remove('hidden');
     if (timerTxt) timerTxt.innerText = `En attente de joueurs... ${_tournoiTimerSecondes}s`;
-    
+
     if (_timerTournoi) clearInterval(_timerTournoi);
     _timerTournoi = setInterval(() => {
         _tournoiTimerSecondes--;
@@ -3449,7 +3518,8 @@ function rejoindreSpectateur(partieId) {
     alert("Le mode spectateur est simplifié dans cette version.\nTu vas observer la salle " + partieId + " sans interagir.");
 }
 
-/* ===========================================================   CHAT INGAME
+/* ===========================================================
+   CHAT INGAME
    =========================================================== */
 function toggleIngameChat() { const ic = document.getElementById('ingame-chat'); if (ic) ic.classList.toggle('open'); }
 function envoyerIngameChat() {
@@ -3806,10 +3876,6 @@ function rafraichirJeu() {
             if (peutJouer && J.manaActuel >= cout && placePlateau) el.classList.add('jouable');
             else el.classList.add('injouable');
             el.onclick = (e) => {
-                if (window.innerWidth <= 1024) {
-                    const rail = document.getElementById('hand-rail');
-                    if (rail) rail.classList.toggle('hand-expanded');
-                }
                 clicCarteMain(i);
             };
             main.appendChild(el);
@@ -4055,7 +4121,7 @@ function adminCreerCarte() {
     const rarete = document.getElementById('new-card-rarete').value;
     const emoji = document.getElementById('new-card-emoji').value || '🃏';
     const desc = document.getElementById('new-card-desc').value || '';
-    
+
     const selectMotsCles = document.getElementById('new-card-motscles-select');
     let motsCles = [];
     if (selectMotsCles) {
@@ -4073,10 +4139,10 @@ function adminCreerCarte() {
 
     const id = 'custom_' + Date.now();
     const nouvelleCarte = C(id, prenom, famille, cout, atk, vie, rarete, desc, motsCles, emoji);
-    
+
     if (pouvoirType !== 'aucun') {
         nouvelleCarte.pouvoirCustom = { type: pouvoirType, param1: param1, param2: param2 };
-        
+
         if (pouvoirType === 'buff_allie') {
             POUVOIRS[id] = { mode:'eclair', cible:{camp:'allie',texte:'Choisis une créature'}, jouer:({cible})=>{ if(cible) buff(cible, parseInt(param1)||1, parseInt(param2)||1); } };
         } else if (pouvoirType === 'degats_cible') {
@@ -4115,7 +4181,7 @@ function deconnexion() {
 }
 
 /* ===========================================================
-   FEEDBACK TACTILE
+   FEEDBACK TACTILE + CLIC DROIT
    =========================================================== */
 function initTouchFeedback() {
     const estTactile = window.matchMedia('(pointer: coarse)').matches;
@@ -4152,6 +4218,41 @@ function initTouchFeedback() {
     }, { passive: true });
 }
 
+function initClicDroitZoom() {
+    document.addEventListener('contextmenu', (e) => {
+        const cardWrapper = e.target.closest('.card-wrapper');
+        if (!cardWrapper) return;
+        e.preventDefault();
+        let cardId = null;
+        const cardName = cardWrapper.querySelector('.card-name');
+        if (cardName) {
+            const prenom = cardName.textContent.trim();
+            const def = dbCartes.find(c => c.prenom === prenom);
+            if (def) cardId = def.id;
+        }
+        if (!cardId && cardWrapper.dataset.uid) {
+            const uid = cardWrapper.dataset.uid;
+            [J, B].forEach(side => {
+                if (cardId) return;
+                const found = side.plateau.find(m => m.uid === uid)
+                    || side.main.find(m => m.uid === uid)
+                    || side.deck.find(m => m.uid === uid);
+                if (found) cardId = found.id;
+            });
+        }
+        if (cardId) zoomCarte(null, cardId);
+    });
+    document.addEventListener('mousedown', (e) => {
+        if (e.button === 2) {
+            const zoomOv = document.getElementById('card-zoom-overlay');
+            if (zoomOv && zoomOv.classList.contains('open') && e.target.closest('#card-zoom-overlay')) {
+                e.preventDefault();
+                fermerZoom();
+            }
+        }
+    });
+}
+
 /* ===========================================================
    HELPERS ADMIN Firebase
    =========================================================== */
@@ -4175,69 +4276,18 @@ function adminEnvoyerMotd() {
 }
 
 /* ===========================================================
-   CLIC DROIT POUR ZOOMER SUR UNE CARTE (PC)
-   =========================================================== */
-function initClicDroitZoom() {
-    document.addEventListener('contextmenu', (e) => {
-        const cardWrapper = e.target.closest('.card-wrapper');
-        if (!cardWrapper) return;
-        
-        e.preventDefault();
-        
-        let cardId = null;
-        
-        // Méthode 1 : via le nom de la carte
-        const cardName = cardWrapper.querySelector('.card-name');
-        if (cardName) {
-            const prenom = cardName.textContent.trim();
-            const def = dbCartes.find(c => c.prenom === prenom);
-            if (def) cardId = def.id;
-        }
-        
-        // Méthode 2 : via data-uid (si pas trouvé par nom)
-        if (!cardId && cardWrapper.dataset.uid) {
-            const uid = cardWrapper.dataset.uid;
-            [J, B].forEach(side => {
-                if (cardId) return;
-                const found = side.plateau.find(m => m.uid === uid)
-                    || side.main.find(m => m.uid === uid)
-                    || side.deck.find(m => m.uid === uid);
-                if (found) cardId = found.id;
-            });
-        }
-        
-        if (cardId) {
-            zoomCarte(null, cardId);
-        }
-    });
-    
-    // Clic droit dans le zoom = fermer
-    document.addEventListener('mousedown', (e) => {
-        if (e.button === 2) {
-            const zoomOv = document.getElementById('card-zoom-overlay');
-            if (zoomOv && zoomOv.classList.contains('open') && e.target.closest('#card-zoom-overlay')) {
-                e.preventDefault();
-                fermerZoom();
-            }
-        }
-    });
-}
-
-/* ===========================================================
    DÉMARRAGE
    =========================================================== */
 document.addEventListener('DOMContentLoaded', function() {
     // Sécurité : on retire toujours game-in-progress au démarrage
-    // (au cas où la page aurait été rechargée en pleine partie)
     document.body.classList.remove('game-in-progress');
 
-    // Détection mobile (condition permissive : plus fiable sur tous les navigateurs)
+    // Détection mobile (condition permissive)
     const estVraiMobile = ('ontouchstart' in window)
         && (navigator.maxTouchPoints > 0)
         && window.innerWidth <= 1024;
     if (estVraiMobile) document.body.classList.add('is-mobile');
 
-    // Cartes décoratives de l'écran de connexion
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
@@ -4253,24 +4303,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) { console.error("Erreur decor", e); }
 
-    // Mise à jour du header de collection
     if (document.getElementById('boutique-grid')) majCollectionHeader();
 
-    // Effet scroll sur la nav
     window.addEventListener('scroll', () => {
         const nav = document.getElementById('main-nav');
         if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
     }, { passive: true });
 
-    // Feedback tactile + clic droit zoom
     initTouchFeedback();
     initClicDroitZoom();
 
-    // Signale à multi.js que l'app est prête
     window.appPret = true;
     if (typeof window.onAppPret === 'function') window.onAppPret();
 
-    // Confirmation avant de quitter en pleine partie
     window.addEventListener('beforeunload', (e) => {
         const gs = document.getElementById('game-screen');
         if (gs && gs.classList.contains('active') && !partieFinie && !modeTuto) {
@@ -4278,6 +4323,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Écoute des demandes d'amis (après un court délai pour laisser Firebase s'init)
     setTimeout(() => { if (typeof ecouterDemandesAmis === 'function') ecouterDemandesAmis(); }, 2000);
 });
