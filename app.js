@@ -2877,22 +2877,52 @@ async function attaquer(attaquant, cible) {
     ajouterLog('⚔', `${attaquant.prenom} attaque`, coteDe(attaquant));
     const elA = elOf(attaquant.uid), elC = cible.uid ? elOf(cible.uid) : elHero(cible);
     selection = null;
+    
+    // Calcul des positions AVANT toute modification du DOM
+    let positions = null;
     if (elA && elC) {
         const a = elA.getBoundingClientRect(), b = elC.getBoundingClientRect();
-        const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
-        creerTrail(a.left + a.width/2, a.top + a.height/2, b.left + b.width/2, b.top + b.height/2);
+        positions = {
+            ax: a.left + a.width / 2,
+            ay: a.top + a.height / 2,
+            bx: b.left + b.width / 2,
+            by: b.top + b.height / 2,
+            dx: (b.left + b.width / 2) - (a.left + a.width / 2),
+            dy: (b.top + b.height / 2) - (a.top + a.height / 2)
+        };
+    }
+    
+    // Animation d'attaque : SEULEMENT visuelle, on bloque le re-render pendant ce temps
+    if (positions) {
+        creerTrail(positions.ax, positions.ay, positions.bx, positions.by);
         jouerSon('attack');
-        elA.style.transition = 'transform .16s cubic-bezier(.4,0,.6,1)';
-        elA.style.zIndex = 60;
-        elA.style.transform = `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(1.05)`;
+        if (elA) {
+            elA.style.transition = 'transform .16s cubic-bezier(.4,0,.6,1)';
+            elA.style.zIndex = 60;
+            elA.style.transform = `translate(${positions.dx * 0.55}px, ${positions.dy * 0.55}px) scale(1.05)`;
+        }
         await pause(170);
     }
-    if (cible.uid) echangeDegats(attaquant, cible); else degatsHero(cible, atkTot(attaquant));
+    
+    // Appliquer les dégâts (logique pure, pas de rendu ici)
+    if (cible.uid) {
+        echangeDegats(attaquant, cible);
+    } else {
+        degatsHero(cible, atkTot(attaquant));
+    }
     attaquant.aAttaque = true;
-    if (elA) { elA.style.transform = ''; await pause(140); }
+    
+    // Ramener l'attaquant à sa place
+    if (elA) {
+        elA.style.transform = '';
+        await pause(140);
+    }
+    
     recalcAuras();
     nettoyerMorts();
     await pause(260);
+    
+    // SEULEMENT MAINTENANT on rafraîchit pour afficher les nouveaux états
     rafraichirJeu();
     verifierFin();
     validerEtapeTuto();
