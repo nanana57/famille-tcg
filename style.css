@@ -2419,7 +2419,7 @@ h2,h3{font-family:'Cinzel',serif;letter-spacing:.03em}
 .starter-card:active{transform:scale(.98)}
 
 /* 7. Navigation ---------------------------------------------- */
-#main-nav{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow-sm)}
+#main-nav{box-shadow:var(--shadow-sm)} /* pas de backdrop-filter ici : casserait le menu mobile fixed */
 #main-nav button{border-radius:999px}
 
 /* 8. Scrollbars discrètes ------------------------------------ */
@@ -2528,3 +2528,52 @@ body.is-mobile.game-in-progress .board-area > :last-child{ margin-right:auto; } 
     }
     body.is-mobile.game-in-progress .hand-area .card-wrapper:first-child{ margin-left:0 !important; }
 }
+
+
+/* ===========================================================
+   12. MENU MOBILE — le bouton ☰ portait .hidden (display:none !important)
+       et aucun script ne le retirait : le menu était inaccessible.
+   =========================================================== */
+@media (max-width:640px){
+    #main-nav .nav-hamburger,
+    #main-nav .nav-hamburger.hidden{
+        display:flex !important; align-items:center; justify-content:center;
+        min-width:44px; min-height:44px;
+    }
+    #main-nav{flex-wrap:nowrap; gap:8px; padding:6px 10px}
+    #main-nav .nav-brand{margin-right:auto}
+    #main-nav .nav-pseudo{gap:6px}
+    #main-nav .nav-links{top:calc(env(safe-area-inset-top,0px) + 58px); max-height:calc(var(--app-h) - 64px)} /* fixed : se cale sous la barre */
+    #main-nav .nav-links button{white-space:normal}
+}
+
+/* ===========================================================
+   13. VISIONNEUSE DE CARTE (mobile) — ces styles n'existaient pas,
+       donc « Jouer cette carte / Fermer » s'affichaient en bas de page.
+       Masquée par défaut ; JS ajoute .open pour l'afficher.
+   =========================================================== */
+.card-viewer-overlay{
+    display:none; position:fixed; inset:0; z-index:950;
+    flex-direction:column; align-items:center; justify-content:center; gap:var(--sp-4);
+    padding:calc(var(--sp-4) + env(safe-area-inset-top,0px)) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom,0px));
+    background:rgba(4,8,12,.92);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+}
+.card-viewer-overlay.open{display:flex; animation:cvIn var(--dur) var(--ease) both}
+@keyframes cvIn{from{opacity:0}to{opacity:1}}
+.card-viewer-display{display:flex; align-items:center; justify-content:center; min-height:0}
+.card-viewer-display .card-wrapper{
+    --cw:min(72vw, 340px);                                     /* repli sans dvh */
+    --cw:min(72vw, calc((100dvh - 210px) / 1.42), 340px);      /* tient dans l'écran */
+    margin:0; transform:none;
+}
+.card-viewer-actions{display:flex; gap:var(--sp-3); width:min(100%, 420px)}
+.card-viewer-actions button{
+    min-height:52px; border-radius:var(--radius-md); border:none; cursor:pointer;
+    font:700 15px/1 'Rubik',system-ui,sans-serif; padding:0 var(--sp-4);
+    transition:transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), filter var(--dur-fast);
+}
+.card-viewer-actions button:active{transform:scale(.97)}
+.cv-play{flex:2; color:#2a1b02; background:linear-gradient(180deg,var(--laiton-clair),var(--laiton)); box-shadow:0 8px 22px rgba(217,164,65,.35)}
+.cv-play:disabled{background:#22303f; color:var(--texte-doux); box-shadow:none; cursor:not-allowed}
+.cv-close{flex:1; color:var(--texte); background:var(--ardoise); border:1px solid rgba(255,255,255,.14)}
