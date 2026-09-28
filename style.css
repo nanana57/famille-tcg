@@ -2177,3 +2177,59 @@ html, body { touch-action: manipulation; overscroll-behavior: none; }
 }
 
 #rotate-overlay{display:none !important;}
+/* ===========================================================
+   MOBILE — Nav compacte et scrollable horizontalement
+   =========================================================== */
+body.is-mobile #main-nav {
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+body.is-mobile #main-nav::-webkit-scrollbar { display: none; }
+
+body.is-mobile .nav-brand {
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+body.is-mobile .nav-links {
+    flex-wrap: nowrap;
+    gap: 3px;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+}
+
+body.is-mobile #main-nav button {
+    font-size: 11px;
+    padding: 5px 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+body.is-mobile .nav-pseudo {
+    font-size: 11px;
+    gap: 4px;
+    flex-shrink: 0;
+    padding-left: 6px;
+    border-left: 1px solid rgba(255,255,255,.15);
+}
+
+body.is-mobile .nav-level {
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+/* Les icônes rapides (quêtes, coins) sur mobile */
+body.is-mobile #nav-quetes,
+body.is-mobile #nav-coins {
+    margin-right: 6px !important;
+}
+
+/* En partie sur mobile : cacher la nav */
+body.is-mobile.game-in-progress #main-nav {
+    display: none !important;
+}
