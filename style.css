@@ -2082,154 +2082,261 @@ body.is-mobile {
     --cw-booster: 170px;
 }
 
-/* En partie sur mobile : cacher la nav */
+/* ===========================================================
+   MOBILE — En partie : layout flex column SANS espace vide
+   =========================================================== */
 body.is-mobile.game-in-progress #main-nav { display: none !important; }
 body.is-mobile .btn-toggle-nav { display: none; }
 
-/* En partie mobile : LAYOUT FLEX COLUMN */
 body.is-mobile.game-in-progress #game-screen {
     display: flex !important;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh; /* dvh = dynamic viewport height (mobile moderne) */
     overflow: hidden;
     gap: 0;
     padding: 0;
     grid-template-rows: unset;
 }
-body.is-mobile.game-in-progress #topbar { flex-shrink: 0; padding: 4px 6px; gap: 4px; }
+
+/* Topbar compacte */
+body.is-mobile.game-in-progress #topbar {
+    flex-shrink: 0;
+    padding: 4px 6px;
+    gap: 4px;
+    height: 34px;
+}
 body.is-mobile.game-in-progress .turn-pill { font-size: 10px; padding: 2px 8px; }
-body.is-mobile.game-in-progress .timer { width: 55px; height: 12px; }
+body.is-mobile.game-in-progress .timer { width: 50px; height: 12px; }
 body.is-mobile.game-in-progress .timer span { font-size: 8px; line-height: 12px; }
-body.is-mobile.game-in-progress #combat-info { font-size: 9px; min-width: 40px; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.is-mobile.game-in-progress .btn-forfait-ingame { padding: 3px 6px; font-size: 9px; min-height: 24px; }
+body.is-mobile.game-in-progress #combat-info {
+    font-size: 9px; min-width: 40px; max-width: 110px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body.is-mobile.game-in-progress .btn-forfait-ingame {
+    padding: 3px 6px; font-size: 9px; min-height: 24px;
+}
 
-body.is-mobile.game-in-progress .side.opponent { flex-shrink: 0; flex-direction: column; padding: 2px 4px; gap: 2px; min-height: 0; }
-body.is-mobile.game-in-progress .side.opponent .hero-panel { order: 2; padding: 3px 5px; gap: 4px; width: 100%; flex-shrink: 0; }
-body.is-mobile.game-in-progress .side.opponent .terrain-slot { order: 1; width: 100%; height: 30px; flex-shrink: 0; }
-body.is-mobile.game-in-progress .side.opponent .terrain-slot .card-wrapper { --cw: 24px; }
-body.is-mobile.game-in-progress .side.opponent .board-area { order: 3; width: 100%; min-height: calc(var(--cw-jeu) * 1.42); flex-shrink: 0; }
+/* Zone adversaire */
+body.is-mobile.game-in-progress .side.opponent {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2px 4px;
+    gap: 2px;
+    min-height: 0;
+}
+body.is-mobile.game-in-progress .side.opponent .hero-panel {
+    order: 2;
+    padding: 3px 5px;
+    gap: 4px;
+    width: 100%;
+    flex-shrink: 0;
+    height: 42px;
+}
+body.is-mobile.game-in-progress .side.opponent .terrain-slot {
+    order: 1;
+    width: 100%;
+    height: 22px;
+    flex-shrink: 0;
+}
+body.is-mobile.game-in-progress .side.opponent .terrain-slot .card-wrapper { --cw: 20px; }
+body.is-mobile.game-in-progress .side.opponent .board-area {
+    order: 3;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    max-height: 22vh;
+}
 
-body.is-mobile.game-in-progress .side.player { flex-shrink: 0; flex-direction: column; padding: 2px 4px; gap: 2px; min-height: 0; }
-body.is-mobile.game-in-progress .side.player .hero-panel { order: 3; padding: 3px 5px; gap: 4px; width: 100%; flex-shrink: 0; }
-body.is-mobile.game-in-progress .side.player .terrain-slot { order: 2; width: 100%; height: 30px; flex-shrink: 0; }
-body.is-mobile.game-in-progress .side.player .terrain-slot .card-wrapper { --cw: 24px; }
-body.is-mobile.game-in-progress .side.player .board-area { order: 1; width: 100%; min-height: calc(var(--cw-jeu) * 1.42); flex-shrink: 0; }
+/* Zone joueur : plateau en HAUT, hero panel en BAS */
+body.is-mobile.game-in-progress .side.player {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2px 4px;
+    gap: 2px;
+    min-height: 0;
+}
+body.is-mobile.game-in-progress .side.player .hero-panel {
+    order: 3;
+    padding: 3px 5px;
+    gap: 4px;
+    width: 100%;
+    flex-shrink: 0;
+    height: 42px;
+}
+body.is-mobile.game-in-progress .side.player .terrain-slot {
+    order: 2;
+    width: 100%;
+    height: 22px;
+    flex-shrink: 0;
+}
+body.is-mobile.game-in-progress .side.player .terrain-slot .card-wrapper { --cw: 20px; }
+body.is-mobile.game-in-progress .side.player .board-area {
+    order: 1;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    max-height: 22vh;
+}
 
-body.is-mobile.game-in-progress .board-divider { height: 4px; margin: 1px 0; flex-shrink: 0; }
-body.is-mobile.game-in-progress .board-divider::before { font-size: 6px; letter-spacing: .2em; }
+body.is-mobile.game-in-progress .board-divider {
+    height: 3px;
+    margin: 0;
+    flex-shrink: 0;
+}
+body.is-mobile.game-in-progress .board-divider::before {
+    font-size: 5px; letter-spacing: .15em;
+}
 
+/* Hero panel compact */
 body.is-mobile.game-in-progress .hero-panel { padding: 3px 5px; gap: 4px; }
-body.is-mobile.game-in-progress .hero-portrait { width: 32px; height: 32px; font-size: 16px; min-width: 32px; min-height: 32px; border-width: 2px; }
+body.is-mobile.game-in-progress .hero-portrait {
+    width: 32px; height: 32px; font-size: 16px;
+    min-width: 32px; min-height: 32px; border-width: 2px;
+}
 body.is-mobile.game-in-progress .hero-name { font-size: 10px; }
 body.is-mobile.game-in-progress .badge { font-size: 8px; padding: 1px 4px; }
 body.is-mobile.game-in-progress .badge.hp { font-size: 9px; padding: 1px 5px; }
 body.is-mobile.game-in-progress .badge.mana { font-size: 8px; padding: 1px 4px; }
-body.is-mobile.game-in-progress .badge.deck { font-size: 8px; padding: 1px 4px; min-width: 22px; min-height: 20px; }
+body.is-mobile.game-in-progress .badge.deck {
+    font-size: 8px; padding: 1px 4px; min-width: 22px; min-height: 20px;
+}
 body.is-mobile.game-in-progress .crystals { max-width: 60px; gap: 1px; margin-top: 1px; }
 body.is-mobile.game-in-progress .crystal { width: 5px; height: 8px; }
-body.is-mobile.game-in-progress .hero-panel .btn-endturn { padding: 5px 8px; font-size: 9px; min-height: 30px; min-width: 60px; }
-
-body.is-mobile.game-in-progress .board-area { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 2px; padding: 2px 4px; overflow-x: auto; overflow-y: hidden; min-height: calc(var(--cw-jeu) * 1.42); }
-body.is-mobile.game-in-progress .board-area .card-wrapper { --cw: clamp(48px, 13vw, 62px); flex-shrink: 0; }
-body.is-mobile.game-in-progress .board-area:empty { min-height: calc(var(--cw-jeu) * 1.42); }
-body.is-mobile.game-in-progress .board-area:empty::after { content: ''; width: 60%; height: calc(var(--cw-jeu) * 1.1); border-radius: 10px; border: 1px dashed rgba(255,255,255,.08); }
-
-body.is-mobile.game-in-progress .hand-rail { flex-shrink: 0; padding: 2px 4px; min-height: 88px; max-height: 108px; background: linear-gradient(180deg, rgba(6,10,15,.3), rgba(6,10,15,.95)); }
-body.is-mobile.game-in-progress .hand-area { height: auto; padding: 2px 6px 4px; justify-content: flex-start; gap: 3px; overflow-x: auto; }
-body.is-mobile.game-in-progress .hand-area .card-wrapper { margin-left: 0 !important; --cw: clamp(56px, 14vw, 74px); transition: transform .25s cubic-bezier(.2,.9,.3,1.3); }
-body.is-mobile.game-in-progress #hand-rail.hand-expanded .hand-area .card-wrapper { --cw: clamp(88px, 20vw, 120px) !important; }
-
-body.is-mobile.game-in-progress .action-log, body.is-mobile.game-in-progress .opp-hand { display: none; }
-
-@media (pointer: coarse) {
-    button, .btn-chip, .badge.deck, .avatar-choice, .emoji-btn { min-width: 44px; min-height: 44px; }
-    .zoom-btn { width: 28px; height: 28px; font-size: 14px; }
-    .card-wrapper:hover .card { transform: none; filter: none; }
-    .card-wrapper:active, button:active:not(:disabled) { transform: scale(.95) !important; filter: brightness(1.2) !important; }
+body.is-mobile.game-in-progress .hero-panel .btn-endturn {
+    padding: 5px 8px; font-size: 9px; min-height: 30px; min-width: 60px;
 }
 
-@media (max-width: 640px) {
-    .nav-hamburger { display: block; }
-    .nav-links {
-        position: fixed; top: 60px; left: 0; right: 0;
-        background: rgba(11,17,24,.98); backdrop-filter: blur(10px);
-        flex-direction: column; padding: 12px; max-height: 80vh; overflow-y: auto;
-        transform: translateY(-120%); transition: transform .3s; z-index: 300;
-        border-radius: 0 0 16px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.7);
-    }
-    .nav-links.open { transform: translateY(0); }
-    .nav-links button { width: 100%; text-align: left; padding: 14px 16px; font-size: 15px; border-radius: 8px; min-height: 48px; }
-}
-
-@media (max-width: 768px) {
-    .reward-overlay, .confirm-box-overlay, .daily-overlay,
-    .quetes-overlay, #mulligan-overlay { backdrop-filter: blur(4px); }
-    .card-wrapper.legendaire .card::before { animation: none; opacity: .3; }
-    .card { box-shadow: 0 .3em .8em rgba(0,0,0,.5) !important; }
-    .card-inner { transform-style: flat; }
-}
-
-html, body { touch-action: manipulation; overscroll-behavior: none; }
-.hand-rail, .board-area, .collection-area, .sidebar, .deck-area { touch-action: pan-x pan-y; overscroll-behavior-x: contain; }
-
-@media (prefers-reduced-motion:reduce){
-    *{animation-duration:.01ms !important;transition-duration:.01ms !important}
-}
-
-#rotate-overlay{display:none !important;}
-/* ===========================================================
-   MOBILE — Nav compacte et scrollable horizontalement
-   =========================================================== */
-body.is-mobile #main-nav {
-    padding: 6px 8px;
-    gap: 6px;
+/* ============ PLATEAU : cartes PLUS GRANDES et centrées ============ */
+body.is-mobile.game-in-progress .board-area {
+    display: flex;
     flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
 }
-body.is-mobile #main-nav::-webkit-scrollbar { display: none; }
-
-body.is-mobile .nav-brand {
-    font-size: 13px;
+body.is-mobile.game-in-progress .board-area::-webkit-scrollbar { display: none; }
+body.is-mobile.game-in-progress .board-area .card-wrapper {
+    --cw: clamp(72px, 17vw, 100px);
     flex-shrink: 0;
 }
+body.is-mobile.game-in-progress .board-area:empty::after {
+    content: '';
+    width: 50%;
+    height: calc(var(--cw-jeu) * 0.9);
+    border-radius: 10px;
+    border: 1px dashed rgba(255,255,255,.06);
+}
 
-body.is-mobile .nav-links {
-    flex-wrap: nowrap;
-    gap: 3px;
-    flex: 0 0 auto;
+/* ============ MAIN : cartes compactes, PAS d'agrandissement automatique ============ */
+body.is-mobile.game-in-progress .hand-rail {
+    flex-shrink: 0;
+    padding: 4px 6px;
+    min-height: 100px;
+    max-height: 130px;
+    background: linear-gradient(180deg, rgba(6,10,15,.4), rgba(6,10,15,.98));
+    border-top: 1px solid rgba(217,164,65,.2);
+}
+body.is-mobile.game-in-progress .hand-area {
+    height: auto;
+    padding: 2px 6px 6px;
     justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+body.is-mobile.game-in-progress .hand-area::-webkit-scrollbar { display: none; }
+body.is-mobile.game-in-progress .hand-area .card-wrapper {
+    margin-left: 0 !important;
+    --cw: clamp(70px, 16vw, 90px);
+    transition: transform .25s cubic-bezier(.2,.9,.3,1.3), box-shadow .2s;
+}
+/* IMPORTANT : on DÉSACTIVE l'ancien hand-expanded qui buggait */
+body.is-mobile.game-in-progress #hand-rail.hand-expanded .hand-area .card-wrapper {
+    --cw: clamp(70px, 16vw, 90px) !important;
+    margin-left: 0 !important;
 }
 
-body.is-mobile #main-nav button {
-    font-size: 11px;
-    padding: 5px 8px;
-    flex-shrink: 0;
-    white-space: nowrap;
+/* Effet visuel : la carte cliquée pulse légèrement */
+body.is-mobile.game-in-progress .hand-area .card-wrapper.jouable:active .card {
+    box-shadow: 0 0 2em var(--menthe), 0 .5em 1.4em rgba(0,0,0,.6);
 }
 
-body.is-mobile .nav-pseudo {
-    font-size: 11px;
-    gap: 4px;
-    flex-shrink: 0;
-    padding-left: 6px;
-    border-left: 1px solid rgba(255,255,255,.15);
+body.is-mobile.game-in-progress .action-log,
+body.is-mobile.game-in-progress .opp-hand { display: none; }
+
+/* ============ VISIONNEUSE DE CARTE (mobile) ============ */
+.card-viewer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: radial-gradient(circle at 50% 45%, rgba(30,50,80,.6), rgba(4,8,12,.98));
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn .2s ease-out;
+}
+.card-viewer-overlay.open {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.card-viewer-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.card-viewer-display .card-wrapper {
+    --cw: min(72vw, 280px);
+    animation: zoomIn .25s cubic-bezier(.2,.9,.3,1.2);
+}
+.card-viewer-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 400px;
+    width: 100%;
+}
+.card-viewer-actions button {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    transition: .15s;
+    min-height: 48px;
+}
+.card-viewer-actions .cv-play {
+    background: linear-gradient(180deg, #5cf0b3, var(--menthe));
+    color: #042a1e;
+    box-shadow: 0 8px 22px rgba(61,220,151,.4);
+}
+.card-viewer-actions .cv-play:disabled {
+    background: #22303f;
+    color: #4a5460;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+.card-viewer-actions .cv-close {
+    background: rgba(255,255,255,.1);
+    color: var(--texte);
+    border: 1px solid rgba(255,255,255,.2);
 }
 
-body.is-mobile .nav-level {
-    font-size: 10px;
-    padding: 2px 6px;
-}
-
-/* Les icônes rapides (quêtes, coins) sur mobile */
-body.is-mobile #nav-quetes,
-body.is-mobile #nav-coins {
-    margin-right: 6px !important;
-}
-
-/* En partie sur mobile : cacher la nav */
-body.is-mobile.game-in-progress #main-nav {
-    display: none !important;
+/* Empêcher tout débordement bizarre sur mobile */
+body.is-mobile.game-in-progress #game-screen > * {
+    max-width: 100vw;
 }
