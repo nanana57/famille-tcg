@@ -1139,14 +1139,11 @@ function creerHTMLCarte(c, ctx, opts) {
     
     const estBluffCache = (c.motsCles && c.motsCles.includes('Bluff') && c.revele === false && !c.bluffVisible && ctx === 'jeu');
     
-    if (estBluffCache) {
-        w.classList.add('hidden-card');
-        const divBack = document.createElement('div');
-        divBack.className = 'card-inner';
-        divBack.innerHTML = '<div class="card-back">?</div>';
-        w.appendChild(divBack);
-        return w;
-    }
+   if (estBluffCache) {
+    w.classList.add('hidden-card');
+    w.innerHTML = '<div class="card-inner"><div class="card-back">?</div></div>';
+    return w;
+}
 
     if (estCarteUnifiee) w.classList.add('unifiee');
     else if (displayRarete === 'legendaire') w.classList.add('legendaire');
