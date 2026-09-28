@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 
@@ -348,6 +348,9 @@
         <span id="nav-level" class="nav-level">Niv. 1</span>
     </div>
 </nav>
+
+<!-- Bouton toggle nav en game (mobile) -->
+<button id="btn-toggle-nav" class="btn-toggle-nav hidden" onclick="toggleNavGame()" title="Menu">☰</button>
 
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
@@ -944,11 +947,20 @@
     <div id="targeting-banner">Choisis une cible <button onclick="annulerCiblage()">Annuler</button></div>
 </div>
 
+<!-- VISIONNEUSE DE CARTE (mobile) -->
+<div id="card-viewer-overlay" class="card-viewer-overlay" onclick="fermerVisionneuse()">
+    <div class="card-viewer-display" id="card-viewer-display" onclick="event.stopPropagation()"></div>
+    <div class="card-viewer-actions" onclick="event.stopPropagation()">
+        <button class="cv-play" id="card-viewer-play" onclick="jouerCarteDepuisVisionneuse()">▶ Jouer cette carte</button>
+        <button class="cv-close" onclick="fermerVisionneuse()">✕ Fermer</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<script src="app.js?v=15"></script>
-<script src="multi.js?v=15"></script>
+<script src="app.js?v=17"></script>
+<script src="multi.js?v=17"></script>
 </body>
 </html>
