@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — feuille de style (v15)
-   Positions anatomie corrigées + Mobile optimisé portrait
+   FAMILLE TCG — feuille de style (v16)
+   Mobile flex column + Dos de carte visible + Points anatomie
    =========================================================== */
 
 :root{
@@ -544,6 +544,9 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 }
 .menu-box h2{font-family:'Cinzel',serif;color:var(--laiton-clair);text-shadow:0 2px 12px rgba(217,164,65,.5);font-size:26px;}
 
+/* ===========================================================
+   EMOJI PICKER
+   =========================================================== */
 .emoji-picker{
     display:grid;
     grid-template-columns:repeat(10,1fr);
@@ -881,7 +884,7 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .quiz-option.selected{border-color:var(--menthe);background:rgba(61,220,151,.15);color:var(--menthe);}
 
 /* ===========================================================
-   TUTO CARTE ANATOMIE — Positions corrigées précisément
+   TUTO CARTE ANATOMIE
    =========================================================== */
 .tuto-carte-zoom{
     position:fixed;
@@ -917,18 +920,10 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     flex-shrink: 0;
     padding: 20px 40px;
 }
-.tuto-carte-container #tuto-carte-display{
-    position:relative;
-    display:flex;
-    justify-content:center;
-    width: 100%;
-    flex-shrink: 0;
-    padding: 20px 40px;
-}
 .tuto-carte-container #tuto-carte-display .card-wrapper{
     --cw: 260px !important;
     animation:none !important;
-    position: relative; /* Important pour positionner les points par rapport à la carte */
+    position: relative;
 }
 /* Points de légende - positionnés à l'intérieur du wrapper de la carte */
 .tuto-carte-container #tuto-carte-display .card-wrapper .legend-dot{
@@ -950,19 +945,9 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     pointer-events: none;
 }
 @keyframes pulseDot{
-    0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
-    50%{box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
+    0%,100%{transform:scale(1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
+    50%{transform:scale(1.1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
 }
-/* Carte de référence : 260px de large, 364px de haut. Le point est positionné par rapport au centre de la carte. */
-/* On utilise une grille virtuelle : la carte est centrée, donc 0% = bord gauche de la carte, 100% = bord droit */
-/* Positionnement en % par rapport au conteneur qui englobe la carte (carte + padding) */
-.legend-dot.dot-1{top:5%;left:12%;}    /* Mana (en haut à gauche de la carte) */
-.legend-dot.dot-2{top:2%;left:50%;transform:translateX(-50%);} /* Nom (en haut au centre) */
-.legend-dot.dot-3{top:30%;left:50%;transform:translateX(-50%);} /* Illustration (centre) */
-.legend-dot.dot-4{top:53%;left:50%;transform:translateX(-50%);} /* Famille (barre milieu) */
-.legend-dot.dot-5{top:70%;left:12%;}   /* Description (à gauche de la description) */
-.legend-dot.dot-6{top:85%;left:50%;transform:translateX(-50%);} /* Mots-clés (bas centre) */
-.legend-dot.dot-7{top:97%;left:12%;}   /* Stats (bas gauche) */
 
 .tuto-carte-legend{
     background:linear-gradient(180deg,rgba(29,43,58,.98),rgba(11,17,24,.98));
@@ -1259,37 +1244,62 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     font-size:2.4em;box-shadow:0 0 1.5em rgba(217,164,65,.45);
 }
 
-/* Dos de carte pour les cartes Bluff cachées (dos violet avec ?) */
-.card-wrapper.hidden-card .card-inner {
+/* ===========================================================
+   CARTE BLUFF FACE CACHÉE : DOS VIOLET AVEC "?"
+   =========================================================== */
+.card-wrapper.hidden-card .card-inner{
     transform: none !important;
 }
-.card-wrapper.hidden-card .card-back {
+.card-wrapper.hidden-card .card-back{
     transform: none !important;
     background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
     border-color: #a86bff;
     box-shadow: 0 0 30px rgba(168,107,255,.6), inset 0 0 40px rgba(168,107,255,.3);
     animation: hiddenPulse 2.5s ease-in-out infinite;
     font-size: 0;
+    position: absolute;
+    inset: 0;
+    border-radius: .9em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.card-wrapper.hidden-card .card-back::before {
+.card-wrapper.hidden-card .card-back::before{
     content: '?';
     font-family: 'Cinzel', serif;
     font-size: 4em;
     font-weight: 900;
     color: #e0c4ff;
     text-shadow: 0 0 20px rgba(168,107,255,.9);
-    transform: none;
 }
 @keyframes hiddenPulse{
-    0%,100%{box-shadow:0 0 20px rgba(168,107,255,.4), inset 0 0 30px rgba(168,107,255,.2);}
-    50%{box-shadow:0 0 40px rgba(168,107,255,.8), inset 0 0 50px rgba(168,107,255,.4);}
+    0%,100%{box-shadow: 0 0 20px rgba(168,107,255,.4), inset 0 0 30px rgba(168,107,255,.2);}
+    50%{box-shadow: 0 0 40px rgba(168,107,255,.8), inset 0 0 50px rgba(168,107,255,.4);}
 }
 
-/* Survol PC : pas de flou, juste un léger soulèvement */
-.card-wrapper:hover .card{
-    transform:translateY(-2px);
-    z-index:10;
-    transition:transform .2s ease;
+/* ===========================================================
+   CARTE BLUFF VISIBLE OU RÉVÉLÉE SANS EFFET : GRISÉE
+   =========================================================== */
+.card-wrapper.bluff-visible-grise .card{
+    filter: grayscale(0.85) brightness(0.7) !important;
+    opacity: 0.85;
+    box-shadow: 0 0 12px rgba(147,163,180,.4) !important;
+}
+.card-wrapper.bluff-visible-grise::before{
+    content: '⚠️ Pas d\'effet';
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(147,163,180,.9);
+    color: #0b1118;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    z-index: 25;
+    letter-spacing: .03em;
 }
 
 .bg-Meridja{background:linear-gradient(150deg,#ff9a8b,#d63031)}
@@ -1521,29 +1531,6 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .card-wrapper .missing-badge{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:var(--braise);color:#fff;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:1px;z-index:30;box-shadow:0 4px 12px rgba(255,92,71,.5);white-space:nowrap;}
 .card-wrapper.banned .card{filter:grayscale(1) brightness(.3) !important;}
 .card-wrapper .banned-badge{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:#000;color:#ff5c47;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:2px;z-index:30;border:1px solid var(--braise);}
-
-/* Carte Bluff posée visible : grisée car pas d'effet */
-.card-wrapper.bluff-visible-grise .card {
-    filter: grayscale(0.85) brightness(0.7) !important;
-    opacity: 0.85;
-    box-shadow: 0 0 12px rgba(147,163,180,.4) !important;
-}
-.card-wrapper.bluff-visible-grise::before {
-    content: '⚠️ Visible (pas d\'effet)';
-    position: absolute;
-    bottom: -18px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(147,163,180,.9);
-    color: #0b1118;
-    font-size: 9px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 999px;
-    white-space: nowrap;
-    z-index: 25;
-    letter-spacing: .03em;
-}
 
 /* Détail / Zoom */
 #card-detail-overlay{display:none;position:fixed;inset:0;z-index:1100;background:rgba(4,8,12,.92);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
@@ -2051,7 +2038,7 @@ body.is-mobile #main-nav.nav-hidden-in-game {
 .bonus-item button{background:var(--braise);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0;min-height:40px;}
 
 /* ===========================================================
-   MOBILE — Portrait optimisé (v15)
+   MOBILE — Portrait optimisé (v16)
    =========================================================== */
 body.is-mobile {
     overflow-y: auto;
@@ -2084,17 +2071,9 @@ body.is-mobile #main-nav button {
     font-size: 11px;
     padding: 5px 8px;
 }
-body.is-mobile .nav-brand {
-    font-size: 14px;
-}
-body.is-mobile .nav-pseudo {
-    font-size: 11px;
-    gap: 4px;
-}
-body.is-mobile .nav-level {
-    font-size: 10px;
-    padding: 2px 6px;
-}
+body.is-mobile .nav-brand { font-size: 14px; }
+body.is-mobile .nav-pseudo { font-size: 11px; gap: 4px; }
+body.is-mobile .nav-level { font-size: 10px; padding: 2px 6px; }
 body.is-mobile {
     --cw-collection: 100px;
     --cw-jeu: clamp(72px, 11vh, 115px);
@@ -2103,256 +2082,95 @@ body.is-mobile {
     --cw-booster: 170px;
 }
 
-/* En partie sur mobile : cacher la nav pour gagner de l'espace */
-body.is-mobile.game-in-progress #main-nav {
-    display: none !important;
-}
-body.is-mobile .btn-toggle-nav {
-    display: none;
-}
+/* En partie sur mobile : cacher la nav */
+body.is-mobile.game-in-progress #main-nav { display: none !important; }
+body.is-mobile .btn-toggle-nav { display: none; }
 
-/* En partie sur mobile : optimiser le plateau (vue compacte portrait) */
+/* En partie mobile : LAYOUT FLEX COLUMN */
 body.is-mobile.game-in-progress #game-screen {
-    grid-template-rows: auto auto 1fr auto 1fr auto;
-    gap: 4px;
+    display: flex !important;
+    flex-direction: column;
     height: 100vh;
     overflow: hidden;
-    padding-bottom: 0;
+    gap: 0;
+    padding: 0;
+    grid-template-rows: unset;
 }
-body.is-mobile.game-in-progress #topbar {
-    padding: 4px 8px;
-    gap: 6px;
-}
-body.is-mobile.game-in-progress .turn-pill {
-    font-size: 10px;
-    padding: 2px 8px;
-}
-body.is-mobile.game-in-progress .timer {
-    width: 60px;
-    height: 12px;
-}
-body.is-mobile.game-in-progress .timer span {
-    font-size: 8px;
-    line-height: 12px;
-}
-body.is-mobile.game-in-progress #combat-info {
-    font-size: 9px;
-    min-width: 50px;
-}
-body.is-mobile.game-in-progress .btn-forfait-ingame {
-    padding: 3px 8px;
-    font-size: 9px;
-    min-height: 26px;
-}
-body.is-mobile.game-in-progress .side {
-    padding: 4px 6px;
-    gap: 4px;
-    min-height: 0;
-}
-body.is-mobile.game-in-progress .hero-panel {
-    padding: 4px 6px;
-    gap: 5px;
-    flex-shrink: 0;
-}
-body.is-mobile.game-in-progress .hero-portrait {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-    min-width: 40px;
-    min-height: 40px;
-    border-width: 2px;
-}
-body.is-mobile.game-in-progress .hero-name {
-    font-size: 11px;
-}
-body.is-mobile.game-in-progress .badge {
-    font-size: 9px;
-    padding: 2px 6px;
-}
-body.is-mobile.game-in-progress .badge.hp { font-size: 10px; padding: 2px 8px; }
-body.is-mobile.game-in-progress .badge.mana { font-size: 9px; padding: 2px 6px; }
-body.is-mobile.game-in-progress .badge.deck {
-    font-size: 9px;
-    padding: 2px 6px;
-    min-width: 28px;
-    min-height: 24px;
-}
-body.is-mobile.game-in-progress .crystals {
-    max-width: 70px;
-    gap: 1px;
-    margin-top: 2px;
-}
-body.is-mobile.game-in-progress .crystal {
-    width: 6px;
-    height: 9px;
-}
-body.is-mobile.game-in-progress .terrain-slot {
-    width: 40px;
-}
-body.is-mobile.game-in-progress .terrain-slot .card-wrapper {
-    --cw: 38px;
-}
-body.is-mobile.game-in-progress .board-area {
-    min-height: 0;
-    gap: 4px;
-    padding: 4px 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-wrap: nowrap;
-    justify-content: center;
-    align-items: center;
-    flex: 1;
-}
-body.is-mobile.game-in-progress .board-area:empty {
-    min-height: calc(var(--cw-jeu) * 1.42);
-}
-body.is-mobile.game-in-progress .board-area:empty::after {
-    content: '';
-    width: 60%;
-    height: calc(var(--cw-jeu) * 1.1);
-    border-radius: 14px;
-    border: 1px dashed rgba(255,255,255,.08);
-}
-body.is-mobile.game-in-progress .board-divider {
-    height: 6px;
-    margin: 2px 0;
-}
-body.is-mobile.game-in-progress .board-divider::before {
-    font-size: 8px;
-    letter-spacing: .3em;
-}
-body.is-mobile.game-in-progress .hand-rail {
-    padding: 0 4px;
-    min-height: 90px;
-}
-body.is-mobile.game-in-progress .hand-area {
-    height: auto;
-    padding: 4px 8px 6px;
-    justify-content: flex-start;
-    gap: 4px;
-    overflow-x: auto;
-}
-body.is-mobile.game-in-progress .hand-area .card-wrapper {
-    margin-left: 0 !important;
-    --cw: clamp(62px, 16vw, 82px);
-    transition: transform .25s cubic-bezier(.2,.9,.3,1.3);
-}
-body.is-mobile.game-in-progress .action-log {
-    display: none;
-}
-body.is-mobile.game-in-progress .opp-hand {
-    display: none;
-}
+body.is-mobile.game-in-progress #topbar { flex-shrink: 0; padding: 4px 6px; gap: 4px; }
+body.is-mobile.game-in-progress .turn-pill { font-size: 10px; padding: 2px 8px; }
+body.is-mobile.game-in-progress .timer { width: 55px; height: 12px; }
+body.is-mobile.game-in-progress .timer span { font-size: 8px; line-height: 12px; }
+body.is-mobile.game-in-progress #combat-info { font-size: 9px; min-width: 40px; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.is-mobile.game-in-progress .btn-forfait-ingame { padding: 3px 6px; font-size: 9px; min-height: 24px; }
 
-/* Main agrandie en mobile : clic sur la zone main */
-body.is-mobile.game-in-progress #hand-rail.hand-expanded .hand-area .card-wrapper {
-    --cw: clamp(90px, 20vw, 120px) !important;
-}
-body.is-mobile.game-in-progress #hand-rail.hand-expanded {
-    background: linear-gradient(180deg, rgba(11,17,24,.95), rgba(6,10,15,.98));
-    box-shadow: 0 -10px 40px rgba(0,0,0,.9);
-    padding-top: 10px;
-    border-top: 2px solid var(--laiton);
-}
+body.is-mobile.game-in-progress .side.opponent { flex-shrink: 0; flex-direction: column; padding: 2px 4px; gap: 2px; min-height: 0; }
+body.is-mobile.game-in-progress .side.opponent .hero-panel { order: 2; padding: 3px 5px; gap: 4px; width: 100%; flex-shrink: 0; }
+body.is-mobile.game-in-progress .side.opponent .terrain-slot { order: 1; width: 100%; height: 30px; flex-shrink: 0; }
+body.is-mobile.game-in-progress .side.opponent .terrain-slot .card-wrapper { --cw: 24px; }
+body.is-mobile.game-in-progress .side.opponent .board-area { order: 3; width: 100%; min-height: calc(var(--cw-jeu) * 1.42); flex-shrink: 0; }
 
-/* Suppression du hover flou sur PC */
-@media (hover: hover) and (pointer: fine) {
-    .card-wrapper:hover .card {
-        transform: translateY(-2px);
-        filter: none;
-    }
-}
+body.is-mobile.game-in-progress .side.player { flex-shrink: 0; flex-direction: column; padding: 2px 4px; gap: 2px; min-height: 0; }
+body.is-mobile.game-in-progress .side.player .hero-panel { order: 3; padding: 3px 5px; gap: 4px; width: 100%; flex-shrink: 0; }
+body.is-mobile.game-in-progress .side.player .terrain-slot { order: 2; width: 100%; height: 30px; flex-shrink: 0; }
+body.is-mobile.game-in-progress .side.player .terrain-slot .card-wrapper { --cw: 24px; }
+body.is-mobile.game-in-progress .side.player .board-area { order: 1; width: 100%; min-height: calc(var(--cw-jeu) * 1.42); flex-shrink: 0; }
+
+body.is-mobile.game-in-progress .board-divider { height: 4px; margin: 1px 0; flex-shrink: 0; }
+body.is-mobile.game-in-progress .board-divider::before { font-size: 6px; letter-spacing: .2em; }
+
+body.is-mobile.game-in-progress .hero-panel { padding: 3px 5px; gap: 4px; }
+body.is-mobile.game-in-progress .hero-portrait { width: 32px; height: 32px; font-size: 16px; min-width: 32px; min-height: 32px; border-width: 2px; }
+body.is-mobile.game-in-progress .hero-name { font-size: 10px; }
+body.is-mobile.game-in-progress .badge { font-size: 8px; padding: 1px 4px; }
+body.is-mobile.game-in-progress .badge.hp { font-size: 9px; padding: 1px 5px; }
+body.is-mobile.game-in-progress .badge.mana { font-size: 8px; padding: 1px 4px; }
+body.is-mobile.game-in-progress .badge.deck { font-size: 8px; padding: 1px 4px; min-width: 22px; min-height: 20px; }
+body.is-mobile.game-in-progress .crystals { max-width: 60px; gap: 1px; margin-top: 1px; }
+body.is-mobile.game-in-progress .crystal { width: 5px; height: 8px; }
+body.is-mobile.game-in-progress .hero-panel .btn-endturn { padding: 5px 8px; font-size: 9px; min-height: 30px; min-width: 60px; }
+
+body.is-mobile.game-in-progress .board-area { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 2px; padding: 2px 4px; overflow-x: auto; overflow-y: hidden; min-height: calc(var(--cw-jeu) * 1.42); }
+body.is-mobile.game-in-progress .board-area .card-wrapper { --cw: clamp(48px, 13vw, 62px); flex-shrink: 0; }
+body.is-mobile.game-in-progress .board-area:empty { min-height: calc(var(--cw-jeu) * 1.42); }
+body.is-mobile.game-in-progress .board-area:empty::after { content: ''; width: 60%; height: calc(var(--cw-jeu) * 1.1); border-radius: 10px; border: 1px dashed rgba(255,255,255,.08); }
+
+body.is-mobile.game-in-progress .hand-rail { flex-shrink: 0; padding: 2px 4px; min-height: 88px; max-height: 108px; background: linear-gradient(180deg, rgba(6,10,15,.3), rgba(6,10,15,.95)); }
+body.is-mobile.game-in-progress .hand-area { height: auto; padding: 2px 6px 4px; justify-content: flex-start; gap: 3px; overflow-x: auto; }
+body.is-mobile.game-in-progress .hand-area .card-wrapper { margin-left: 0 !important; --cw: clamp(56px, 14vw, 74px); transition: transform .25s cubic-bezier(.2,.9,.3,1.3); }
+body.is-mobile.game-in-progress #hand-rail.hand-expanded .hand-area .card-wrapper { --cw: clamp(88px, 20vw, 120px) !important; }
+
+body.is-mobile.game-in-progress .action-log, body.is-mobile.game-in-progress .opp-hand { display: none; }
 
 @media (pointer: coarse) {
-    button, .btn-chip, .badge.deck, .avatar-choice, .emoji-btn {
-        min-width: 44px;
-        min-height: 44px;
-    }
-    .hero-portrait {
-        min-width: 34px;
-        min-height: 34px;
-    }
-    .zoom-btn {
-        width: 28px;
-        height: 28px;
-        font-size: 14px;
-    }
-
-    .card-wrapper:hover .card {
-        transform: none;
-        filter: none;
-    }
-    .card-wrapper:hover .card::before {
-        display: none;
-    }
-
-    .card-wrapper:active,
-    button:active:not(:disabled) {
-        transform: scale(.95) !important;
-        filter: brightness(1.2) !important;
-        transition: transform .1s, filter .1s;
-    }
+    button, .btn-chip, .badge.deck, .avatar-choice, .emoji-btn { min-width: 44px; min-height: 44px; }
+    .zoom-btn { width: 28px; height: 28px; font-size: 14px; }
+    .card-wrapper:hover .card { transform: none; filter: none; }
+    .card-wrapper:active, button:active:not(:disabled) { transform: scale(.95) !important; filter: brightness(1.2) !important; }
 }
 
 @media (max-width: 640px) {
-    .nav-hamburger {
-        display: block;
-    }
+    .nav-hamburger { display: block; }
     .nav-links {
-        position: fixed;
-        top: 60px;
-        left: 0;
-        right: 0;
-        background: rgba(11,17,24,.98);
-        backdrop-filter: blur(10px);
-        flex-direction: column;
-        padding: 12px;
-        max-height: 80vh;
-        overflow-y: auto;
-        transform: translateY(-120%);
-        transition: transform .3s;
-        z-index: 300;
-        border-radius: 0 0 16px 16px;
-        box-shadow: 0 12px 40px rgba(0,0,0,.7);
+        position: fixed; top: 60px; left: 0; right: 0;
+        background: rgba(11,17,24,.98); backdrop-filter: blur(10px);
+        flex-direction: column; padding: 12px; max-height: 80vh; overflow-y: auto;
+        transform: translateY(-120%); transition: transform .3s; z-index: 300;
+        border-radius: 0 0 16px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.7);
     }
-    .nav-links.open {
-        transform: translateY(0);
-    }
-    .nav-links button {
-        width: 100%;
-        text-align: left;
-        padding: 14px 16px;
-        font-size: 15px;
-        border-radius: 8px;
-        min-height: 48px;
-    }
+    .nav-links.open { transform: translateY(0); }
+    .nav-links button { width: 100%; text-align: left; padding: 14px 16px; font-size: 15px; border-radius: 8px; min-height: 48px; }
 }
 
 @media (max-width: 768px) {
     .reward-overlay, .confirm-box-overlay, .daily-overlay,
-    .quetes-overlay, #mulligan-overlay {
-        backdrop-filter: blur(4px);
-    }
-    .card-wrapper.legendaire .card::before {
-        animation: none;
-        opacity: .3;
-    }
-    .card {
-        box-shadow: 0 .3em .8em rgba(0,0,0,.5) !important;
-    }
-    .card-inner {
-        transform-style: flat;
-    }
+    .quetes-overlay, #mulligan-overlay { backdrop-filter: blur(4px); }
+    .card-wrapper.legendaire .card::before { animation: none; opacity: .3; }
+    .card { box-shadow: 0 .3em .8em rgba(0,0,0,.5) !important; }
+    .card-inner { transform-style: flat; }
 }
 
-html, body {
-    touch-action: manipulation;
-    overscroll-behavior: none;
-}
-.hand-rail, .board-area, .collection-area, .sidebar, .deck-area {
-    touch-action: pan-x pan-y;
-    overscroll-behavior-x: contain;
-}
+html, body { touch-action: manipulation; overscroll-behavior: none; }
+.hand-rail, .board-area, .collection-area, .sidebar, .deck-area { touch-action: pan-x pan-y; overscroll-behavior-x: contain; }
 
 @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms !important;transition-duration:.01ms !important}
