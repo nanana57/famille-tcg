@@ -1,6 +1,6 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (Édition Ultime v15)
-   Compatible avec les nouvelles mécaniques Bluff face visible/cachée
+   FAMILLE TCG — Multijoueur Firebase (v16)
+   Compatible avec Bluff face visible/cachée
    =========================================================== */
 
 const firebaseConfig = {
@@ -13,29 +13,16 @@ const firebaseConfig = {
     appId: "1:258877697356:web:534d00175517add7f4b3e9"
 };
 
-let fbDB = null;
-let fbUserRef = null;
-let fbJoueursRef = null;
-let monId = null;
-let monPseudo = null;
+let fbDB = null, fbUserRef = null, fbJoueursRef = null, monId = null, monPseudo = null;
 window.multiPartie = null;
-
-let monRole = null;
-let dejaLancee = false;
-let _ecouteurSalle = null;
-let _partieIdEnCours = null;
-let _ecouteurDefiEnvoye = null;
-let _salleRef = null;
-let _ecouteurDemandesAmis = null;
-let _ecouteurBonusTemporaire = null;
-let _ecouteurMessagesPrives = null;
-let _intervalPing = null;
+let monRole = null, dejaLancee = false, _ecouteurSalle = null, _partieIdEnCours = null;
+let _ecouteurDefiEnvoye = null, _salleRef = null, _ecouteurDemandesAmis = null;
+let _ecouteurBonusTemporaire = null, _ecouteurMessagesPrives = null, _intervalPing = null;
 
 function normaliserPseudo(p) {
     return (p || 'anonyme').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_').slice(0, 20);
 }
 function calculerPartieId(a, b) { return 'p_' + [normaliserPseudo(a), normaliserPseudo(b)].sort().join('_vs_'); }
-
 window.onAppPret = function() { initFirebase(); };
 
 function initFirebase() {
@@ -43,21 +30,17 @@ function initFirebase() {
         if (typeof firebase === 'undefined') return;
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         fbDB = firebase.database();
-
         firebase.auth().onAuthStateChanged(user => {
             if (user) { monId = user.uid; initApresAuth(user); }
         });
     } catch(e) { console.error("Firebase bloqué", e); }
-
     const elLogin = document.getElementById('auth-password-login');
     if (elLogin) elLogin.addEventListener('keydown', e => { if(e.key === 'Enter') connexionCompte(); });
     const elReg = document.getElementById('auth-password-reg');
     if (elReg) elReg.addEventListener('keydown', e => { if(e.key === 'Enter') creerCompte(); });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    if (window.appPret) initFirebase();
-});
+document.addEventListener("DOMContentLoaded", () => { if (window.appPret) initFirebase(); });
 
 function toggleAuthMode(mode) {
     if (mode === 'register') {
@@ -71,17 +54,13 @@ function toggleAuthMode(mode) {
 
 function lancerModeHorsLigne(pseudoForce, emailForce) {
     if (typeof J === 'undefined' || typeof changerEcran !== 'function') {
-        setTimeout(() => lancerModeHorsLigne(pseudoForce, emailForce), 300);
-        return;
+        setTimeout(() => lancerModeHorsLigne(pseudoForce, emailForce), 300); return;
     }
     J.nom = pseudoForce || "Joueur_" + Math.floor(Math.random() * 1000);
     monPseudo = normaliserPseudo(J.nom);
-    const disp = document.getElementById('display-pseudo');
-    if (disp) disp.innerText = J.nom;
-    const hero = document.getElementById('hero-name');
-    if (hero) hero.innerText = J.nom;
-    const nav = document.getElementById('main-nav');
-    if (nav) nav.classList.remove('hidden');
+    const disp = document.getElementById('display-pseudo'); if (disp) disp.innerText = J.nom;
+    const hero = document.getElementById('hero-name'); if (hero) hero.innerText = J.nom;
+    const nav = document.getElementById('main-nav'); if (nav) nav.classList.remove('hidden');
     if (typeof chargerProgression === 'function') chargerProgression(emailForce);
     if (typeof changerEcran === 'function') changerEcran('menu-screen');
 }
@@ -94,8 +73,7 @@ function connexionCompte() {
     if(!ident || !pwd) { err.innerText = "Identifiant et mot de passe requis."; return; }
     if (typeof firebase === 'undefined' || !fbDB) {
         err.innerText = "Firebase bloqué. Lancement hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(ident, ident), 800);
-        return;
+        setTimeout(() => lancerModeHorsLigne(ident, ident), 800); return;
     }
     let timeout = setTimeout(() => {
         if (err.innerText === "Connexion en cours...") {
@@ -115,9 +93,7 @@ function connexionCompte() {
                     firebase.auth().signInWithEmailAndPassword(snap.val().email, pwd).then(() => {
                         clearTimeout(timeout); err.innerText = "Connecté !";
                     }).catch(() => { clearTimeout(timeout); err.innerText = "Mot de passe incorrect."; });
-                } else {
-                    clearTimeout(timeout); err.innerText = "Pseudo introuvable.";
-                }
+                } else { clearTimeout(timeout); err.innerText = "Pseudo introuvable."; }
             }).catch(() => {
                 clearTimeout(timeout); err.innerText = "BDD bloquée. Hors ligne...";
                 setTimeout(() => lancerModeHorsLigne(ident, null), 1000);
@@ -139,8 +115,7 @@ function creerCompte() {
     if (pwd.length < 6) { err.innerText = "Mot de passe : 6 caractères min."; return; }
     if (typeof firebase === 'undefined' || !fbDB) {
         err.innerText = "Firebase bloqué. Hors ligne...";
-        setTimeout(() => lancerModeHorsLigne(pseudo, email), 800);
-        return;
+        setTimeout(() => lancerModeHorsLigne(pseudo, email), 800); return;
     }
     let timeout = setTimeout(() => {
         if(err.innerText === "Création du compte en cours...") {
@@ -151,8 +126,7 @@ function creerCompte() {
     try {
         firebase.auth().createUserWithEmailAndPassword(email, pwd)
             .then(creds => {
-                clearTimeout(timeout);
-                err.innerText = "Compte créé !";
+                clearTimeout(timeout); err.innerText = "Compte créé !";
                 if(fbDB) {
                     const pseudoNorm = normaliserPseudo(pseudo);
                     fbDB.ref('profils/' + creds.user.uid).set({ pseudo: pseudo, email: email }).catch(()=>{});
@@ -194,16 +168,12 @@ function initApresAuth(user) {
 
 function chargerCartesBannies() {
     if (!fbDB) return;
-    fbDB.ref('cartesBannies').on('value', snap => {
-        window.cartesBannies = snap.val() || [];
-    });
+    fbDB.ref('cartesBannies').on('value', snap => { window.cartesBannies = snap.val() || []; });
 }
 
-/* ---------- BONUS TEMPORAIRE ---------- */
 function demarrerEcouteBonusTemporaire() {
     if (!fbDB || !monId) return;
     if (_ecouteurBonusTemporaire) _ecouteurBonusTemporaire.off();
-
     _ecouteurBonusTemporaire = fbDB.ref('profils/' + monId + '/bonusTemporaire');
     _ecouteurBonusTemporaire.on('value', snap => {
         const bonus = snap.val();
@@ -217,21 +187,17 @@ function demarrerEcouteBonusTemporaire() {
         if (typeof profil !== 'undefined') {
             const wasActive = profil.bonusTemporaire && profil.bonusTemporaire.expireAt > Date.now();
             profil.bonusTemporaire = bonus;
-            if (!wasActive) {
-                if (typeof flashInfo === 'function') {
-                    const reste = Math.ceil((bonus.expireAt - Date.now()) / 60000);
-                    flashInfo(`🎁 Bonus actif ! Toutes les cartes ×3 pendant ${reste} min.`);
-                }
+            if (!wasActive && typeof flashInfo === 'function') {
+                const reste = Math.ceil((bonus.expireAt - Date.now()) / 60000);
+                flashInfo(`🎁 Bonus actif ! Toutes les cartes ×3 pendant ${reste} min.`);
             }
         }
     });
 }
 
-/* ---------- DEMANDES D'AMIS ---------- */
 function demarrerEcouteDemandesAmis() {
     if (!fbDB || !monId) return;
     if (_ecouteurDemandesAmis) _ecouteurDemandesAmis.off();
-
     _ecouteurDemandesAmis = fbDB.ref('demandesAmis/' + monId);
     _ecouteurDemandesAmis.on('value', snap => {
         const data = snap.val() || {};
@@ -246,14 +212,12 @@ function demarrerEcouteDemandesAmis() {
     });
 }
 
-/* ---------- MESSAGES PRIVÉS ---------- */
 function demarrerEcouteMessagesPrives() {
     if (!fbDB || !monId) return;
     fbDB.ref('profils/' + monId + '/public').once('value').then(snap => {
         const pub = snap.val() || {};
         const monCode = pub.codeAmi || (typeof profil !== 'undefined' ? profil.codeAmi : null);
         if (!monCode) return;
-
         if (_ecouteurMessagesPrives) _ecouteurMessagesPrives.off();
         _ecouteurMessagesPrives = fbDB.ref('messagesPrives');
         _ecouteurMessagesPrives.on('child_added', child => {
@@ -274,45 +238,26 @@ function setupFirebaseListeners() {
     if (!fbDB || !monId) return;
     fbUserRef = fbDB.ref('joueurs/' + monId);
     fbJoueursRef = fbDB.ref('joueurs');
-
     fbUserRef.onDisconnect().remove();
     fbUserRef.set({
-        pseudo: J.nom,
-        pseudoNorm: monPseudo,
-        etat: 'libre',
-        dernierPing: Date.now(),
-        codeAmi: profil.codeAmi || null,
-        avatar: profil.avatar || '🧑',
-        niveau: profil.niveau || 1
+        pseudo: J.nom, pseudoNorm: monPseudo, etat: 'libre', dernierPing: Date.now(),
+        codeAmi: profil.codeAmi || null, avatar: profil.avatar || '🧑', niveau: profil.niveau || 1
     });
-
     if (_intervalPing) clearInterval(_intervalPing);
-    _intervalPing = setInterval(() => {
-        if (fbDB && monId) fbUserRef.update({ dernierPing: Date.now(), niveau: profil.niveau || 1 });
-    }, 30000);
-
+    _intervalPing = setInterval(() => { if (fbDB && monId) fbUserRef.update({ dernierPing: Date.now(), niveau: profil.niveau || 1 }); }, 30000);
     fbJoueursRef.on('value', snap => afficherListeJoueurs(snap.val() || {}));
-
     fbDB.ref('motd').on('value', snap => {
         const msg = snap.val();
         const banner = document.getElementById('motd-banner');
-        if (banner) {
-            if(msg) { banner.innerText = msg; banner.classList.remove('hidden'); }
-            else banner.classList.add('hidden');
-        }
+        if (banner) { if(msg) { banner.innerText = msg; banner.classList.remove('hidden'); } else banner.classList.add('hidden'); }
     });
-
-    fbDB.ref('cartesBannies').on('value', snap => {
-        window.cartesBannies = snap.val() || [];
-    });
-
+    fbDB.ref('cartesBannies').on('value', snap => { window.cartesBannies = snap.val() || []; });
     fbDB.ref('defis/' + monPseudo).on('value', snap => {
         const d = snap.val();
         if (!d) return;
         if (d.de && d.de !== monPseudo && d.etat === 'en_attente') afficherDefiRecu(d);
         if (d.etat !== 'en_attente') { const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.remove('open'); }
     });
-
     fbDB.ref('salles').on('value', snap => {
         const tout = snap.val() || {};
         Object.entries(tout).forEach(([partieId, s]) => {
@@ -329,10 +274,7 @@ function setupFirebaseListeners() {
     });
 }
 
-function rafraichirJoueurs() {
-    if (!fbDB) { if (window.appPret) initFirebase(); }
-    else setupFirebaseListeners();
-}
+function rafraichirJoueurs() { if (!fbDB) { if (window.appPret) initFirebase(); } else setupFirebaseListeners(); }
 
 function afficherListeJoueurs(data) {
     const liste = document.getElementById('multi-liste');
@@ -357,7 +299,7 @@ function afficherListeJoueurs(data) {
         div.innerHTML = `<div><div class="mj-nom">${avatar} ${j.pseudo || 'Anonyme'} <span style="color:var(--laiton);font-size:11px;">Niv.${niv}</span></div><div class="mj-etat ${libre ? 'libre' : 'en-combat'}">${libre ? '● Disponible' : '⚔ En combat'}</div></div>
             <div class="mj-actions">
                 <button ${(libre && !moiMeme) ? '' : 'disabled'} onclick="defierJoueur('${cible}')">${moiMeme ? 'Toi' : (libre ? 'Défier' : 'Occupé')}</button>
-                ${(!moiMeme && codeAmi && !dejaAmi) ? `<button class="sec" onclick="demanderAmi('${codeAmi}')" title="Ajouter en ami">➕ Ami</button>` : ''}
+                ${(!moiMeme && codeAmi && !dejaAmi) ? `<button class="sec" onclick="demanderAmi('${codeAmi}')">➕ Ami</button>` : ''}
             </div>`;
         liste.appendChild(div);
     });
@@ -373,18 +315,11 @@ function demanderAmi(codeCible) {
         const data = snap.val();
         if (!data) return flashInfo('Joueur introuvable.');
         const uid = Object.keys(data)[0];
-        const pub = data[uid].public || {};
-        fbDB.ref('demandesAmis/' + uid).push({
-            deCode: profil.codeAmi,
-            dePseudo: J.nom,
-            deUid: monId,
-            ts: Date.now()
-        });
-        flashInfo(`Demande envoyée à ${pub.pseudo || codeCible} !`);
+        fbDB.ref('demandesAmis/' + uid).push({ deCode: profil.codeAmi, dePseudo: J.nom, deUid: monId, ts: Date.now() });
+        flashInfo(`Demande envoyée !`);
     }).catch(() => flashInfo('Erreur d\'envoi.'));
 }
 
-/* ---------- DÉFIS ---------- */
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
     fbDB.ref('defis/' + pseudoCible).set({ de: monPseudo, dePseudo: J.nom, deId: monId, etat: 'en_attente', timestamp: Date.now() });
@@ -449,8 +384,7 @@ function refuserDefi() {
     if (!fbDB) return;
     fbDB.ref('defis/' + monPseudo).update({ etat: 'refuse', refusePar: monPseudo });
     setTimeout(() => { try { fbDB.ref('defis/' + monPseudo).remove(); } catch(e){} }, 3000);
-    const ov = document.getElementById('defi-overlay');
-    if (ov) ov.classList.remove('open');
+    const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.remove('open');
     window._defiEnCours = null;
 }
 
@@ -480,15 +414,11 @@ function validerChoixDeckEnLigne() {
     const i = sel.value;
     const deck = mesDecks[i];
     if (!deck) return;
-    if (calculerCartesPossedeesPourDeck(deck.cartes) !== 20) {
-        alert("Ce deck est incomplet (20 cartes possédées requises).");
-        return;
-    }
+    if (calculerCartesPossedeesPourDeck(deck.cartes) !== 20) { alert("Ce deck est incomplet."); return; }
     window._deckMultiEnCours = deck.nom;
     const deckIds = deck.cartes.map(c => typeof c === 'string' ? c : c.id);
     annoncerDeckChoisi(window._pseudoAdverseDeck, deckIds);
-    const ov = document.getElementById('deck-choix-overlay');
-    if (ov) ov.classList.remove('open');
+    const ov = document.getElementById('deck-choix-overlay'); if (ov) ov.classList.remove('open');
     afficherAttente('En attente de l\'adversaire…');
 }
 
@@ -512,17 +442,14 @@ function ecouterSalle(partieId) {
         if (!s || !s.joueurs) return;
         const pseudos = Object.keys(s.joueurs);
         if (pseudos.length < 2 || !s.roles || !s.roles[monPseudo]) return;
-
         const roleLocal = s.roles[monPseudo];
         monRole = roleLocal;
         const roleAdverse = roleLocal === 'joueur1' ? 'joueur2' : 'joueur1';
         const pseudoAdverse = s.roles[roleAdverse] || pseudos.find(x => x !== monPseudo);
-
         const mesInfos = s.joueurs[monPseudo] || {};
         const infosAdv = s.joueurs[pseudoAdverse] || {};
         const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20
                         && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
-
         if (decksPrets && !dejaLancee) {
             dejaLancee = true;
             window.multiPartie = {
@@ -534,7 +461,6 @@ function ecouterSalle(partieId) {
             return;
         }
         if (!dejaLancee) return;
-
         if (!window.multiPartie.demarrageTraite) {
             const mesMull = mesInfos.mulligan === true;
             const advMull = infosAdv.mulligan === true;
@@ -552,12 +478,9 @@ function ecouterSalle(partieId) {
                     J.manaMax = 3; J.manaActuel = 0;
                     modeEnLigne = true; modeAttente = true;
                     tourActuel = 'attente';
-                    const ti = document.getElementById('tour-indicateur');
-                    if (ti) ti.innerText = 'Tour adverse';
-                    const tp = document.querySelector('.turn-pill');
-                    if (tp) tp.classList.add('bot');
-                    const be = document.getElementById('btn-endturn');
-                    if (be) be.classList.add('inactif');
+                    const ti = document.getElementById('tour-indicateur'); if (ti) ti.innerText = 'Tour adverse';
+                    const tp = document.querySelector('.turn-pill'); if (tp) tp.classList.add('bot');
+                    const be = document.getElementById('btn-endturn'); if (be) be.classList.add('inactif');
                     prochainManaMax(B);
                     piocher(B, 1);
                     rafraichirJeu();
@@ -565,7 +488,6 @@ function ecouterSalle(partieId) {
             }
             return;
         }
-
         const queue = s.queue || {};
         const entrees = Object.values(queue).sort((a, b) => (a.id || 0) - (b.id || 0));
         entrees.forEach(e => {
@@ -598,22 +520,17 @@ async function traiterActionRecue(a) {
                 cible = (a.cibleHero === 'J') ? B : J;
             }
             if (carte.motsCles.includes('Fusion')) sacrifierPourFusion(B, carte.id);
-            
-            // Gestion spéciale pour les cartes Bluff
             if (carte.motsCles.includes('Bluff') && carte.famille !== 'Sort' && carte.famille !== 'Terrain') {
                 if (a.bluffVisible === true) {
                     carte.bluffVisible = true;
                     carte.revele = true;
                     carte.silence = true;
-                    if (!carte.desc.includes('(posée visible')) {
-                        carte.desc = carte.desc + " (posée visible : pas d'effet)";
-                    }
+                    if (!carte.desc.includes('(posée visible')) carte.desc = carte.desc + " (posée visible : pas d'effet)";
                 } else {
                     carte.bluffVisible = false;
                     carte.revele = false;
                 }
             }
-            
             jouerCarte(B, idx, cible);
             break;
         }
@@ -664,9 +581,7 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-/* ===========================================================
-   ADMIN Firebase
-   =========================================================== */
+/* ADMIN Firebase */
 function adminNettoyerSalles() {
     if (!fbDB) return alert("Firebase non connecté.");
     fbDB.ref('salles').once('value').then(snap => {
