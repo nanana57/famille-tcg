@@ -917,12 +917,21 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     flex-shrink: 0;
     padding: 20px 40px;
 }
+.tuto-carte-container #tuto-carte-display{
+    position:relative;
+    display:flex;
+    justify-content:center;
+    width: 100%;
+    flex-shrink: 0;
+    padding: 20px 40px;
+}
 .tuto-carte-container #tuto-carte-display .card-wrapper{
     --cw: 260px !important;
     animation:none !important;
+    position: relative; /* Important pour positionner les points par rapport à la carte */
 }
-/* Points de légende - positionnés précisément par rapport à la carte */
-.tuto-carte-container #tuto-carte-display .legend-dot{
+/* Points de légende - positionnés à l'intérieur du wrapper de la carte */
+.tuto-carte-container #tuto-carte-display .card-wrapper .legend-dot{
     position:absolute;
     width:32px;
     height:32px;
@@ -938,10 +947,11 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);
     z-index:100;
     animation:pulseDot 1.8s ease-in-out infinite;
+    pointer-events: none;
 }
 @keyframes pulseDot{
-    0%,100%{transform:scale(1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
-    50%{transform:scale(1.1);box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
+    0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 20px rgba(217,164,65,.7);}
+    50%{box-shadow:0 4px 14px rgba(0,0,0,.7), 0 0 30px rgba(217,164,65,1);}
 }
 /* Carte de référence : 260px de large, 364px de haut. Le point est positionné par rapport au centre de la carte. */
 /* On utilise une grille virtuelle : la carte est centrée, donc 0% = bord gauche de la carte, 100% = bord droit */
@@ -1249,22 +1259,26 @@ body.is-mobile #main-nav.nav-hidden-in-game {
     font-size:2.4em;box-shadow:0 0 1.5em rgba(217,164,65,.45);
 }
 
-.card-wrapper.hidden-card .card-back{
-    background:linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
-    border-color:#a86bff;
-    box-shadow:0 0 30px rgba(168,107,255,.6), inset 0 0 40px rgba(168,107,255,.3);
-    animation:hiddenPulse 2.5s ease-in-out infinite;
+/* Dos de carte pour les cartes Bluff cachées (dos violet avec ?) */
+.card-wrapper.hidden-card .card-inner {
+    transform: none !important;
 }
-.card-wrapper.hidden-card .card-back::before{
-    content:'?';
-    font-family:'Cinzel', serif;
-    font-size:4em;
-    font-weight:900;
-    color:#e0c4ff;
-    text-shadow:0 0 20px rgba(168,107,255,.9);
+.card-wrapper.hidden-card .card-back {
+    transform: none !important;
+    background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
+    border-color: #a86bff;
+    box-shadow: 0 0 30px rgba(168,107,255,.6), inset 0 0 40px rgba(168,107,255,.3);
+    animation: hiddenPulse 2.5s ease-in-out infinite;
+    font-size: 0;
 }
-.card-wrapper.hidden-card .card-back{
-    font-size:0;
+.card-wrapper.hidden-card .card-back::before {
+    content: '?';
+    font-family: 'Cinzel', serif;
+    font-size: 4em;
+    font-weight: 900;
+    color: #e0c4ff;
+    text-shadow: 0 0 20px rgba(168,107,255,.9);
+    transform: none;
 }
 @keyframes hiddenPulse{
     0%,100%{box-shadow:0 0 20px rgba(168,107,255,.4), inset 0 0 30px rgba(168,107,255,.2);}
