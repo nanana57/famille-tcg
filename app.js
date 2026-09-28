@@ -4227,12 +4227,17 @@ function initClicDroitZoom() {
    DÉMARRAGE
    =========================================================== */
 document.addEventListener('DOMContentLoaded', function() {
+    // Sécurité : on retire toujours game-in-progress au démarrage
+    // (au cas où la page aurait été rechargée en pleine partie)
+    document.body.classList.remove('game-in-progress');
+
+    // Détection mobile (condition permissive : plus fiable sur tous les navigateurs)
     const estVraiMobile = ('ontouchstart' in window)
         && (navigator.maxTouchPoints > 0)
-        && window.matchMedia('(pointer: coarse)').matches
         && window.innerWidth <= 1024;
     if (estVraiMobile) document.body.classList.add('is-mobile');
 
+    // Cartes décoratives de l'écran de connexion
     try {
         const zone = document.getElementById('login-cards');
         if (zone) {
@@ -4248,19 +4253,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) { console.error("Erreur decor", e); }
 
+    // Mise à jour du header de collection
     if (document.getElementById('boutique-grid')) majCollectionHeader();
 
+    // Effet scroll sur la nav
     window.addEventListener('scroll', () => {
         const nav = document.getElementById('main-nav');
         if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
     }, { passive: true });
 
+    // Feedback tactile + clic droit zoom
     initTouchFeedback();
     initClicDroitZoom();
 
+    // Signale à multi.js que l'app est prête
     window.appPret = true;
     if (typeof window.onAppPret === 'function') window.onAppPret();
 
+    // Confirmation avant de quitter en pleine partie
     window.addEventListener('beforeunload', (e) => {
         const gs = document.getElementById('game-screen');
         if (gs && gs.classList.contains('active') && !partieFinie && !modeTuto) {
@@ -4268,5 +4278,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Écoute des demandes d'amis (après un court délai pour laisser Firebase s'init)
     setTimeout(() => { if (typeof ecouterDemandesAmis === 'function') ecouterDemandesAmis(); }, 2000);
 });
