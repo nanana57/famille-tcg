@@ -2204,33 +2204,41 @@ function ouvrirTutoCarteAnatomie() {
     const list = document.getElementById('tuto-carte-legend-list');
     if (!display || !list) return;
 
-    const carteExemple = defCarte('m2'); // Bachira
+    // On prend la carte BACHIRA (m2) avec Provocation
+    const carteExemple = defCarte('m2');
     display.innerHTML = '';
-    display.appendChild(creerHTMLCarte(carteExemple, 'zoom'));
     
+    // Créer le wrapper de la carte et y ajouter les points DEDANS
+    const carteEl = creerHTMLCarte(carteExemple, 'zoom');
+    
+    // Ajouter les points de légende dans le wrapper (positionnés par rapport à la carte)
     const dots = [
-        { n: 1, txt: "Coût en mana", pos: "dot-1" },
-        { n: 2, txt: "Nom de la carte", pos: "dot-2" },
-        { n: 3, txt: "Illustration / Emoji", pos: "dot-3" },
-        { n: 4, txt: "Famille / Type", pos: "dot-4" },
-        { n: 5, txt: "Description / Effet", pos: "dot-5" },
-        { n: 6, txt: "Mots-clés (Provocation)", pos: "dot-6" },
-        { n: 7, txt: "Force / Vie (ATK/HP)", pos: "dot-7" }
+        { n: 1, txt: "Coût en mana", top: "8%", left: "8%" },
+        { n: 2, txt: "Nom de la carte", top: "8%", left: "50%", transform: "translateX(-50%)" },
+        { n: 3, txt: "Illustration / Emoji", top: "28%", left: "50%", transform: "translateX(-50%)" },
+        { n: 4, txt: "Famille / Type", top: "53%", left: "50%", transform: "translateX(-50%)" },
+        { n: 5, txt: "Description / Effet", top: "68%", left: "8%" },
+        { n: 6, txt: "Mots-clés (Provocation)", top: "82%", left: "50%", transform: "translateX(-50%)" },
+        { n: 7, txt: "Force / Vie (ATK/HP)", top: "95%", left: "8%" }
     ];
 
     dots.forEach(d => {
         const dot = document.createElement('div');
-        dot.className = `legend-dot ${d.pos}`;
+        dot.className = 'legend-dot';
         dot.innerText = d.n;
-        display.appendChild(dot);
+        dot.style.top = d.top;
+        dot.style.left = d.left;
+        if (d.transform) dot.style.transform = d.transform;
+        carteEl.appendChild(dot);
     });
+    
+    display.appendChild(carteEl);
 
     list.innerHTML = dots.map(d => `<li><span class="lg-num">${d.n}</span> ${d.txt}</li>`).join('');
 
     ov.classList.remove('hidden');
     ajusterTextes(display);
 }
-
 function fermerTutoCarteZoom() {
     const ov = document.getElementById('tuto-carte-zoom');
     if (ov) ov.classList.add('hidden');
