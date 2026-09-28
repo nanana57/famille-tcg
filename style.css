@@ -8,7 +8,7 @@
     --nuit-2:#131e2a;
     --ardoise:#1d2b3a;
     --velours:#5b1d2b;
-    --laiton:#d9a441;
+    --laiton:#d9af441;
     --laiton-clair:#ffd88a;
     --menthe:#3ddc97;
     --braise:#ff5c47;
@@ -2064,15 +2064,36 @@ body.is-mobile .collection-area {
     width: 100%;
 }
 body.is-mobile #main-nav {
-    padding: 6px 10px;
+    padding: 6px 8px;
     gap: 6px;
+    flex-wrap: wrap;         /* autorise le passage à la ligne */
+    justify-content: center;
+}
+body.is-mobile .nav-brand {
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+body.is-mobile .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    flex: 1 1 100%;          /* prend toute la largeur si trop long */
+    justify-content: center;
+    order: 2;
 }
 body.is-mobile #main-nav button {
     font-size: 11px;
-    padding: 5px 8px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
-body.is-mobile .nav-brand { font-size: 14px; }
-body.is-mobile .nav-pseudo { font-size: 11px; gap: 4px; }
+body.is-mobile .nav-pseudo {
+    font-size: 11px;
+    gap: 4px;
+    flex-shrink: 0;
+    order: 1;
+    margin-left: auto;
+}
 body.is-mobile .nav-level { font-size: 10px; padding: 2px 6px; }
 body.is-mobile {
     --cw-collection: 100px;
@@ -2271,6 +2292,32 @@ body.is-mobile.game-in-progress .hand-area .card-wrapper.jouable:active .card {
 
 body.is-mobile.game-in-progress .action-log,
 body.is-mobile.game-in-progress .opp-hand { display: none; }
+
+/* ===========================================================
+   MOBILE — Fix espace vide en bas en partie
+   =========================================================== */
+body.is-mobile.game-in-progress #game-screen {
+    height: 100vh;
+    height: 100dvh;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+}
+body.is-mobile.game-in-progress #game-screen.scrollable {
+    padding-bottom: 0 !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+body.is-mobile.game-in-progress .side.player,
+body.is-mobile.game-in-progress .side.opponent {
+    flex: 0 0 auto;
+}
+body.is-mobile.game-in-progress .hand-rail {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 4px);
+}
 
 /* ============ VISIONNEUSE DE CARTE (mobile) ============ */
 .card-viewer-overlay {
