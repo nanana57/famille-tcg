@@ -1,7 +1,7 @@
 /* ===========================================================
-   FAMILLE TCG — Multijoueur Firebase (v19)
-   Compatible Bluff face visible/cachée
-   Correctif v19 : écriture du deck DIRECTE avec UID (plus de perte silencieuse)
+   FAMILLE TCG — Multijoueur Firebase (v20)
+   Correctif : Suppression de la race condition sur l'écran d'attente
+   et réinitialisation propre de dejaLancee à chaque défi.
    =========================================================== */
 
 const firebaseConfig = {
@@ -264,7 +264,6 @@ function setupFirebaseListeners() {
         if (d.de && d.de !== monPseudo && d.etat === 'en_attente') afficherDefiRecu(d);
         if (d.etat !== 'en_attente') { const ov = document.getElementById('defi-overlay'); if (ov) ov.classList.remove('open'); }
     });
-    // Pas de listener global sur 'salles' : tout passe par ecouterSalle(partieId)
 }
 
 function rafraichirJoueurs() { if (!fbDB) { if (window.appPret) initFirebase(); } else setupFirebaseListeners(); }
@@ -319,7 +318,7 @@ function demanderAmi(codeCible) {
 function defierJoueur(pseudoCible) {
     if (!fbDB || !monPseudo || !pseudoCible || pseudoCible === monPseudo) return;
 
-    // Nettoyage préventif d'une éventuelle salle résiduelle
+    dejaLancee = false;
     const idPotentiel = calculerPartieId(monId, pseudoCible);
     fbDB.ref('salles/' + idPotentiel).remove();
 
@@ -340,6 +339,7 @@ function defierJoueur(pseudoCible) {
             if (_ecouteurDefiEnvoye) { _ecouteurDefiEnvoye.off(); _ecouteurDefiEnvoye = null; }
             setTimeout(() => { try { fbDB.ref('defis/' + pseudoCible).remove(); } catch(e){} }, 2000);
             _partieIdEnCours = d.partieId;
+            dejaLancee = false;
             fbDB.ref('joueurs/' + monId).update({ etat: 'en_combat' });
             ecouterSalle(d.partieId);
             ouvrirChoixDeckEnLigne(pseudoCible);
@@ -369,6 +369,7 @@ function accepterDefi() {
     if (ov) ov.classList.remove('open');
     window._defiEnCours = null;
 
+    dejaLancee = false;
     const partieId = calculerPartieId(monId, idAdverse);
     _partieIdEnCours = partieId;
     const roles = { [monId]: 'joueur2', [idAdverse]: 'joueur1' };
@@ -402,7 +403,7 @@ function refuserDefi() {
 }
 
 /* ===========================================================
-   CHOIX DU DECK — ÉCRITURE DIRECTE, FIABLE
+   CHOIX DU DECK
    =========================================================== */
 function ouvrirChoixDeckEnLigne(pseudoAdversaire) {
     const sel = document.getElementById('deck-choix-select');
@@ -422,16 +423,14 @@ function ouvrirChoixDeckEnLigne(pseudoAdversaire) {
     window._pseudoAdverseDeck = pseudoAdversaire;
     const ov = document.getElementById('deck-choix-overlay');
     if (ov) ov.classList.add('open');
-    console.log('[MULTI] ouvrirChoixDeckEnLigne', { pseudoAdversaire, _partieIdEnCours, monPseudo, monId });
 }
 
 function validerChoixDeckEnLigne() {
-    console.log('[VALIDER] début', { _partieIdEnCours, monId, monPseudo });
     if (!fbDB) { alert('Firebase non connecté.'); return; }
     if (!monId) { alert('Utilisateur non connecté.'); return; }
 
     const sel = document.getElementById('deck-choix-select');
-    if (!sel) { alert('Sélecteur introuvable.'); return; }
+    if (!sel) return;
     const i = sel.value;
     const deck = mesDecks[i];
     if (!deck) { alert('Deck introuvable.'); return; }
@@ -440,58 +439,51 @@ function validerChoixDeckEnLigne() {
     window._deckMultiEnCours = deck.nom;
     const deckIds = deck.cartes.map(c => typeof c === 'string' ? c : c.id);
 
-    console.log('[VALIDER] deck prêt', { nom: deck.nom, taille: deckIds.length, partieId: _partieIdEnCours });
-
     const ov = document.getElementById('deck-choix-overlay');
     if (ov) ov.classList.remove('open');
 
-    // Ferme aussi l'overlay d'attente s'il était déjà ouvert (au cas où)
-    const ovAtt = document.getElementById('attente-overlay'); if (ovAtt) ovAtt.classList.remove('open');
-
-    // Fonction d'écriture : elle prend le partieId et écrit DIRECTEMENT avec monId
     const ecrire = (partieId) => {
         if (!partieId) { alert('Aucune salle active. Relance un défi.'); return; }
         _partieIdEnCours = partieId;
-        ecouterSalle(partieId);   // installer l'écouteur AVANT l'écriture
-        console.log('[VALIDER] écriture →', 'salles/' + partieId + '/joueurs/' + monId, deckIds.length, 'cartes');
+        ecouterSalle(partieId);
+
+        // AFFICHE L'ATTENTE IMMÉDIATEMENT (sauf si la partie est déjà lancée)
+        if (!dejaLancee) {
+            afficherAttente('En attente de l\'adversaire…');
+        }
+
         fbDB.ref('salles/' + partieId + '/joueurs/' + monId)
             .update({ pret: true, deck: deckIds, mulligan: false })
             .then(() => {
-                console.log('[VALIDER] ✅ deck écrit');
-                afficherAttente('En attente de l\'adversaire…');
+                // Si la partie s'est lancée entre temps (par ecouterSalle), on s'assure de fermer l'overlay
+                if (dejaLancee) {
+                    fermerAttente();
+                }
             })
             .catch(err => {
-                console.error('[VALIDER] ❌ erreur écriture', err);
+                fermerAttente();
                 alert('Erreur d\'écriture Firebase : ' + err.message);
             });
     };
 
-    // Cas 1 : on connait déjà la salle
     if (_partieIdEnCours) { ecrire(_partieIdEnCours); return; }
 
-    // Cas 2 : on cherche la salle où on est présent
-    console.log('[VALIDER] recherche de salle pour', monId);
     fbDB.ref('salles').once('value').then(snap => {
         const toutes = snap.val() || {};
         const trouvee = Object.entries(toutes).find(([id, s]) =>
             s && s.joueurs && s.etat !== 'forfait' && s.joueurs[monId]
         );
         if (trouvee) {
-            console.log('[VALIDER] salle trouvée', trouvee[0]);
             if (trouvee[1].roles) monRole = trouvee[1].roles[monId] || monRole;
             ecrire(trouvee[0]);
         } else {
-            // Tentative de reconstruction depuis _pseudoAdverseDeck
             const pseudoAdv = window._pseudoAdverseDeck;
             if (pseudoAdv) {
-                // On cherche l'UID de l'adversaire dans la base
                 fbDB.ref('joueurs').once('value').then(snapJ => {
                     const tousJ = snapJ.val() || {};
                     const adv = Object.entries(tousJ).find(([uid, j]) => j && j.pseudoNorm === pseudoAdv);
                     if (adv) {
-                        const partieId = calculerPartieId(monId, adv[0]);
-                        console.log('[VALIDER] reconstruction partieId', partieId);
-                        ecrire(partieId);
+                        ecrire(calculerPartieId(monId, adv[0]));
                     } else {
                         alert('Impossible de retrouver la salle. Relance un défi.');
                     }
@@ -500,7 +492,7 @@ function validerChoixDeckEnLigne() {
                 alert('Aucune salle active. Relance un défi.');
             }
         }
-    }).catch(err => { console.error('[VALIDER] erreur recherche', err); alert('Erreur Firebase.'); });
+    }).catch(() => alert('Erreur Firebase.'));
 }
 
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
@@ -509,14 +501,12 @@ function annoncerDeckChoisi(pseudoAdverse, deckIds) {
     _partieIdEnCours = partieId;
     ecouterSalle(partieId);
     fbDB.ref('salles/' + partieId + '/joueurs/' + monId)
-        .update({ pret: true, deck: deckIds, mulligan: false })
-        .then(() => console.log('[DECK] écrit via annoncerDeckChoisi', partieId));
+        .update({ pret: true, deck: deckIds, mulligan: false });
 }
 
 function signalerMulliganPret() {
     if (!window.multiPartie || !fbDB) return;
     const ref = fbDB.ref('salles/' + window.multiPartie.partieId);
-    console.log('[MULL] écriture →', window.multiPartie.partieId, '/joueurs/', monId);
     ref.child('joueurs/' + monId).update({ mulligan: true });
 }
 
@@ -525,15 +515,11 @@ function signalerMulliganPret() {
    =========================================================== */
 function ecouterSalle(partieId) {
     if (!fbDB || !partieId) return;
-    if (_ecouteurSalle === partieId) {
-        console.log('[SALLE] écouteur déjà en place pour', partieId);
-        return;
-    }
+    if (_ecouteurSalle === partieId) return;
     if (_ecouteurSalle && _ecouteurSalle !== partieId) {
         try { fbDB.ref('salles/' + _ecouteurSalle).off(); } catch(e) {}
     }
     _ecouteurSalle = partieId;
-    console.log('[SALLE] installation écouteur pour', partieId);
 
     const refSalle = fbDB.ref('salles/' + partieId);
     refSalle.on('value', snap => {
@@ -541,9 +527,7 @@ function ecouterSalle(partieId) {
             const s = snap.val();
             if (!s || !s.joueurs) return;
 
-            const maCle = s.joueurs[monId] ? monId
-                        : s.joueurs[monPseudo] ? monPseudo
-                        : null;
+            const maCle = s.joueurs[monId] ? monId : (s.joueurs[monPseudo] ? monPseudo : null);
             if (!maCle) return;
 
             const cles = Object.keys(s.joueurs);
@@ -563,13 +547,6 @@ function ecouterSalle(partieId) {
             const mesInfos = s.joueurs[maCle] || {};
             const infosAdv = s.joueurs[cleAdverse] || {};
 
-            console.log('[SALLE]', {
-                partieId, maCle, cleAdverse, roleLocal,
-                monDeck: Array.isArray(mesInfos.deck) ? mesInfos.deck.length : 'absent',
-                advDeck: Array.isArray(infosAdv.deck) ? infosAdv.deck.length : 'absent',
-                dejaLancee
-            });
-
             // Forfait adverse
             if (s.etat === 'forfait' && s.forfaitPar && s.forfaitPar !== monPseudo && s.forfaitParId !== monId && !dejaLancee) {
                 dejaLancee = true;
@@ -577,8 +554,7 @@ function ecouterSalle(partieId) {
                 _ecouteurSalle = null;
                 try { fbDB.ref('salles/' + partieId).remove(); } catch(e) {}
                 if (monId) try { fbDB.ref('joueurs/' + monId).update({ etat: 'libre' }); } catch(e) {}
-                if (typeof fermerAttente === 'function') fermerAttente();
-                const ovAtt = document.getElementById('attente-overlay'); if (ovAtt) ovAtt.classList.remove('open');
+                fermerAttente();
                 const ovDeck = document.getElementById('deck-choix-overlay'); if (ovDeck) ovDeck.classList.remove('open');
                 if (typeof partieFinie !== 'undefined') partieFinie = true;
                 if (typeof banniere === 'function') banniere('🏆 Victoire par forfait !');
@@ -596,8 +572,7 @@ function ecouterSalle(partieId) {
 
             if (decksPrets && !dejaLancee) {
                 dejaLancee = true;
-                if (typeof fermerAttente === 'function') fermerAttente();
-                const ovAtt = document.getElementById('attente-overlay'); if (ovAtt) ovAtt.classList.remove('open');
+                fermerAttente();
                 const ovDeck = document.getElementById('deck-choix-overlay'); if (ovDeck) ovDeck.classList.remove('open');
 
                 window.multiPartie = {
@@ -611,7 +586,7 @@ function ecouterSalle(partieId) {
                     maCle,
                     cleAdverse
                 };
-                console.log('[SALLE] 🚀 LANCEMENT partie');
+
                 if (typeof lancerPartieMultijoueur === 'function') {
                     lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp);
                 }
@@ -623,11 +598,9 @@ function ecouterSalle(partieId) {
             if (!window.multiPartie.demarrageTraite) {
                 const mesMull = mesInfos.mulligan === true;
                 const advMull = infosAdv.mulligan === true;
-                console.log('[MULL]', { mesMull, advMull });
                 if (mesMull && advMull) {
                     window.multiPartie.demarrageTraite = true;
-                    if (typeof fermerAttente === 'function') fermerAttente();
-                    const ovA = document.getElementById('attente-overlay'); if (ovA) ovA.classList.remove('open');
+                    fermerAttente();
                     if (window.multiPartie.jeCommence) {
                         J.premier = true; B.premier = false;
                         B.manaMax = 3; B.manaActuel = 0;
@@ -661,7 +634,7 @@ function ecouterSalle(partieId) {
                 traiterActionRecue(e.action);
             });
         } catch (err) {
-            console.error('[SALLE] 💥 Exception :', err, err.stack);
+            console.error('[SALLE] Exception :', err);
         }
     });
 }
