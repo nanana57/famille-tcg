@@ -451,7 +451,7 @@ function defCarte(id) { return parId[id]; }
    Extensions essayées dans l'ordre ; si aucune ne charge → emoji.
    =========================================================== */
 var IMG_CARTES_DIR = 'img/cartes/';
-var IMG_CARTES_EXTS = ['.webp', '.png', '.jpg', '.jpeg'];
+var IMG_CARTES_EXTS = ['.webp', '.png', '.jpg', '.jpeg', '.jfif'];
 
 /** Construit le HTML de l'illustration d'une carte :
  *  <img> si une image existe pour cet id, sinon repli sur l'emoji.
