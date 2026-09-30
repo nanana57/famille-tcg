@@ -416,12 +416,53 @@ function validerChoixDeckEnLigne() {
     const i = sel.value;
     const deck = mesDecks[i];
     if (!deck) return;
-    if (calculerCartesPossedeesPourDeck(deck.cartes) !== 20) { alert("Ce deck est incomplet."); return; }
-    window._deckMultiEnCours = deck.nom;
+    if (calculerCartesPossedeesPourDeck(deck.cartes) !== 20) {
+        alert("Ce deck est incomplet."); return;
+    }
     const deckIds = deck.cartes.map(c => typeof c === 'string' ? c : c.id);
-    annoncerDeckChoisi(window._pseudoAdverseDeck, deckIds);
-    const ov = document.getElementById('deck-choix-overlay'); if (ov) ov.classList.remove('open');
-    afficherAttente('En attente de l\'adversaire…');
+    window._deckMultiEnCours = deck.nom;
+
+    console.log('[VALIDER]', {
+        monPseudo, monId, monRole,
+        _partieIdEnCours,
+        pseudoAdverse: window._pseudoAdverseDeck,
+        deckIds: deckIds.length
+    });
+
+    const ov = document.getElementById('deck-choix-overlay');
+    if (ov) ov.classList.remove('open');
+
+    // Cas 1 : on connait déjà la salle → écriture directe
+    if (_partieIdEnCours && fbDB && monPseudo) {
+        fbDB.ref('salles/' + _partieIdEnCours + '/joueurs/' + monPseudo)
+            .update({ pret: true, deck: deckIds, mulligan: false });
+        afficherAttente('En attente de l\'adversaire…');
+        return;
+    }
+
+    // Cas 2 : _partieIdEnCours est null → on cherche la salle dans Firebase
+    if (!fbDB || !monPseudo) { alert('Firebase non connecté.'); return; }
+    fbDB.ref('salles').once('value').then(snap => {
+        const toutes = snap.val() || {};
+        const trouvee = Object.entries(toutes).find(([id, s]) =>
+            s && s.joueurs && s.joueurs[monPseudo] && s.etat !== 'forfait'
+        );
+        if (trouvee) {
+            _partieIdEnCours = trouvee[0];
+            monRole = trouvee[1].roles ? trouvee[1].roles[monPseudo] : monRole;
+            console.log('[VALIDER] salle retrouvée :', _partieIdEnCours);
+            ecouterSalle(_partieIdEnCours);
+            fbDB.ref('salles/' + _partieIdEnCours + '/joueurs/' + monPseudo)
+                .update({ pret: true, deck: deckIds, mulligan: false });
+            afficherAttente('En attente de l\'adversaire…');
+        } else {
+            console.warn('[VALIDER] aucune salle trouvée pour', monPseudo);
+            alert('Salle introuvable. Relance un défi.');
+        }
+    }).catch(e => {
+        console.error('[VALIDER] erreur Firebase', e);
+        alert('Erreur de connexion. Réessaie.');
+    });
 }
 
 function annoncerDeckChoisi(pseudoAdverse, deckIds) {
@@ -449,19 +490,28 @@ function ecouterSalle(partieId) {
         const roleAdverse = roleLocal === 'joueur1' ? 'joueur2' : 'joueur1';
         const pseudoAdverse = s.roles[roleAdverse] || pseudos.find(x => x !== monPseudo);
         const mesInfos = s.joueurs[monPseudo] || {};
-        const infosAdv = s.joueurs[pseudoAdverse] || {};
-        const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20
-                        && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
-        if (decksPrets && !dejaLancee) {
-            dejaLancee = true;
-            window.multiPartie = {
-                active: true, adversaireId: pseudoAdverse, partieId, refSalle,
-                role: roleLocal, jeCommence: (roleLocal === 'joueur1'),
-                demarrageTraite: false, timestamp: s.timestamp
-            };
-            lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp);
-            return;
-        }
+const infosAdv = s.joueurs[pseudoAdverse] || {};
+const decksPrets = Array.isArray(mesInfos.deck) && mesInfos.deck.length === 20
+                && Array.isArray(infosAdv.deck) && infosAdv.deck.length === 20;
+
+console.log('[SALLE]', {
+    partieId, monPseudo, pseudoAdverse,
+    monDeck: Array.isArray(mesInfos.deck) ? mesInfos.deck.length : 'absent',
+    advDeck: Array.isArray(infosAdv.deck) ? infosAdv.deck.length : 'absent',
+    dejaLancee
+});
+
+if (decksPrets && !dejaLancee) {
+    dejaLancee = true;
+    window.multiPartie = {
+        active: true, adversaireId: pseudoAdverse, partieId, refSalle,
+        role: roleLocal, jeCommence: (roleLocal === 'joueur1'),
+        demarrageTraite: false, timestamp: s.timestamp
+    };
+    fermerAttente();
+    lancerPartieMultijoueur(pseudoAdverse, mesInfos.deck, infosAdv.deck, s.timestamp);
+    return;
+}
         if (!dejaLancee) return;
         if (!window.multiPartie.demarrageTraite) {
             const mesMull = mesInfos.mulligan === true;
