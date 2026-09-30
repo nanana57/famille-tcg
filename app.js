@@ -413,7 +413,7 @@ var dbCartes = [
     C('f3','Ines x Islem','Nouvelle famille',9,8,8,'legendaire','Fusion : nécessite Inès et Islem. Cri de guerre : annule le prochain sort.',['Fusion'],'💑'),
     C('f4','Toufik x Manel','Nouvelle famille',7,5,9,'legendaire','Fusion : nécessite Toufik et Manel. Provocation.',['Fusion','Provocation'],'💑'),
     C('f5','Safya x Saad','Nouvelle famille',8,7,7,'legendaire','Fusion : nécessite Safya et Saad. Cri de guerre : invoque Hanna.',['Fusion'],'💑'),
-   C('f6','Pina x Yoka','Nouvelle famille',9,6,7,'legendaire','Fusion : nécessite Pina et Yoka. Cri de guerre : invoque Asma.',['Fusion'],'💑'),
+       C('f6','Pina x Yoka','Nouvelle famille',9,6,7,'legendaire','Fusion : nécessite Pina et Yoka. Cri de guerre : invoque Asma.',['Fusion'],'🦜🕊️'),
 
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
