@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover">
+<meta name="description" content="Famille TCG — jeu de cartes à collectionner en ligne : decks, boosters, tournois et duels multijoueur.">
+<meta name="theme-color" content="#0b1118">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
+<title>Famille TCG — Édition Ultime</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=25">
+</head>
+<body>
+<noscript><p style="padding:24px;color:#fff">Famille TCG a besoin de JavaScript pour fonctionner.</p></noscript>
+
+<div id="fx-layer"></div>
+<div id="particles-layer"></div>
+<div id="motd-banner" class="motd-banner hidden"></div>
+
+<!-- Confirmation sortie -->
+<div id="confirm-exit-overlay" class="confirm-box-overlay">
+    <div class="confirm-box">
+        <h3>⚠️ Quitter la partie ?</h3>
+        <p>Quitter la partie compte comme un <strong>forfait</strong>. Tu perdras cette partie.</p>
+        <div class="confirm-actions">
+            <button class="btn-large btn-danger" onclick="confirmerSortie()">Oui, déclarer forfait</button>
+            <button class="btn-action" onclick="annulerSortie()">Rester</button>
+        </div>
+    </div>
+</div>
+
+<!-- Choix Face Visible / Cachée pour les cartes Bluff -->
+<div id="bluff-choix-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:520px; border-color:var(--r-epique);">
+        <h3 style="color:#a86bff;">🎭 Comment poser cette carte ?</h3>
+        <p>Cette carte a le mot-clé <b>Bluff</b>. Tu peux la poser :</p>
+        <div style="text-align:left; background:#101a25; border-radius:10px; padding:14px; margin:14px 0; font-size:13px; line-height:1.7;">
+            <div style="margin-bottom:10px;">
+                <b style="color:#a86bff;">🎭 Face cachée :</b><br>
+                Personne ne voit son identité. Elle ne peut pas attaquer. À ton prochain tour, tu pourras cliquer dessus pour la révéler. Une fois révélée, sa capacité se déclenche !
+            </div>
+            <div>
+                <b style="color:#93a3b4;">👁️ Face visible :</b><br>
+                Tout le monde voit son identité. Elle peut attaquer normalement, mais sa capacité de révélation <b>ne se déclenchera jamais</b>. Elle sera grisée pour t'indiquer qu'elle n'a pas d'effet actif.
+            </div>
+        </div>
+        <div class="confirm-actions">
+            <button class="btn-action" onclick="confirmerModeBluff(false)">👁️ Face visible</button>
+            <button class="btn-large btn-play" style="margin:0;flex:1;background:linear-gradient(180deg,#c9a6ff,#a86bff);color:#fff;" onclick="confirmerModeBluff(true)">🎭 Face cachée</button>
+        </div>
+        <button class="btn-action full" onclick="annulerChoixBluff()" style="margin-top:10px;">Annuler</button>
+    </div>
+</div>
+
+<!-- Choix starter -->
+<div id="starter-overlay" class="starter-overlay">
+    <div class="starter-box">
+        <h1 class="title-hero">Bienvenue ! 🎉</h1>
+        <p class="subtitle">Choisis ta famille de départ. Tu recevras son deck complet (20 cartes) ainsi que 100 💰.</p>
+        <div class="starter-grid">
+            <div class="starter-card" onclick="choisirStarter('Meridja')">
+                <div class="starter-emoji">👨🏻</div>
+                <h3>Meridja</h3>
+                <p>Aggro rapide, chats féroces.</p>
+            </div>
+            <div class="starter-card" onclick="choisirStarter('Marouf')">
+                <div class="starter-emoji">🧕</div>
+                <h3>Marouf</h3>
+                <p>Contrôle, soins et pioche.</p>
+            </div>
+            <div class="starter-card" onclick="choisirStarter('Kerkache')">
+                <div class="starter-emoji">👴🏽</div>
+                <h3>Kerkache</h3>
+                <p>Défense, provocation et rage.</p>
+            </div>
+            <div class="starter-card" onclick="choisirStarter('Belgacemi')">
+                <div class="starter-emoji">🧔🏻</div>
+                <h3>Belgacemi</h3>
+                <p>Synergie, fusions et combo.</p>
+            </div>
+        </div>
+        <button class="btn-action full" style="margin-top:20px;" onclick="choisirStarter(null)">🎲 Choisir au hasard pour moi</button>
+    </div>
+</div>
+
+<!-- Daily bonus -->
+<div id="daily-overlay" class="daily-overlay">
+    <div class="daily-box">
+        <h1 class="title-hero">🎁 Bonus quotidien</h1>
+        <p class="subtitle">Connecte-toi chaque jour pour gagner des récompenses !</p>
+        <div class="daily-streak-row" id="daily-streak-row"></div>
+        <div id="daily-reward-content"></div>
+        <button class="btn-large btn-play" onclick="recupererRecompenseQuotidienne()" id="btn-daily-claim">
+            <span class="btn-icon">🎁</span>
+            <span class="btn-label">
+                <span class="btn-title">Récupérer</span>
+                <span class="btn-sub">+50💰</span>
+            </span>
+            <span class="btn-arrow">▶</span>
+        </button>
+        <button class="btn-action full" onclick="fermerDailyOverlay()" style="margin-top:10px;">Passer</button>
+    </div>
+</div>
+
+<!-- Quêtes -->
+<div id="quetes-overlay" class="quetes-overlay" onclick="fermerQuetes()">
+    <div class="quetes-box" onclick="event.stopPropagation()">
+        <h2>🎯 Quêtes journalières</h2>
+        <p class="subtitle">Renouvelées chaque jour à minuit</p>
+        <div id="quetes-liste"></div>
+        <button class="btn-large" onclick="fermerQuetes()">Fermer</button>
+    </div>
+</div>
+
+<!-- Aide -->
+<div id="aide-overlay" onclick="fermerAide()">
+    <div class="aide-box" onclick="event.stopPropagation()">
+        <h2>📖 Guide du jeu</h2>
+        <div class="aide-section">
+            <h3>⚙️ Mécaniques clés</h3>
+            <ul>
+                <li><strong>Charge</strong> ⚡ : Peut attaquer le tour où elle est jouée.</li>
+                <li><strong>Provocation</strong> 🛡️ : Doit être attaquée en priorité.</li>
+                <li><strong>Rage</strong> 🔥 : Effet déclenché si blessée sans mourir.</li>
+                <li><strong>Destruction</strong> 💀 : Effet déclenché à la mort.</li>
+                <li><strong>Fusion</strong> 💑 : Sacrifie deux cartes requises.</li>
+                <li><strong>Terrain</strong> 🏡 : Actif 3 tours puis disparaît.</li>
+                <li><strong>Bluff</strong> 🎭 : Posée face cachée, elle prend une place de créature. Clique dessus à ton prochain tour pour la révéler et déclencher son effet.</li>
+            </ul>
+        </div>
+        <button class="btn-large" onclick="fermerAide()">Compris !</button>
+    </div>
+</div>
+
+<div id="graveyard-overlay" onclick="fermerCimetiere()">
+    <div class="graveyard-box" onclick="event.stopPropagation()">
+        <h2 id="graveyard-title">Cimetière</h2>
+        <div class="grid" id="graveyard-cards"></div>
+        <button class="btn-large" onclick="fermerCimetiere()">Fermer</button>
+    </div>
+</div>
+
+<!-- BULLE TUTO -->
+<div id="tuto-bubble" class="hidden">
+    <div class="tuto-header">
+        <span class="tuto-icon">🎓</span>
+        <span class="tuto-etape-label" id="tuto-etape-label">Étape 1/4</span>
+        <span class="tuto-titre" id="tuto-titre">Chargement…</span>
+    </div>
+    <div class="tuto-mini-progress">
+        <div class="tuto-mini-fill" id="tuto-mini-fill" style="width:0%"></div>
+    </div>
+    <div class="tuto-text" id="tuto-text"></div>
+    <div class="tuto-actions-row">
+        <button id="btn-tuto-next" onclick="etapeTutoSuivante()">Continuer ▶</button>
+        <button id="btn-tuto-skip" class="tuto-skip-btn" onclick="skipEtapeTuto()">Je connais déjà →</button>
+    </div>
+</div>
+
+<!-- ANALYSE CARTE (tuto anatomie) -->
+<div id="tuto-carte-zoom" class="tuto-carte-zoom hidden">
+    <div class="tuto-carte-container">
+        <div id="tuto-carte-display"></div>
+        <div class="tuto-carte-legend">
+            <h3 id="tuto-carte-legend-titre">Éléments d'une carte</h3>
+            <ul id="tuto-carte-legend-list"></ul>
+        </div>
+        <button class="btn-large" onclick="fermerTutoCarteZoom()">Compris !</button>
+    </div>
+</div>
+
+<!-- REWARD overlay -->
+<div id="reward-overlay" class="reward-overlay">
+    <div class="reward-box">
+        <h2 id="reward-titre">🎉 Récompense !</h2>
+        <div id="reward-cards" class="grid" style="justify-content:center; margin:20px 0;"></div>
+        <div id="reward-coins" class="reward-coins">+0 💰</div>
+        <button class="btn-large" onclick="fermerReward()">Récupérer</button>
+    </div>
+</div>
+
+<!-- Level up -->
+<div id="levelup-overlay" class="levelup-overlay">
+    <div class="levelup-box">
+        <h2>🎉 Niveau supérieur !</h2>
+        <div class="levelup-num" id="levelup-num">2</div>
+        <p id="levelup-reward">+1 Booster gratuit !</p>
+        <button class="btn-large" onclick="fermerLevelUp()">Continuer</button>
+    </div>
+</div>
+
+<!-- Defi reçu -->
+<div id="defi-overlay">
+    <div class="defi-box">
+        <h3 id="defi-titre">Défi reçu</h3>
+        <p id="defi-texte"></p>
+        <div class="defi-actions">
+            <button class="btn-large" onclick="accepterDefi()">Accepter</button>
+            <button class="btn-action" onclick="refuserDefi()">Refuser</button>
+        </div>
+    </div>
+</div>
+
+<div id="ami-demande-overlay" class="defi-overlay-inline">
+    <div class="defi-box">
+        <h3>👋 Demande d'ami</h3>
+        <p id="ami-demande-texte"></p>
+        <div class="defi-actions">
+            <button class="btn-large" onclick="accepterDemandeAmi()">Accepter</button>
+            <button class="btn-action" onclick="refuserDemandeAmi()">Refuser</button>
+        </div>
+    </div>
+</div>
+
+<div id="deck-choix-overlay">
+    <div class="deck-choix-box">
+        <h3>Choisis ton deck complet</h3>
+        <select id="deck-choix-select" class="deck-dropdown"></select>
+        <div class="deck-choix-actions">
+            <button class="btn-large" onclick="validerChoixDeckEnLigne()">Valider</button>
+        </div>
+    </div>
+</div>
+
+<div id="attente-overlay">
+    <div class="attente-box">
+        <div class="attente-spinner"></div>
+        <h3 id="attente-titre">En attente…</h3>
+    </div>
+</div>
+
+<div id="card-detail-overlay" onclick="fermerDetailCarte()">
+    <div class="detail-container" id="card-detail-content" onclick="event.stopPropagation()"></div>
+</div>
+
+<div id="card-zoom-overlay" onclick="fermerZoom()">
+    <div id="card-zoom-container"></div>
+</div>
+
+<!-- Chat privé -->
+<div id="chat-overlay" class="chat-overlay">
+    <div class="chat-box">
+        <div class="chat-head">
+            <span id="chat-title">Chat</span>
+            <button onclick="fermerChat()">✕</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-bar">
+            <input type="text" id="chat-input" placeholder="Ton message..." maxlength="200">
+            <button onclick="envoyerMessageChat()">Envoyer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Chat in-game -->
+<div id="ingame-chat" class="ingame-chat">
+    <div class="ingame-chat-head">
+        <span>💬 Chat de partie</span>
+        <button onclick="toggleIngameChat()">−</button>
+    </div>
+    <div class="ingame-chat-messages" id="ingame-chat-messages"></div>
+    <div class="ingame-chat-input">
+        <input type="text" id="ingame-chat-input" placeholder="Message rapide..." maxlength="120">
+        <button onclick="envoyerIngameChat()">➤</button>
+    </div>
+</div>
+
+<!-- TUTO EXPRESS -->
+<div id="tuto-express-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:560px;">
+        <h3>⚡ Vérification rapide</h3>
+        <p class="subtitle">Réponds à 8 questions pour débloquer toutes les récompenses d'un coup.</p>
+        <div id="tuto-express-quiz"></div>
+        <div class="confirm-actions" style="margin-top:20px;">
+            <button class="btn-action" onclick="fermerTutoExpress()">Annuler</button>
+            <button class="btn-large" style="margin:0;flex:1;" onclick="validerTutoExpress()">Valider</button>
+        </div>
+    </div>
+</div>
+
+<!-- TUTO RÉSUMÉ -->
+<div id="tuto-resume-overlay" class="reward-overlay">
+    <div class="reward-box" style="max-width:560px;">
+        <h2 id="tuto-resume-titre">✅ Étape terminée !</h2>
+        <div class="tuto-resume-appris" id="tuto-resume-appris"></div>
+        <div class="reward-coins" id="tuto-resume-gain" style="font-size:32px;">+500 💰</div>
+        <div id="tuto-resume-carte" class="grid" style="justify-content:center; margin:14px 0;"></div>
+        <button class="btn-large" id="btn-tuto-resume-next" onclick="fermerTutoResumeEtSuivant()">Étape suivante ▶</button>
+        <button class="btn-action full" onclick="fermerTutoResumeEtMenu()" style="margin-top:8px;">Retour à l'Académie</button>
+    </div>
+</div>
+
+<!-- TUTO RÉCAP -->
+<div id="tuto-final-overlay" class="reward-overlay">
+    <div class="reward-box" style="max-width:640px;">
+        <h2>🎓 FÉLICITATIONS !</h2>
+        <p class="subtitle">Tu as terminé l'Académie de la Famille !</p>
+        <h3 style="color:var(--laiton-clair); text-align:left;">📚 Compétences acquises :</h3>
+        <div id="tuto-final-competences" class="tuto-final-list"></div>
+        <h3 style="color:var(--laiton-clair); text-align:left; margin-top:16px;">🎁 Total des récompenses :</h3>
+        <div class="tuto-final-rewards">
+            <div class="profil-stat" data-icon="💰"><span class="profil-nb" id="tuto-final-coins">0</span><span>gagnés</span></div>
+            <div class="profil-stat win" data-icon="🎴"><span class="profil-nb" id="tuto-final-cartes">0</span><span>cartes</span></div>
+            <div class="profil-stat" data-icon="⭐"><span class="profil-nb" id="tuto-final-niveau">1</span><span>Niveau atteint</span></div>
+        </div>
+        <button class="btn-large btn-play" onclick="fermerTutoFinal()">
+            <span class="btn-icon">🎯</span>
+            <span class="btn-label">
+                <span class="btn-title">Retour au menu</span>
+                <span class="btn-sub">Tu es prêt à jouer</span>
+            </span>
+            <span class="btn-arrow">▶</span>
+        </button>
+    </div>
+</div>
+
+<!-- TUTO CHALLENGE -->
+<div id="tuto-challenge-overlay" class="confirm-box-overlay">
+    <div class="confirm-box" style="max-width:520px;">
+        <h3>🎯 Défi bonus</h3>
+        <p id="tuto-challenge-text">Bats le bot en 5 tours ou moins !</p>
+        <div class="confirm-actions">
+            <button class="btn-action" onclick="refuserChallengeTuto()">Plus tard</button>
+            <button class="btn-large btn-play" style="margin:0;flex:1;" onclick="accepterChallengeTuto()">Relever le défi</button>
+        </div>
+    </div>
+</div>
+
+<!-- NAV -->
+<nav id="main-nav" class="hidden" aria-label="Navigation principale">
+    <div class="nav-brand">Famille<span>TCG</span></div>
+    <button class="nav-hamburger" onclick="toggleNavMenu()" aria-label="Menu">☰</button>
+    <div class="nav-links">
+        <button data-screen="tuto-screen" onclick="tenterChangerEcran('tuto-screen')">🎓 Académie</button>
+        <button data-screen="menu-screen" onclick="tenterChangerEcran('menu-screen')">Arène</button>
+        <button data-screen="tournoi-screen" onclick="tenterChangerEcran('tournoi-screen')">🏆 Tournoi</button>
+        <button data-screen="collection-screen" onclick="tenterChangerEcran('collection-screen')">Collection</button>
+        <button data-screen="deckbuilder-screen" onclick="tenterChangerEcran('deckbuilder-screen')">Mes Decks</button>
+        <button data-screen="booster-screen" onclick="tenterChangerEcran('booster-screen')">Boosters</button>
+        <button data-screen="multi-screen" onclick="tenterChangerEcran('multi-screen')">Multijoueur</button>
+        <button data-screen="spectateur-screen" onclick="tenterChangerEcran('spectateur-screen')">👀 Spectateur</button>
+        <button data-screen="profil-screen" onclick="tenterChangerEcran('profil-screen')">Profil</button>
+        <button id="nav-admin" class="hidden" style="color:var(--braise)" data-screen="admin-screen" onclick="tenterChangerEcran('admin-screen')">👑 Admin</button>
+        <button id="btn-forfait" class="btn-forfait hidden" onclick="declarerForfait()">🏳️ Forfait</button>
+    </div>
+    <div class="nav-pseudo">
+        <span id="nav-quetes" style="cursor:pointer; margin-right:10px;" onclick="ouvrirQuetes()" title="Quêtes">🎯<span id="badge-quetes" class="pastille" hidden>0</span></span>
+        <span id="nav-coins" style="color:var(--laiton); margin-right:10px; font-weight:800;">0 💰</span>
+        <span id="display-pseudo"></span>
+        <span id="nav-level" class="nav-level">Niv. 1</span>
+    </div>
+</nav>
+
+<!-- Bouton toggle nav en game (mobile) -->
+<button id="btn-toggle-nav" class="btn-toggle-nav hidden" onclick="toggleNavGame()" title="Menu">☰</button>
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen active">
+    <div class="login-stage">
+        <div class="login-cards" id="login-cards"></div>
+        <div class="box login-box" id="box-login">
+            <h1 class="title-hero">Famille TCG</h1>
+            <p class="login-tag">🎲 Le jeu de cartes de la famille</p>
+            <p class="subtitle">Connexion</p>
+            <input type="text" id="auth-ident-login" placeholder="E-mail OU Pseudo" autocomplete="off">
+            <input type="password" id="auth-password-login" placeholder="Mot de passe" autocomplete="off" style="margin-top:10px">
+            <button class="btn-large btn-play" onclick="connexionCompte()">
+                <span class="btn-icon">🔓</span>
+                <span class="btn-label">
+                    <span class="btn-title">Se connecter</span>
+                    <span class="btn-sub">Reprendre la partie</span>
+                </span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <p id="auth-error-login" class="hint" style="color:var(--braise);margin-top:10px;"></p>
+            <p class="hint" style="margin-top:15px; cursor:pointer; text-decoration:underline;" onclick="toggleAuthMode('register')">Créer un nouveau compte</p>
+        </div>
+        <div class="box login-box hidden" id="box-register">
+            <h1 class="title-hero">Inscription</h1>
+            <p class="subtitle">Rejoins la famille</p>
+            <input type="text" id="auth-pseudo-reg" placeholder="Ton Pseudo (Unique)" maxlength="15" autocomplete="off">
+            <input type="email" id="auth-email-reg" placeholder="Adresse E-mail" autocomplete="off" style="margin-top:10px">
+            <input type="password" id="auth-password-reg" placeholder="Mot de passe (6 car. min)" autocomplete="off" style="margin-top:10px">
+            <button class="btn-large btn-play" onclick="creerCompte()">
+                <span class="btn-icon">✨</span>
+                <span class="btn-label">
+                    <span class="btn-title">S'inscrire</span>
+                    <span class="btn-sub">Créer un nouveau compte</span>
+                </span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <p id="auth-error-reg" class="hint" style="color:var(--braise);margin-top:10px;"></p>
+            <p class="hint" style="margin-top:15px; cursor:pointer; text-decoration:underline;" onclick="toggleAuthMode('login')">Déjà un compte ? Se connecter</p>
+        </div>
+    </div>
+</div>
+
+<!-- TUTO SCREEN -->
+<div id="tuto-screen" class="screen">
+    <div class="tuto-wrapper">
+        <div class="box menu-box" style="max-width:700px;">
+            <h2>🎓 Académie de la Famille</h2>
+            <p class="subtitle">Apprends les bases et gagne cartes + K-Coins !</p>
+
+            <div class="tuto-progress-bar">
+                <div class="tuto-progress-fill" id="tuto-progress-fill" style="width:0%"></div>
+            </div>
+            <p class="hint" id="tuto-progress-text" style="margin-bottom:14px;">0 / 10 étapes complétées</p>
+
+            <button class="btn-large btn-spec" onclick="ouvrirTutoExpress()" style="margin-bottom:14px;">
+                <span class="btn-icon">⚡</span>
+                <span class="btn-label">
+                    <span class="btn-title">Je sais déjà jouer</span>
+                    <span class="btn-sub">Quiz rapide • Débloquer toutes les récompenses</span>
+                </span>
+                <span class="btn-arrow">▶</span>
+            </button>
+
+            <div id="tuto-liste-etapes" class="tuto-scroll-area">
+                <button class="btn-large tuto-btn" onclick="lancerTuto(0)" id="btn-tuto-0" data-lvl="0">
+                    <span class="btn-icon">📜</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Bienvenue dans la Famille</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(1)" id="btn-tuto-1" data-lvl="1">
+                    <span class="btn-icon">🔍</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Découvrir le plateau</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(2)" id="btn-tuto-2" data-lvl="2">
+                    <span class="btn-icon">🎴</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Anatomie d'une carte</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(3)" id="btn-tuto-3" data-lvl="3">
+                    <span class="btn-icon">⚔️</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Poser et attaquer</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(4)" id="btn-tuto-4" data-lvl="4">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-label">
+                        <span class="btn-title">La Charge</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(5)" id="btn-tuto-5" data-lvl="5">
+                    <span class="btn-icon">🛡️</span>
+                    <span class="btn-label">
+                        <span class="btn-title">La Provocation</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(6)" id="btn-tuto-6" data-lvl="6">
+                    <span class="btn-icon">💪</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Les Effets — Boost</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(7)" id="btn-tuto-7" data-lvl="7">
+                    <span class="btn-icon">🎭</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Le Bluff</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(8)" id="btn-tuto-8" data-lvl="8">
+                    <span class="btn-icon">📚</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Pioche & Cimetière</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+                <button class="btn-large tuto-btn" onclick="lancerTuto(9)" id="btn-tuto-9" data-lvl="9">
+                    <span class="btn-icon">🏡</span>
+                    <span class="btn-label">
+                        <span class="btn-title">Terrains & Fusion</span>
+                        <span class="btn-sub">Gain: +500💰 + 1 carte</span>
+                    </span>
+                    <span class="btn-arrow">▶</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MENU -->
+<div id="menu-screen" class="screen">
+    <div class="box menu-box">
+        <p class="accueil-salut" id="accueil-salut">Bonjour ! 👋</p>
+        <h2>Prêt pour une partie ?</h2>
+        <label for="deck-select">Choisis ton deck (Complet uniquement)</label>
+        <select id="deck-select" class="deck-dropdown"></select>
+        <label for="bot-deck-select" class="label-bot">Deck du bot</label>
+        <select id="bot-deck-select" class="deck-dropdown"></select>
+        <button class="btn-large btn-play" onclick="lancerPartie()">
+            <span class="btn-icon">⚔️</span>
+            <span class="btn-label">
+                <span class="btn-title">Affronter le bot</span>
+                <span class="btn-sub">+50💰 victoire / +15💰 défaite</span>
+            </span>
+            <span class="btn-arrow">▶</span>
+        </button>
+        <div class="accueil-tuiles">
+            <button style="--i:0" onclick="changerEcran('tournoi-screen')"><span>🏆</span>Tournoi</button>
+            <button style="--i:1" onclick="changerEcran('booster-screen')"><span>🎁</span>Boosters</button>
+            <button style="--i:2" onclick="changerEcran('collection-screen')"><span>🃏</span>Collection</button>
+            <button style="--i:3" onclick="changerEcran('deckbuilder-screen')"><span>📚</span>Mes decks</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOURNOI -->
+<div id="tournoi-screen" class="screen">
+    <div class="box menu-box" style="max-width:700px">
+        <h2>🏆 Tournoi</h2>
+        <p class="subtitle">Rejoins un tournoi en ligne. Les bots complètent après 1min30.</p>
+        <div class="tournoi-choix">
+            <button class="btn-large btn-rare" onclick="demarrerTournoi(4)">
+                <span class="btn-icon">🏅</span>
+                <span class="btn-label">
+                    <span class="btn-title">Tournoi 4 joueurs</span>
+                    <span class="btn-sub">500 💰 d'entrée • 1500 💰 bonus</span>
+                </span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <button class="btn-large btn-rare" onclick="demarrerTournoi(8)">
+                <span class="btn-icon">👑</span>
+                <span class="btn-label">
+                    <span class="btn-title">Tournoi 8 joueurs</span>
+                    <span class="btn-sub">1000 💰 d'entrée • 3000 💰 bonus</span>
+                </span>
+                <span class="btn-arrow">▶</span>
+            </button>
+        </div>
+        <div id="tournoi-etat" style="margin-top:20px;"></div>
+        <div id="tournoi-timer" class="tournoi-timer hidden">
+            <span id="tournoi-timer-txt">En attente de joueurs…</span>
+            <button class="btn-action" onclick="forcerTournoi()" style="margin-top:8px;">🤖 Ajouter des bots maintenant</button>
+        </div>
+    </div>
+</div>
+
+<!-- SPECTATEUR -->
+<div id="spectateur-screen" class="screen">
+    <div class="box menu-box" style="max-width:700px">
+        <h2>👀 Mode Spectateur</h2>
+        <p class="subtitle">Regarde les parties en cours des autres joueurs.</p>
+        <div id="spectateur-liste"></div>
+        <button class="btn-large btn-spec" onclick="rafraichirSpectateur()">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-label">
+                <span class="btn-title">Rafraîchir la liste</span>
+                <span class="btn-sub">Voir les nouvelles parties</span>
+            </span>
+            <span class="btn-arrow">▶</span>
+        </button>
+    </div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin-screen" class="screen">
+    <div class="box" style="max-width:900px; max-height:90vh; overflow-y:auto;">
+        <h2 style="color:var(--braise)">👑 Panel Administrateur</h2>
+        <div class="admin-tabs">
+            <button class="btn-chip" onclick="adminTab('actions')">Actions</button>
+            <button class="btn-chip" onclick="adminTab('cartes')">Cartes</button>
+            <button class="btn-chip" onclick="adminTab('creation')">Créer</button>
+            <button class="btn-chip" onclick="adminTab('stats')">Stats</button>
+            <button class="btn-chip" onclick="adminTab('bannir')">Bannir</button>
+            <button class="btn-chip" onclick="adminTab('bonus')">Bonus joueur</button>
+            <button class="btn-chip" onclick="adminTab('annonces')">Annonces</button>
+        </div>
+
+        <div id="admin-tab-actions">
+            <h3>Actions rapides</h3>
+            <button class="btn-large btn-play" onclick="adminToutDebloquer(10)">
+                <span class="btn-icon">🎁</span>
+                <span class="btn-label"><span class="btn-title">10 de chaque carte & rareté</span><span class="btn-sub">Débloquer tout d'un coup</span></span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <button class="btn-large" onclick="adminToutDebloquer(1)">
+                <span class="btn-icon">🎁</span>
+                <span class="btn-label"><span class="btn-title">1 de chaque carte</span><span class="btn-sub">Débloquer 1 exemplaire</span></span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <button class="btn-large btn-rare" onclick="adminMaxCoins()">
+                <span class="btn-icon">💰</span>
+                <span class="btn-label"><span class="btn-title">1M Coins</span><span class="btn-sub">Créditer le compte</span></span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <button class="btn-action full" onclick="adminNettoyerSalles()">🧹 Nettoyer les salles</button>
+        </div>
+
+        <div id="admin-tab-cartes" class="hidden">
+            <h3>Collection complète</h3>
+            <div id="admin-cartes-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
+        </div>
+
+        <div id="admin-tab-creation" class="hidden">
+            <h3>Créer une nouvelle carte</h3>
+            <input type="text" id="new-card-prenom" placeholder="Prénom de la carte">
+            <select id="new-card-famille">
+                <option>Meridja</option><option>Marouf</option>
+                <option>Kerkache</option><option>Belgacemi</option>
+                <option>Neutre</option><option>Sort</option>
+                <option>Terrain</option><option>Cousins</option>
+                <option>Nouvelle famille</option>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--mana);font-size:12px;font-weight:700;">💧 MANA</label>
+                    <input type="number" id="new-card-cout" placeholder="Coût" value="3" min="0" max="10">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--braise);font-size:12px;font-weight:700;">⚔ FORCE</label>
+                    <input type="number" id="new-card-atk" placeholder="Attaque" value="2" min="0" max="20">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--menthe);font-size:12px;font-weight:700;">❤ VIE</label>
+                    <input type="number" id="new-card-vie" placeholder="Vie" value="3" min="0" max="30">
+                </div>
+            </div>
+            <select id="new-card-rarete" style="margin-top:10px;">
+                <option value="commune">Commune</option>
+                <option value="rare">Rare</option>
+                <option value="epique">Épique</option>
+                <option value="legendaire">Légendaire</option>
+            </select>
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Emoji :</label>
+            <div id="emoji-picker" class="emoji-picker"></div>
+            <input type="hidden" id="new-card-emoji" value="🃏">
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Mots-clés :</label>
+            <select id="new-card-motscles-select" multiple style="height:100px;">
+                <option value="Charge">Charge</option>
+                <option value="Provocation">Provocation</option>
+                <option value="Rage">Rage</option>
+                <option value="Destruction">Destruction</option>
+                <option value="Chat">Chat</option>
+                <option value="Fusion">Fusion</option>
+                <option value="Bluff">Bluff</option>
+                <option value="Unifiée">Unifiée</option>
+            </select>
+            <input type="text" id="new-card-motscles-custom" placeholder="Autres mots-clés (virgules)">
+
+            <label style="display:block;text-align:left;color:var(--texte-doux);font-size:13px;margin-top:12px;">Pouvoir personnalisé :</label>
+            <select id="new-card-pouvoir">
+                <option value="aucun">Aucun</option>
+                <option value="buff_allie">Buff une créature alliée (+X/+Y)</option>
+                <option value="degats_cible">Dégâts à une cible (X dégâts)</option>
+                <option value="soin_allie">Soigne une cible (X PV)</option>
+                <option value="pioche">Pioche X cartes</option>
+                <option value="invocation">Invoque un jeton X/Y</option>
+                <option value="destruction">Détruit une créature</option>
+                <option value="vol_vie">Vol de vie (X dégâts)</option>
+                <option value="bouclier">Bouclier (+X vie)</option>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--laiton);font-size:12px;">Param 1</label>
+                    <input type="number" id="new-card-pouvoir-param1" placeholder="Valeur 1" value="1" min="0">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block;color:var(--laiton);font-size:12px;">Param 2</label>
+                    <input type="number" id="new-card-pouvoir-param2" placeholder="Valeur 2" value="1" min="0">
+                </div>
+            </div>
+
+            <textarea id="new-card-desc" placeholder="Description..." style="margin-top:10px;"></textarea>
+            <button class="btn-large btn-play" onclick="adminCreerCarte()">
+                <span class="btn-icon">✨</span>
+                <span class="btn-label"><span class="btn-title">Créer la carte</span><span class="btn-sub">Ajout instantané au jeu</span></span>
+                <span class="btn-arrow">▶</span>
+            </button>
+        </div>
+
+        <div id="admin-tab-stats" class="hidden">
+            <h3>Stats globales</h3>
+            <div id="admin-stats-content"><p>Chargement...</p></div>
+        </div>
+
+        <div id="admin-tab-bannir" class="hidden">
+            <h3>Cartes bannies</h3>
+            <div id="admin-ban-grid" class="grid" style="max-height:50vh;overflow-y:auto;padding:10px;"></div>
+        </div>
+
+        <div id="admin-tab-bonus" class="hidden">
+            <h3>🎁 Bonus temporaire — Toutes les cartes ×3</h3>
+            <p class="hint">Donne à un joueur l'accès à 3 exemplaires de CHAQUE carte pendant une durée limitée.</p>
+            <input type="text" id="bonus-code-ami" placeholder="Code ami du joueur (FT-XXXX)">
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <select id="bonus-duree" style="flex:1;">
+                    <option value="5">5 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30" selected>30 minutes</option>
+                    <option value="60">1 heure</option>
+                    <option value="1440">24 heures</option>
+                </select>
+                <button class="btn-large btn-play" style="flex:1;margin:0;" onclick="adminDonnerBonusTemporaire()">✨ Donner</button>
+            </div>
+            <div id="admin-bonus-liste" style="margin-top:20px;"></div>
+        </div>
+
+        <div id="admin-tab-annonces" class="hidden">
+            <h3>Message global (MotD)</h3>
+            <input type="text" id="admin-motd" placeholder="Ex: Tournoi ce soir à 21h !">
+            <button class="btn-action full" onclick="adminEnvoyerMotd()">Diffuser</button>
+        </div>
+    </div>
+</div>
+
+<!-- COLLECTION -->
+<div id="collection-screen" class="screen">
+    <div class="box menu-box" style="max-width:90%; padding:20px; display:flex; flex-direction:column; height:90vh; margin-top:5vh;">
+        <div class="sort-bar" style="justify-content:space-between;">
+            <h2 style="margin:0; color:var(--laiton-clair);">Collection & Boutique</h2>
+            <div class="sort-actions">
+                <button class="btn-chip" onclick="afficherBoutique('cout')">Coût</button>
+                <button class="btn-chip" onclick="afficherBoutique('rarete')">Rareté</button>
+                <button class="btn-chip" onclick="afficherBoutique('famille')">Famille</button>
+            </div>
+        </div>
+        <div class="collection-header" id="collection-header">
+            <div class="collection-stat">
+                <span class="collection-nb" id="coll-total">0</span>
+                <span class="collection-label">Cartes possédées</span>
+            </div>
+            <div class="collection-stat">
+                <span class="collection-nb" id="coll-total-cards">0</span>
+                <span class="collection-label">Cartes du jeu</span>
+            </div>
+            <div class="collection-stat">
+                <span class="collection-nb" id="coll-legendaires">0</span>
+                <span class="collection-label">Légendaires</span>
+            </div>
+        </div>
+        <div class="grid" id="boutique-grid" style="overflow-y:auto; flex:1; margin-top:15px; padding:10px;"></div>
+    </div>
+</div>
+
+<!-- DECKBUILDER -->
+<div id="deckbuilder-screen" class="screen">
+    <div class="deckbuilder-container">
+        <aside class="sidebar">
+            <h3>Mes decks</h3>
+            <div id="liste-decks"></div>
+            <button class="btn-action full" onclick="creerNouveauDeck()">Nouveau deck perso</button>
+            <button class="btn-action full" onclick="restaurerDecksOfficiels()" style="margin-top:6px;background:#233346;">↺ Restaurer decks officiels</button>
+        </aside>
+
+        <section class="collection-area">
+            <div class="sort-bar">
+                <h3 id="deckbuilder-title">Cartes du jeu</h3>
+                <div class="sort-actions">
+                    <button class="btn-chip" onclick="trierDeckbuilder('cout')">Coût</button>
+                    <button class="btn-chip" onclick="trierDeckbuilder('rarete')">Rareté</button>
+                    <button class="btn-chip" onclick="trierDeckbuilder('famille')">Famille</button>
+                </div>
+            </div>
+            <div class="grid" id="deckbuilder-grid"></div>
+            <div id="deck-stats-panel" class="deck-stats-panel hidden"></div>
+        </section>
+
+        <aside class="deck-area">
+            <input type="text" id="deck-name-input" placeholder="Nom du deck">
+            <h3>Cartes du deck <span id="deck-count">0</span>/20</h3>
+            <div class="mana-curve" id="mana-curve"></div>
+            <div id="deck-grid" class="deck-list"></div>
+            <button class="btn-large btn-play" onclick="sauvegarderDeck()">
+                <span class="btn-icon">💾</span>
+                <span class="btn-label"><span class="btn-title">Enregistrer</span><span class="btn-sub">Sauvegarder ce deck</span></span>
+                <span class="btn-arrow">▶</span>
+            </button>
+            <button class="btn-action full" id="btn-set-default" onclick="definirDeckParDefaut()" style="margin-top:6px;">⭐ Définir par défaut</button>
+            <button class="btn-action full" onclick="toggleDeckStats()" style="margin-top:6px;">📊 Voir mes stats</button>
+        </aside>
+    </div>
+</div>
+
+<!-- PROFIL -->
+<div id="profil-screen" class="screen">
+    <div class="box profil-box" style="max-width:640px; max-height:90vh; overflow-y:auto;">
+        <h2>Ton profil</h2>
+        <div class="profil-avatar-row">
+            <div class="profil-avatar" id="profil-avatar-big" onclick="toggleAvatarPicker()">🧑</div>
+            <div>
+                <p class="subtitle" id="profil-pseudo" style="margin:0;"></p>
+                <p class="hint" id="profil-code" style="margin:4px 0 0; cursor:pointer;" onclick="copierCodeAmi()">Code ami : — 📋</p>
+                <p class="hint" id="profil-xp" style="margin:4px 0 0;">XP : 0 / 100</p>
+            </div>
+        </div>
+
+        <div class="xp-bar-outer"><div class="xp-bar-inner" id="xp-bar"></div></div>
+        <p class="hint" style="text-align:center;" id="profil-niveau">Niveau 1</p>
+
+        <div id="avatar-picker" class="avatar-picker hidden"></div>
+
+        <div class="profil-stats">
+            <div class="profil-stat" data-icon="🎮"><span class="profil-nb" id="stat-parties">0</span><span>Parties</span></div>
+            <div class="profil-stat win" data-icon="🏆"><span class="profil-nb" id="stat-victoires">0</span><span>Victoires</span></div>
+            <div class="profil-stat lose" data-icon="💀"><span class="profil-nb" id="stat-defaites">0</span><span>Défaites</span></div>
+            <div class="profil-stat" data-icon="📊"><span class="profil-nb" id="stat-ratio">—</span><span>Ratio</span></div>
+        </div>
+
+        <h3 style="color:var(--laiton-clair); margin-top:16px;">Tes statistiques</h3>
+        <div class="profil-stats">
+            <div class="profil-stat" data-icon="🃏"><span class="profil-nb" id="stat-deck-fav">—</span><span>Deck favori</span></div>
+            <div class="profil-stat" data-icon="🎴"><span class="profil-nb" id="stat-deck-fav-count">0</span><span>Parties</span></div>
+            <div class="profil-stat" data-icon="⭐"><span class="profil-nb" id="stat-carte-fav">—</span><span>Carte favorite</span></div>
+            <div class="profil-stat" data-icon="🔢"><span class="profil-nb" id="stat-carte-fav-count">0</span><span>Fois jouée</span></div>
+        </div>
+
+        <h3 style="color:var(--laiton-clair); margin-top:16px;">Amis</h3>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <input type="text" id="friend-code-input" placeholder="Code ami (FT-XXXX)" style="flex:1;text-transform:uppercase;">
+            <button class="btn-action" onclick="ajouterAmi()">Ajouter</button>
+        </div>
+        <div id="demandes-ami-liste"></div>
+        <div id="amis-liste" class="amis-liste"></div>
+
+        <button class="btn-action full" onclick="toggleFullscreen()" style="margin-top:16px;">⛶ Basculer en plein écran</button>
+        <button class="btn-action full" onclick="deconnexion()" style="margin-top:8px;">Déconnexion</button>
+    </div>
+</div>
+
+<!-- MULTI -->
+<div id="multi-screen" class="screen">
+    <div class="box multi-box">
+        <h2>Multijoueur</h2>
+        <p class="subtitle">Défie un joueur connecté. (+100💰 victoire / +30💰 défaite)</p>
+        <div class="multi-status">
+            <span id="multi-count">0 joueur(s) connecté(s)</span>
+            <span id="multi-combat-count">0 en combat</span>
+        </div>
+        <div id="multi-liste" class="multi-liste"></div>
+        <button class="btn-large btn-spec" onclick="rafraichirJoueurs()">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-label"><span class="btn-title">Rafraîchir</span><span class="btn-sub">Actualiser la liste</span></span>
+            <span class="btn-arrow">▶</span>
+        </button>
+        <div class="multi-spec">
+            <h3>👀 Parties en cours</h3>
+            <p class="subtitle">Regarde un match entre deux joueurs en tant que spectateur.</p>
+            <div id="multi-spec-liste"><p class="hint">Chargement…</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- BOOSTER -->
+<div id="booster-screen" class="screen">
+    <div class="booster-wrap">
+        <h2>Ouverture de booster</h2>
+        <p class="subtitle">5 cartes aléatoires — 50 💰</p>
+        <div class="ba-pack ba-pack-menu" id="pack" role="button" tabindex="0" aria-label="Ouvrir un booster pour 50 pièces" onclick="preparerBooster()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();preparerBooster();}">
+            <div class="ba-pack-top"></div>
+            <div class="ba-pack-body"><span class="ba-shine"></span>
+                <div class="ba-logo">Famille<b>TCG</b></div><div class="ba-emblem">🃏</div><div class="ba-sub">BOOSTER · 5 CARTES</div></div>
+            <div class="ba-pack-bottom"></div>
+        </div>
+        <p class="ba-hint">Touche le paquet pour l'ouvrir</p>
+        <div class="pack-rates">
+            <span class="rate commune">● Commune</span>
+            <span class="rate rare">● Rare</span>
+            <span class="rate epique">● Épique</span>
+            <span class="rate legendaire">● Légendaire</span>
+            <span class="rate unifiee">● Unifiée 2× plus rare</span>
+        </div>
+        <div class="grid booster-grid" id="booster-results"></div>
+        <button class="btn-large btn-play hidden" id="btn-again" onclick="preparerBooster()">
+            <span class="btn-icon">🎁</span>
+            <span class="btn-label"><span class="btn-title">Ouvrir un autre paquet</span><span class="btn-sub">50 💰 par booster</span></span>
+            <span class="btn-arrow">▶</span>
+        </button>
+    </div>
+</div>
+
+<!-- GAME -->
+<div id="game-screen" class="screen">
+    <div id="mulligan-overlay">
+        <h2>Choisis les cartes à rejeter</h2>
+        <div class="grid" id="mulligan-cards"></div>
+        <button class="btn-large" onclick="validerMulligan()">Garder cette main</button>
+    </div>
+
+    <div id="topbar">
+        <div class="turn-pill"><span id="tour-indicateur">Ton tour</span></div>
+        <div class="timer"><div class="timer-fill" id="timer-fill"></div><span id="timer-count">60</span></div>
+        <div id="combat-info">À toi de jouer</div>
+        <button id="btn-forfait-ingame" class="btn-forfait-ingame" onclick="declarerForfait()">🏳️ Forfait</button>
+    </div>
+
+    <div id="action-log" class="action-log"></div>
+
+    <section class="side opponent">
+        <div class="hero-panel opp">
+            <div class="hero-portrait" id="opp-portrait" onclick="toggleEmotes('B')">🤖</div>
+            <div class="hero-meta">
+                <div class="hero-name" id="opp-name">Bot</div>
+                <div class="stat-line">
+                    <span class="badge hp" id="opp-health">20</span>
+                    <span class="badge mana" id="opp-mana">0/0</span>
+                    <span class="badge deck" id="opp-deck">15</span>
+                    <button class="badge deck" id="opp-grave-btn" onclick="voirCimetiere('B')">💀 <span id="opp-grave-count">0</span></button>
+                </div>
+            </div>
+            <div class="emote-menu hidden" id="emotes-B"></div>
+        </div>
+        <div class="terrain-slot" id="opp-terrain"></div>
+        <div class="board-area" id="opponent-board"></div>
+        <div class="opp-hand" id="opp-hand-cards"></div>
+    </section>
+
+    <div class="board-divider"><span></span></div>
+
+    <section class="side player">
+        <div class="board-area" id="player-board"></div>
+        <div class="terrain-slot" id="player-terrain"></div>
+        <div class="hero-panel you">
+            <div class="hero-portrait" id="player-portrait" onclick="toggleEmotes('J')">🧑</div>
+            <div class="hero-meta">
+                <div class="hero-name" id="hero-name">Toi</div>
+                <div class="stat-line">
+                    <span class="badge hp" id="player-health">20</span>
+                    <span class="badge mana" id="player-mana">0/0</span>
+                    <span class="badge deck" id="player-deck">15</span>
+                    <button class="badge deck" id="player-grave-btn" onclick="voirCimetiere('J')">💀 <span id="player-grave-count">0</span></button>
+                </div>
+                <div class="crystals" id="crystals"></div>
+            </div>
+            <div class="emote-menu hidden" id="emotes-J">
+                <button onclick="jouerEmote('Mange, tu es tout maigre !')">Mange !</button>
+                <button onclick="jouerEmote('Attends, le wifi coupe...')">Wifi...</button>
+                <button onclick="jouerEmote('Tu as triché !')">Tricheur !</button>
+            </div>
+            <button class="btn-endturn" id="btn-endturn" onclick="finDeTour()">Fin du tour</button>
+        </div>
+    </section>
+
+    <div class="hand-rail" id="hand-rail">
+        <div class="hand-area" id="player-hand"></div>
+    </div>
+    <div id="targeting-banner">Choisis une cible <button onclick="annulerCiblage()">Annuler</button></div>
+</div>
+
+<!-- VISIONNEUSE DE CARTE (mobile) -->
+<div id="card-viewer-overlay" class="card-viewer-overlay" onclick="fermerVisionneuse()">
+    <div class="card-viewer-display" id="card-viewer-display" onclick="event.stopPropagation()"></div>
+    <div class="card-viewer-actions" onclick="event.stopPropagation()">
+        <button class="cv-play" id="card-viewer-play" onclick="jouerCarteDepuisVisionneuse()">▶ Jouer cette carte</button>
+        <button class="cv-close" onclick="fermerVisionneuse()">✕ Fermer</button>
+    </div>
+</div>
+
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script defer src="app.js?v=25"></script>
+<script defer src="multi.js?v=25"></script>
+</body>
+</html>
