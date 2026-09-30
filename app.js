@@ -413,6 +413,7 @@ var dbCartes = [
     C('f3','Ines x Islem','Nouvelle famille',9,8,8,'legendaire','Fusion : nécessite Inès et Islem. Cri de guerre : annule le prochain sort.',['Fusion'],'💑'),
     C('f4','Toufik x Manel','Nouvelle famille',7,5,9,'legendaire','Fusion : nécessite Toufik et Manel. Provocation.',['Fusion','Provocation'],'💑'),
     C('f5','Safya x Saad','Nouvelle famille',8,7,7,'legendaire','Fusion : nécessite Safya et Saad. Cri de guerre : invoque Hanna.',['Fusion'],'💑'),
+   C('f6','Pina x Yoka','Nouvelle famille',9,6,7,'legendaire','Fusion : nécessite Pina et Yoka. Cri de guerre : invoque Asma.',['Fusion'],'💑'),
 
     C('c1','Naila x Farid','Cousins',7,6,6,'legendaire','Destruction : Inflige 3 dégâts à tous les ennemis (héros compris).',['Destruction'],'👫'),
     C('c2','Malek x Kamel','Cousins',5,5,5,'epique','Rage : Gagne Charge et +2 en attaque.',['Rage'],'👬'),
@@ -487,7 +488,7 @@ function getSyncRandom() {
     return _syncSeed / 233280;
 }
 
-var FUSIONS = { 'f1': ['ka5','ka6'], 'f2': ['m4','m5'], 'f3': ['ma3','ma4'], 'f4': ['ka7','ka8'], 'f5': ['ka3','ka4'] };
+var FUSIONS = { 'f1': ['ka5','ka6'], 'f2': ['m4','m5'], 'f3': ['ma3','ma4'], 'f4': ['ka7','ka8'], 'f5': ['ka3','ka4'], 'f6': ['k7','k8'] };
 var FUSION_DE = {};
 Object.entries(FUSIONS).forEach(function(entry) {
     var fid = entry[0], compo = entry[1];
@@ -604,6 +605,19 @@ var POUVOIRS = {
     f3:{mode:'eclair',jouer:({moi})=>{moi.contreSort=true;piocher(moi,1);}},
     f4:{mode:'eclair',jouer:({moi})=>{soinHero(moi,5);}},
     f5:{mode:'eclair',jouer:({moi})=>{if(!moi.plateau.some(m=>m.id==='ka11'))invoquerJeton(moi,'Hanna',3,2,'👧🏻',[]);}},
+   f6:{mode:'eclair',jouer:({moi})=>{
+    // Invoque Asma (k5) : son propre cri de guerre s'applique (soin 2)
+    if(moi.plateau.length >= 5) return;
+    const asma = instancier(defCarte('k5'), moi.cle, false);
+    if(!asma) return;
+    asma.malade = true;
+    moi.plateau.push(asma);
+    // Déclenche le cri de guerre d'Asma
+    const pAsma = POUVOIRS['k5'];
+    if(pAsma && pAsma.jouer) pAsma.jouer({moi, ennemi:autre(moi), source:asma, cible:null});
+    fxSur(asma, 'Invoquée !', 'buff');
+    jouerSon('summon');
+}},
 
     c1:{mode:'infini',destruction:({ennemi})=>{ennemi.plateau.forEach(m=>fraper(m,3));degatsHero(ennemi,3);}},
     c2:{mode:'infini',blesse:({source})=>{if(!source.motsCles.includes('Charge')){source.motsCles.push('Charge');source.malade=false;fxSur(source,'Charge !','buff');}buff(source,2,0);}},
@@ -629,7 +643,7 @@ function modePouvoir(carte) { const p = POUVOIRS[carte.id]; if (!p) return null;
 var decksPreconstruitsBrut = [
     { nom:'Meridja Aggro',   cartes:['m1','m2','m3','m4','m4','m5','m5','m6','m6','m7','m7','m8','m8','m9','m9','m10','n1','n2','m11','m12'] },
     { nom:'Marouf Contrôle', cartes:['ma1','ma2','ma3','ma4','ma5','ma5','ma6','ma6','ma7','ma7','ma8','ma8','ma9','ma9','ma10','ma10','n1','n2','s1','ma11'] },
-    { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','k9','k10','s2','s5','s6','s11','s18'] },
+    { nom:'Kerkache Défense',cartes:['k1','k2','k3','k4','k4','k5','k5','k6','k6','k7','k7','k8','k8','k9','k10','s2','s5','s6','s11','f6'] },
     { nom:'Belgacemi Synergie', cartes:['ka1','ka2','ka3','ka4','ka5','ka5','ka6','ka6','ka7','ka7','ka8','ka8','ka9','ka9','ka10','ka10','n1','n2','s15','ka11'] },
     { nom:'Les Infiltrés', cartes:['f1','f2','f3','f4','f5','ka5','ka6','m4','m5','ma3','ma4','ka7','ka8','ka3','ka4','m11','m12','ma11','ka11','n7'] },
     { nom:'Alliance des Cousins', cartes:['c7','c7','c4','c4','c9','c9','c3','c3','c12','c12','c6','c6','c5','c5','c10','c10','c2','c11','c8','c1'] },
