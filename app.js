@@ -322,7 +322,7 @@ var dbCartes = [
 
     C('k1','Sid Ali','Kerkache',7,5,7,'legendaire','Les créatures alliées adjacentes ne peuvent pas être ciblées par les sorts.',['Provocation'],'👴🏽'),
     C('k2','Samia','Kerkache',6,4,8,'legendaire','À la fin de ton tour, rend 3 patience à ton héros.',[],'👵🏻'),
-    C('k3','Farid K.','Kerkache',5,5,6,'epique','Tant qu\'il est blessé, gagne +3 en attaque.',[],'👨🏽'),
+        C('k3','Farid K.','Kerkache',5,5,6,'epique','Rage : quand il est blessé, gagne +3 en attaque.',['Rage'],'👨🏽'),
     C('k4','Ryma','Kerkache',4,3,6,'rare','Cri de guerre : +1/+1 à une créature alliée.',['Provocation'],'👩🏽‍🦱'),
     C('k5','Asma','Kerkache',3,2,5,'rare','Cri de guerre : rend 2 patience à ton héros.',[],'👩🏻'),
     C('k6','Malek','Kerkache',4,4,4,'rare','Charge foudroyante : attaque dès son arrivée.',['Charge'],'👦🏽'),
@@ -515,7 +515,7 @@ var POUVOIRS = {
     ma9:{mode:'infini',aura:true},
     ma11:{mode:'eclair',cible:{camp:'ennemi',hero:true,texte:'Choisis une cible à frapper'},jouer:({moi,source,cible})=>{const v=lancerDe();fraper(cible,v);if(moi.plateau.some(x=>x.id==='ma3')&&moi.plateau.some(x=>x.id==='ma4'))buff(source,2,2);}},
 
-    k1:{mode:'infini',aura:true}, k2:{mode:'infini',finTour:({moi})=>soinHero(moi,3)}, k3:{mode:'infini',aura:true},
+    k1:{mode:'infini',aura:true}, k2:{mode:'infini',finTour:({moi})=>soinHero(moi,3)}, k3:{mode:'infini',blesse:({source})=>{buff(source,3,0);}},
     k4:{mode:'eclair',jouer:({moi})=>{const c=moi.plateau.find(m=>m.id!=='k4'&&!m.jeton);if(c)buff(c,1,1);}},
     k5:{mode:'eclair',jouer:({moi})=>soinHero(moi,2)}, k6:{mode:'infini',aura:true},
     k9:{mode:'eclair',jouer:({moi,source})=>{
@@ -1057,7 +1057,7 @@ function choisirStarter(famille) {
     precon.cartes.forEach(c => { const id = typeof c === 'string' ? c : c.id; compte[id] = (compte[id] || 0) + 1; });
     Object.entries(compte).forEach(([id, qte]) => {
         initColl(id);
-        const rarete = defCarte(id) ? defCarte(id).rarete : 'commune';
+                const rarete = 'commune';
         collectionJoueur[id][rarete] = (collectionJoueur[id][rarete] || 0) + qte;
     });
     profil.deckStart = true;
@@ -2622,7 +2622,6 @@ function recalcAuras() {
         side.plateau.forEach(m => {
             let bonusAtk = 0, bonusVie = 0;
             if (!m.silence) {
-                if (m.id === 'k3' && m.vie < m.vieMax) bonusAtk += 3;
                 if (m.id === 'm3') { const n = ennemi.plateau.filter(x => x.famille === 'Marouf').length; bonusAtk += n; bonusVie += n; }
                 if (m.motsCles.includes('Bluff') && !m.revele) { }
             }
