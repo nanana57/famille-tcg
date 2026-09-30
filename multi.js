@@ -653,11 +653,15 @@ async function traiterActionRecue(a) {
             if (idx < 0) return;
             const carte = B.main[idx];
             let cible = null;
-            if (a.idxCible !== null && a.campCible !== null) {
-                const targetSide = (a.campCible === 'J') ? B : J;
+            if (a.idxCible !== null && a.idxCible !== undefined && a.campCible !== null && a.campCible !== undefined) {
+                // ⚠️ INVERSION : campCible est du point de vue de l'émetteur
+                const campRecu = (a.campCible === 'J') ? 'B' : 'J';
+                const targetSide = (campRecu === 'J') ? J : B;
                 cible = targetSide.plateau[a.idxCible];
             } else if (a.cibleHero) {
-                cible = (a.cibleHero === 'J') ? B : J;
+                // ⚠️ INVERSION : cibleHero est du point de vue de l'émetteur
+                const heroRecu = (a.cibleHero === 'J') ? 'B' : 'J';
+                cible = (heroRecu === 'J') ? J : B;
             }
             if (carte.motsCles.includes('Fusion')) sacrifierPourFusion(B, carte.id);
             if (carte.motsCles.includes('Bluff') && carte.famille !== 'Sort' && carte.famille !== 'Terrain') {
@@ -677,16 +681,25 @@ async function traiterActionRecue(a) {
         case 'attaque': {
             const attaquant = B.plateau[a.idxAttaquant];
             let cible = null;
-            if (a.idxCible !== null && a.campCible !== null) {
-                const targetSide = (a.campCible === 'J') ? B : J;
+            if (a.idxCible !== null && a.idxCible !== undefined && a.campCible !== null && a.campCible !== undefined) {
+                // ⚠️ INVERSION : campCible est du point de vue de l'émetteur
+                const campRecu = (a.campCible === 'J') ? 'B' : 'J';
+                const targetSide = (campRecu === 'J') ? J : B;
                 cible = targetSide.plateau[a.idxCible];
             } else if (a.cibleHero) {
-                cible = (a.cibleHero === 'J') ? B : J;
+                // ⚠️ INVERSION : cibleHero est du point de vue de l'émetteur
+                const heroRecu = (a.cibleHero === 'J') ? 'B' : 'J';
+                cible = (heroRecu === 'J') ? J : B;
             }
-            if (!attaquant || !cible) return;
+            if (!attaquant || !cible) {
+                console.warn('[ATTAQUE] Cible ou attaquant introuvable', { idxAttaquant: a.idxAttaquant, idxCible: a.idxCible, campCible: a.campCible, cibleHero: a.cibleHero });
+                return;
+            }
             attaquant._replay = true;
             await attaquer(attaquant, cible);
             attaquant._replay = false;
+            // 🔧 FIX : forcer le rafraîchissement pour que la vie mise à jour soit bien affichée
+            rafraichirJeu();
             break;
         }
         case 'fin': {
