@@ -428,7 +428,7 @@ var dbCartes = [
     C('c11','Le grand repas','Sort',5,0,0,'epique','Déclenche l\'effet de Destruction de toutes tes créatures sans les tuer.',[],'🍽️'),
     C('c12','Cherchell','Terrain',3,0,0,'rare','Tes créatures Cousins coûtent 1 mana de moins.',[],'🏖️'),
 
-    C('tb1','Farid le malicieux','Meridja',4,3,4,'epique','Bluff. Quand révélé : Inflige 2 dégâts à une créature ennemie au hasard.',['Bluff'],'😏'),
+    C('tb1','Farid le malicieux','Kerkache',4,3,4,'epique','Bluff. Quand révélé : Inflige 2 dégâts à une créature ennemie au hasard.',['Bluff'],'😏'),
     C('tb2','Naila l\'intrepide','Belgacemi',3,4,2,'rare','Bluff. Quand révélé : Pioche une carte.',['Bluff'],'🤩'),
     C('tb3','Kamel le gamer fou','Belgacemi',3,2,5,'rare','Bluff. Quand révélé : Gagne +2/+2.',['Bluff'],'🎮'),
     C('tb4','Hanna la sauvage','Belgacemi',2,3,1,'commune','Bluff. Quand révélé : Inflige 1 dégât à toutes les créatures ennemies.',['Bluff'],'😤'),
