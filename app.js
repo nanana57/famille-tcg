@@ -25,7 +25,7 @@ function ameliorerAccessibilite() {
         if (titre) { titre.id ||= `${el.id}-titre`; el.setAttribute('aria-labelledby', titre.id); }
     });
     $$('div[onclick],span[onclick],p[onclick]').forEach((el) => {
-        if (el.id && el.id.endsWith('-overlay')) return;           // les fonds de modale restent des dialogues
+        if (el.id && el.id.endsWith('-overlay')) return;
         if (el.classList.contains('detail-container')) return;
         el.setAttribute('role', 'button'); el.tabIndex = 0;
     });
@@ -444,6 +444,42 @@ var dbCartes = [
 var parId = {};
 dbCartes.forEach(function(c) { parId[c.id] = c; });
 function defCarte(id) { return parId[id]; }
+
+/* ===========================================================
+   ILLUSTRATIONS DE CARTES (dossier img/cartes/)
+   Nom de fichier = id de la carte (m1.webp, ma2.png, k1.jpg…)
+   Extensions essayées dans l'ordre ; si aucune ne charge → emoji.
+   =========================================================== */
+var IMG_CARTES_DIR = 'img/cartes/';
+var IMG_CARTES_EXTS = ['.webp', '.png', '.jpg', '.jpeg'];
+
+/** Construit le HTML de l'illustration d'une carte :
+ *  <img> si une image existe pour cet id, sinon repli sur l'emoji.
+ *  Le onerror essaie les extensions suivantes, puis remplace par l'emoji. */
+function htmlIllustration(c) {
+    const srcs = IMG_CARTES_EXTS.map(ext => IMG_CARTES_DIR + c.id + ext);
+    return `<img class="card-img" src="${srcs[0]}" alt=""
+        data-srcs="${srcs.join('|')}"
+        data-emoji="${esc(c.emoji)}"
+        data-try="0"
+        onerror="repliIllustration(this)">`;
+}
+
+/** Appelé par <img onerror> : essaie l'extension suivante, puis l'emoji. */
+function repliIllustration(img) {
+    const srcs = (img.dataset.srcs || '').split('|');
+    let i = parseInt(img.dataset.try || '0', 10) + 1;
+    if (i < srcs.length) {
+        img.dataset.try = i;
+        img.src = srcs[i];
+        return;
+    }
+    const span = document.createElement('span');
+    span.className = 'card-emoji';
+    span.textContent = img.dataset.emoji || '🃏';
+    img.replaceWith(span);
+}
+window.repliIllustration = repliIllustration;
 
 function getSyncRandom() {
     if (!modeEnLigne) return Math.random();
@@ -1245,7 +1281,7 @@ function creerHTMLCarte(c, ctx, opts) {
 
     const gemHtml = enJeu ? '' : `<div class="rarity-gem ${clRarete}">${displayRarete.charAt(0).toUpperCase()}</div>`;
 
-    w.innerHTML = `${gemHtml}${qty}${loupe}${tagDeck}${tagNeuf}<div class="card-inner"><div class="card bg-${clFamille} border-${clRarete}"><div class="card-head"><div class="mana-gem">${coutAffiche}</div><div class="card-name">${esc(c.prenom)}</div>${badge}</div><div class="card-art">${esc(c.emoji)}</div><div class="faction-tag">${esc(c.famille)}</div><div class="card-text ${classeTexte}">${esc(c.desc)}</div>${kw}${pied}${rareteHtml}</div><div class="card-back">✦</div></div>`;
+    w.innerHTML = `${gemHtml}${qty}${loupe}${tagDeck}${tagNeuf}<div class="card-inner"><div class="card bg-${clFamille} border-${clRarete}"><div class="card-head"><div class="mana-gem">${coutAffiche}</div><div class="card-name">${esc(c.prenom)}</div>${badge}</div><div class="card-art">${htmlIllustration(c)}</div><div class="faction-tag">${esc(c.famille)}</div><div class="card-text ${classeTexte}">${esc(c.desc)}</div>${kw}${pied}${rareteHtml}</div><div class="card-back">✦</div></div>`;
 
     if (opts.missing) {
         w.classList.add('missing');
