@@ -486,11 +486,11 @@ function htmlIllustration(c) {
 
 /** Appelé par <img onerror> : essaie l'extension suivante, puis l'emoji. */
 function repliIllustration(img) {
-    const srcs = (img.dataset.srcs || '').split('|');
+    const srcs = (img.dataset.srcs || '').split('|').filter(Boolean);
     let i = parseInt(img.dataset.try || '0', 10) + 1;
     if (i < srcs.length) {
         img.dataset.try = i;
-        img.src = srcs[i];
+        setTimeout(() => { img.src = srcs[i]; }, 120);   // petit délai anti-rafale
         return;
     }
     const span = document.createElement('span');
@@ -499,7 +499,6 @@ function repliIllustration(img) {
     img.replaceWith(span);
 }
 window.repliIllustration = repliIllustration;
-
 function getSyncRandom() {
     if (!modeEnLigne) return Math.random();
     _syncSeed = (_syncSeed * 9301 + 49297) % 233280;
@@ -5455,16 +5454,34 @@ function adminAfficherEco() {
 document.addEventListener('DOMContentLoaded', () => { majTextesEco(); ecouterEconomie(); });
 
 /* ---------- Illustrations de cartes : full art légendaire + illustration normale ---------- */
-/* Pour une légendaire : tente <id>_fullart.ext puis <id>.ext puis emoji.
-   Pour les autres raretés : tente <id>.ext puis emoji.
-   L'illustration affichée suit la rareté AFFICHÉE (celle du haut de pile de la collection). */
-const ILLUSTRATIONS = {};   // clé = `${id}|${rareteAffichee}` -> url | false (absent) | undefined (pas encore testé)
+/* Version optimisée : pas de préchargement massif, cache persistant, file d'attente séquentielle. */
+const ILLUSTRATIONS = {};          // clé = `${id}|${rareteAffichee}` -> url | false | undefined (pas encore testé)
+const _fileSondes = [];            // file d'attente des tests d'images
+let _sondeEnCours = false;
+const SONDES_CONCURRENCE = 4;      // max 4 requêtes simultanées
+
+// Cache persistant (évite de re-tester à chaque chargement de page)
+const CLE_CACHE_IMG = 'ftcg_img_cache_v1';
+let _cachePersistant = {};
+try { _cachePersistant = JSON.parse(localStorage.getItem(CLE_CACHE_IMG) || '{}'); } catch(e) { _cachePersistant = {}; }
+Object.entries(_cachePersistant).forEach(([k, v]) => { ILLUSTRATIONS[k] = v; });
+
+let _cacheSale = false;
+function _sauverCache() {
+    if (!_cacheSale) return;
+    try { localStorage.setItem(CLE_CACHE_IMG, JSON.stringify(ILLUSTRATIONS)); _cacheSale = false; } catch(e) {}
+}
+setInterval(_sauverCache, 4000);
 
 function _chargerImage(urls, onOk) {
-    if (!urls.length) return;
+    if (!urls.length) return onOk(null);
     let i = 0;
     const img = new Image();
-    const suivant = () => { if (i >= urls.length) return onOk(null); img.src = urls[i++]; };
+    img.decoding = 'async';
+    const suivant = () => {
+        if (i >= urls.length) return onOk(null);
+        img.src = urls[i++];
+    };
     img.onload = () => onOk(img.src);
     img.onerror = suivant;
     suivant();
@@ -5472,8 +5489,28 @@ function _chargerImage(urls, onOk) {
 
 function sondeIllustration(id, rareteAffichee) {
     const cle = id + '|' + rareteAffichee;
-    if (cle in ILLUSTRATIONS) return;
-    ILLUSTRATIONS[cle] = false;
+    if (cle in ILLUSTRATIONS) return;   // déjà testée
+
+    // Cache persistant ?
+    if (_cachePersistant[cle] !== undefined) {
+        ILLUSTRATIONS[cle] = _cachePersistant[cle];
+        if (_cachePersistant[cle]) majIllustrationDOM(id, rareteAffichee);
+        return;
+    }
+
+    // Sinon on met en file d'attente
+    _fileSondes.push({ id, rareteAffichee, cle });
+    _pomperFile();
+}
+
+function _pomperFile() {
+    if (_sondeEnCours >= SONDES_CONCURRENCE) return;
+    const job = _fileSondes.shift();
+    if (!job) return;
+    _sondeEnCours++;
+    const { id, rareteAffichee, cle } = job;
+
+    if (ILLUSTRATIONS[cle] !== undefined) { _sondeEnCours--; _pomperFile(); return; }
 
     const estLegendaire = (rareteAffichee === 'legendaire');
     const urls = [];
@@ -5482,7 +5519,11 @@ function sondeIllustration(id, rareteAffichee) {
 
     _chargerImage(urls, (trouvee) => {
         ILLUSTRATIONS[cle] = trouvee || false;
+        _cachePersistant[cle] = trouvee || false;
+        _cacheSale = true;
         if (trouvee) majIllustrationDOM(id, rareteAffichee);
+        _sondeEnCours--;
+        _pomperFile();
     });
 }
 
@@ -5492,9 +5533,13 @@ function appliquerIllustration(w, url, estFullArt) {
     if (estFullArt) {
         card.classList.add('fullart');
         card.style.setProperty('--fa', `url("${url}")`);
+        const cur = art.querySelector('.card-img, .card-emoji');
+        if (cur) cur.style.display = 'none';
     } else {
-        // Illustration normale : on remplace l'<img> ou l'emoji par la bonne image
-        art.innerHTML = `<img class="card-img" src="${url}" alt="" onerror="repliIllustration(this)" data-emoji="${esc(w.dataset.emoji || '🃏')}">`;
+        const cur = art.querySelector('.card-img, .card-emoji');
+        if (cur && cur.tagName === 'IMG' && cur.src === url) return;   // rien à changer
+        art.innerHTML = `<img class="card-img" src="${url}" alt=""
+            data-emoji="${esc(w.dataset.emoji || '🃏')}" onerror="repliIllustration(this)">`;
     }
 }
 
@@ -5502,20 +5547,20 @@ function majIllustrationDOM(id, rareteAffichee) {
     const cle = id + '|' + rareteAffichee;
     const url = ILLUSTRATIONS[cle]; if (!url) return;
     const estFullArt = (rareteAffichee === 'legendaire');
-    document.querySelectorAll(`.card-wrapper[data-cid="${id}"][data-crar="${rareteAffichee}"]`)
-        .forEach((w) => appliquerIllustration(w, url, estFullArt));
+    document.querySelectorAll(
+        `.card-wrapper[data-cid="${id}"][data-crar="${rareteAffichee}"]`
+    ).forEach((w) => appliquerIllustration(w, url, estFullArt));
 }
 
 (() => {
-    const original = window.creerHTMLCarte; if (typeof original !== 'function') return;
+    const original = window.creerHTMLCarte;
+    if (typeof original !== 'function') return;
     window.creerHTMLCarte = function (c, ctx, opts) {
         const w = original.apply(this, arguments);
         try {
             if (!c || !c.id) return w;
-            const rareteAffichee = (opts && opts.overrideRarete) ? opts.overrideRarete : c.rarete;
-            // on ne touche qu'aux emplacements "spectateurs" de la carte (collection, booster, zoom, main, jeu)
             if (!['collection','booster','zoom','main','jeu'].includes(ctx)) return w;
-            // mémorise pour retrouver la bonne illustration au chargement async
+            const rareteAffichee = (opts && opts.overrideRarete) ? opts.overrideRarete : c.rarete;
             w.dataset.cid = c.id;
             w.dataset.crar = rareteAffichee;
             if (c.emoji) w.dataset.emoji = c.emoji;
@@ -5530,6 +5575,9 @@ function majIllustrationDOM(id, rareteAffichee) {
         return w;
     };
 })();
+
+// ⚠️ On SUPPRIME le préchargement massif : les images sont testées À LA DEMANDE.
+// (Aucun dbCartes.forEach / raretes.forEach au DOMContentLoaded.)
 
 document.addEventListener('DOMContentLoaded', () => {
     // pré-chargement discret : pour chaque carte, toutes les raretés possibles
