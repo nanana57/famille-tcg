@@ -1094,8 +1094,7 @@ function choisirStarter(famille) {
         collectionJoueur[id].commune = (collectionJoueur[id].commune || 0) + qte;
     });
 
-     // 2. S'assure que le deck préconstruit est bien dans mesDecks (il l'est déjà par défaut,
-    //    mais on le rajoute si jamais il a été supprimé par le passé)
+    // 2. S'assure que le deck préconstruit est bien dans mesDecks
     if (!mesDecks.some(d => d.nom === nomDeck)) {
         mesDecks.push({
             nom: nomDeck,
@@ -1108,7 +1107,7 @@ function choisirStarter(famille) {
         profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
     }
 
-    // 3. Marque le starter comme effectué + définir le deck par défaut
+    // 3. Marque le starter comme effectué + définit le deck par défaut
     profil.deckStart = true;
     profil.coins += ECO.deckDepart;
     profil.deckParDefaut = nomDeck;
@@ -1117,10 +1116,14 @@ function choisirStarter(famille) {
 
     // 4. Feedback au joueur
     setTimeout(() => {
-        alert(...);
+        alert(
+            '🎉 Famille ' + familleChoisie + (auto ? ' (choix aléatoire)' : '') + ' !\n\n' +
+            'Deck de départ : « ' + nomDeck + ' » (20 cartes)\n' +
+            '+ ' + ECO.deckDepart + ' 💰\n\n' +
+            'Tu peux modifier ou supprimer ce deck, et le restaurer à tout moment via « Restaurer decks officiels » dans Mes Decks.'
+        );
     }, 200);
 }
-
 function calculerCartesPossedeesPourDeck(cartesDeck) {
     let owned = 0;
     let tempColl = {};
