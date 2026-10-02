@@ -1107,7 +1107,6 @@ function choisirStarter(famille) {
         if (Array.isArray(profil.decksSupprimes)) {
             profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
         }
-    }
 
     // 3. Marque le starter comme effectué + définir le deck par défaut
     profil.deckStart = true;
