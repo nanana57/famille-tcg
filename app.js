@@ -472,27 +472,13 @@ var ECO = Object.assign({}, ECO_DEFAUT, { ratioVente: 0.5 });
 (function () { try { var s = JSON.parse(localStorage.getItem('ftcg_economie') || '{}'); Object.keys(ECO_DEFAUT).forEach(function (k) { var v = Number(s[k]); if (isFinite(v) && v >= 0 && v <= 10000000) ECO[k] = Math.round(v); }); ECO.ratioVente = Math.min(1, ECO.ratioVentePct / 100); } catch (e) {} })();
 
 
-/** Construit le HTML de l'illustration d'une carte :
- *  <img> si une image existe pour cet id, sinon repli sur l'emoji.
- *  Le onerror essaie les extensions suivantes, puis remplace par l'emoji. */
+/** Illustration par défaut : emoji. Le manifest la remplacera si une image existe. */
 function htmlIllustration(c) {
-    const srcs = IMG_CARTES_EXTS.map(ext => IMG_CARTES_DIR + c.id + ext);
-    return `<img class="card-img" src="${srcs[0]}" alt=""
-        data-srcs="${srcs.join('|')}"
-        data-emoji="${esc(c.emoji)}"
-        data-try="0"
-        onerror="repliIllustration(this)">`;
+    return `<span class="card-emoji">${esc(c.emoji || '🃏')}</span>`;
 }
 
-/** Appelé par <img onerror> : essaie l'extension suivante, puis l'emoji. */
+/** Repli : si une image ne charge pas, on remet l'emoji. */
 function repliIllustration(img) {
-    const srcs = (img.dataset.srcs || '').split('|').filter(Boolean);
-    let i = parseInt(img.dataset.try || '0', 10) + 1;
-    if (i < srcs.length) {
-        img.dataset.try = i;
-        setTimeout(() => { img.src = srcs[i]; }, 120);   // petit délai anti-rafale
-        return;
-    }
     const span = document.createElement('span');
     span.className = 'card-emoji';
     span.textContent = img.dataset.emoji || '🃏';
@@ -5453,78 +5439,47 @@ function adminAfficherEco() {
 }
 document.addEventListener('DOMContentLoaded', () => { majTextesEco(); ecouterEconomie(); });
 
-/* ---------- Illustrations de cartes : full art légendaire + illustration normale ---------- */
-/* Version optimisée : pas de préchargement massif, cache persistant, file d'attente séquentielle. */
-const ILLUSTRATIONS = {};          // clé = `${id}|${rareteAffichee}` -> url | false | undefined (pas encore testé)
-const _fileSondes = [];            // file d'attente des tests d'images
-let _sondeEnCours = false;
-const SONDES_CONCURRENCE = 4;      // max 4 requêtes simultanées
+/* ===========================================================
+   ILLUSTRATIONS — via manifest.json (zéro 404, zéro 429)
+   Le manifest liste toutes les images réellement présentes.
+   Aucune requête n'est faite pour une image inexistante.
+   =========================================================== */
+const IMG_MANIFEST_URL = IMG_CARTES_DIR + 'manifest.json';
+let IMG_MANIFEST = null;
+let IMG_MANIFEST_PRET = false;
+const _fileManifest = [];
+const ILLUSTRATIONS = {};
 
-// Cache persistant (évite de re-tester à chaque chargement de page)
-const CLE_CACHE_IMG = 'ftcg_img_cache_v1';
-let _cachePersistant = {};
-try { _cachePersistant = JSON.parse(localStorage.getItem(CLE_CACHE_IMG) || '{}'); } catch(e) { _cachePersistant = {}; }
-Object.entries(_cachePersistant).forEach(([k, v]) => { ILLUSTRATIONS[k] = v; });
-
-let _cacheSale = false;
-function _sauverCache() {
-    if (!_cacheSale) return;
-    try { localStorage.setItem(CLE_CACHE_IMG, JSON.stringify(ILLUSTRATIONS)); _cacheSale = false; } catch(e) {}
-}
-setInterval(_sauverCache, 4000);
-
-function _chargerImage(urls, onOk) {
-    if (!urls.length) return onOk(null);
-    let i = 0;
-    const img = new Image();
-    img.decoding = 'async';
-    const suivant = () => {
-        if (i >= urls.length) return onOk(null);
-        img.src = urls[i++];
-    };
-    img.onload = () => onOk(img.src);
-    img.onerror = suivant;
-    suivant();
-}
+fetch(IMG_MANIFEST_URL, { cache: 'force-cache' })
+    .then(r => r.ok ? r.json() : {})
+    .then(m => {
+        IMG_MANIFEST = m || {};
+        IMG_MANIFEST_PRET = true;
+        console.log('📁 Manifest images chargé :', Object.keys(IMG_MANIFEST).length, 'entrées');
+        _fileManifest.splice(0).forEach(([id, rar]) => sondeIllustration(id, rar));
+    })
+    .catch(() => { IMG_MANIFEST = {}; IMG_MANIFEST_PRET = true; });
 
 function sondeIllustration(id, rareteAffichee) {
     const cle = id + '|' + rareteAffichee;
-    if (cle in ILLUSTRATIONS) return;   // déjà testée
+    if (cle in ILLUSTRATIONS) return;
 
-    // Cache persistant ?
-    if (_cachePersistant[cle] !== undefined) {
-        ILLUSTRATIONS[cle] = _cachePersistant[cle];
-        if (_cachePersistant[cle]) majIllustrationDOM(id, rareteAffichee);
+    if (!IMG_MANIFEST_PRET) {
+        _fileManifest.push([id, rareteAffichee]);
         return;
     }
 
-    // Sinon on met en file d'attente
-    _fileSondes.push({ id, rareteAffichee, cle });
-    _pomperFile();
-}
-
-function _pomperFile() {
-    if (_sondeEnCours >= SONDES_CONCURRENCE) return;
-    const job = _fileSondes.shift();
-    if (!job) return;
-    _sondeEnCours++;
-    const { id, rareteAffichee, cle } = job;
-
-    if (ILLUSTRATIONS[cle] !== undefined) { _sondeEnCours--; _pomperFile(); return; }
-
     const estLegendaire = (rareteAffichee === 'legendaire');
-    const urls = [];
-    if (estLegendaire) IMG_CARTES_EXTS.forEach(ext => urls.push(IMG_CARTES_DIR + id + '_fullart' + ext));
-    IMG_CARTES_EXTS.forEach(ext => urls.push(IMG_CARTES_DIR + id + ext));
+    let fichier = null;
 
-    _chargerImage(urls, (trouvee) => {
-        ILLUSTRATIONS[cle] = trouvee || false;
-        _cachePersistant[cle] = trouvee || false;
-        _cacheSale = true;
-        if (trouvee) majIllustrationDOM(id, rareteAffichee);
-        _sondeEnCours--;
-        _pomperFile();
-    });
+    if (estLegendaire && IMG_MANIFEST[id + '_fullart']) {
+        fichier = IMG_MANIFEST[id + '_fullart'];   // full art prioritaire
+    } else if (IMG_MANIFEST[id]) {
+        fichier = IMG_MANIFEST[id];                // sinon illustration normale
+    }
+
+    ILLUSTRATIONS[cle] = fichier ? (IMG_CARTES_DIR + fichier) : false;
+    if (fichier) majIllustrationDOM(id, rareteAffichee);
 }
 
 function appliquerIllustration(w, url, estFullArt) {
@@ -5537,9 +5492,10 @@ function appliquerIllustration(w, url, estFullArt) {
         if (cur) cur.style.display = 'none';
     } else {
         const cur = art.querySelector('.card-img, .card-emoji');
-        if (cur && cur.tagName === 'IMG' && cur.src === url) return;   // rien à changer
+        if (cur && cur.tagName === 'IMG' && cur.src.endsWith(url.split('/').pop())) return;
         art.innerHTML = `<img class="card-img" src="${url}" alt=""
-            data-emoji="${esc(w.dataset.emoji || '🃏')}" onerror="repliIllustration(this)">`;
+            data-emoji="${esc(w.dataset.emoji || '🃏')}"
+            onerror="repliIllustration(this)">`;
     }
 }
 
@@ -5575,15 +5531,3 @@ function majIllustrationDOM(id, rareteAffichee) {
         return w;
     };
 })();
-
-// ⚠️ On SUPPRIME le préchargement massif : les images sont testées À LA DEMANDE.
-// (Aucun dbCartes.forEach / raretes.forEach au DOMContentLoaded.)
-
-document.addEventListener('DOMContentLoaded', () => {
-    // pré-chargement discret : pour chaque carte, toutes les raretés possibles
-    const lancer = () => {
-        const raretes = ['commune','rare','epique','legendaire'];
-        dbCartes.forEach((c) => raretes.forEach((r) => sondeIllustration(c.id, r)));
-    };
-    (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(lancer);
-});
