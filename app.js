@@ -1049,15 +1049,21 @@ function ouvrirChoixStarter() {
     const ov = document.getElementById('starter-overlay');
     if (ov) ov.classList.add('open');
 }
-/** Deck de départ : recopie tel quel le deck préconstruit de la famille choisie. */
-function construireDeckDeBase(famille) {
+/** Renvoie le nom du deck préconstruit correspondant à la famille choisie. */
+function deckPreconPourFamille(famille) {
     const correspondances = {
         'Meridja':   'Meridja Aggro',
         'Marouf':    'Marouf Contrôle',
         'Kerkache':  'Kerkache Défense',
         'Belgacemi': 'Belgacemi Synergie'
     };
-    const precon = decksPreconstruits.find(d => d.nom === correspondances[famille]);
+    return correspondances[famille] || null;
+}
+
+/** Deck de départ : recopie le deck préconstruit de la famille choisie. */
+function construireDeckDeBase(famille) {
+    const nomPrecon = deckPreconPourFamille(famille);
+    const precon = decksPreconstruits.find(d => d.nom === nomPrecon);
     if (!precon) return [];
     return precon.cartes.map(c => typeof c === 'string' ? c : c.id);
 }
@@ -1069,34 +1075,50 @@ function choisirStarter(famille) {
     let auto = false;
     if (!familleChoisie) { familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)]; auto = true; }
 
-    // Récupère les ids du deck préconstruit correspondant
-    const ids = construireDeckDeBase(familleChoisie);
-    if (!ids.length) { console.error('Deck introuvable pour', familleChoisie); return; }
+    const nomDeck = deckPreconPourFamille(familleChoisie);
+    const precon = decksPreconstruits.find(d => d.nom === nomDeck);
+    if (!precon) { console.error('Deck introuvable pour', familleChoisie); return; }
 
-    // Crédite chaque carte en commune dans la collection
+    // 1. Crédite les 20 cartes en commune dans la collection du joueur
     const compte = {};
-    ids.forEach(id => { compte[id] = (compte[id] || 0) + 1; });
+    precon.cartes.forEach(c => {
+        const id = typeof c === 'string' ? c : c.id;
+        compte[id] = (compte[id] || 0) + 1;
+    });
     Object.entries(compte).forEach(([id, qte]) => {
         initColl(id);
         collectionJoueur[id].commune = (collectionJoueur[id].commune || 0) + qte;
     });
 
-    // Crée le deck "Départ <Famille>" avec les mêmes cartes, marquées commune
-    const nomDeck = 'Départ ' + familleChoisie;
-    mesDecks = mesDecks.filter(d => d.nom !== nomDeck);
-    mesDecks.push({
-        nom: nomDeck,
-        cartes: ids.map(id => ({ id: id, rarete: 'commune' })),
-        base: false
-    });
+    // 2. S'assure que le deck préconstruit est bien dans mesDecks (il l'est déjà par défaut,
+    //    mais on le rajoute si jamais il a été supprimé par le passé)
+    if (!mesDecks.some(d => d.nom === nomDeck)) {
+        mesDecks.push({
+            nom: nomDeck,
+            cartes: precon.cartes.map(c => ({ ...c })),
+            base: true
+        });
+        // Retire de la liste des decks "supprimés"
+        if (Array.isArray(profil.decksSupprimes)) {
+            profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
+        }
+    }
 
+    // 3. Marque le starter comme effectué + définir le deck par défaut
     profil.deckStart = true;
     profil.coins += ECO.deckDepart;
     profil.deckParDefaut = nomDeck;
     sauvegarderProgression();
     majTopBarCoins();
+
+    // 4. Feedback au joueur
     setTimeout(() => {
-        alert(`🎉 Famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\nDeck reçu : "${nomDeck}" (20 cartes en communes) + ${ECO.deckDepart} 💰.`);
+        alert(
+            `🎉 Famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\n` +
+            `Deck de départ : « ${nomDeck} » (20 cartes)\n` +
+            `+ ${ECO.deckDepart} 💰\n\n` +
+            `Tu peux modifier ou supprimer ce deck, et le restaurer à tout moment via « Restaurer decks officiels » dans Mes Decks.`
+        );
     }, 200);
 }
 
