@@ -656,7 +656,10 @@ var decksPreconstruitsBrut = [
 var decksPreconstruits = decksPreconstruitsBrut.map(function(d) {
     return {
         nom: d.nom,
-        cartes: d.cartes.map(function(id) { return { id: id, rarete: defCarte(id) ? defCarte(id).rarete : 'commune' }; })
+        // ⚠️ Toutes les cartes des decks officiels sont en commune.
+        // Les raretés supérieures s'obtiennent via boosters/boutique : la collection
+        // affichera automatiquement la plus haute rareté possédée par le joueur.
+        cartes: d.cartes.map(function(id) { return { id: id, rarete: 'commune' }; })
     };
 });
 
@@ -950,15 +953,16 @@ function sanitizeSave() {
     } else collectionJoueur = {};
 
     if (!Array.isArray(mesDecks)) mesDecks = [];
-    mesDecks.forEach(d => {
+        mesDecks.forEach(d => {
         if (!d.cartes) d.cartes = [];
         d.cartes = d.cartes.map(c => {
-            if (typeof c === 'string') {
-                let def = defCarte(c);
-                return def ? { id: c, rarete: def.rarete } : null;
-            }
-            if (c && c.id && defCarte(c.id)) return { id: c.id, rarete: defCarte(c.id).rarete };
-            return null;
+            const id = typeof c === 'string' ? c : (c && c.id);
+            if (!id || !defCarte(id)) return null;
+            // ⚠️ Les decks officiels (base:true) sont toujours en commune
+            // pour éviter que les vieilles sauvegardes ne gardent des raretés spoilantes.
+            if (d.base) return { id: id, rarete: 'commune' };
+            // Les decks perso conservent la rareté d'origine de la carte
+            return { id: id, rarete: defCarte(id).rarete };
         }).filter(c => c !== null);
     });
 
@@ -1092,12 +1096,13 @@ function choisirStarter(famille) {
 
     // 2. S'assure que le deck préconstruit est bien dans mesDecks (il l'est déjà par défaut,
     //    mais on le rajoute si jamais il a été supprimé par le passé)
-    if (!mesDecks.some(d => d.nom === nomDeck)) {
+        if (!mesDecks.some(d => d.nom === nomDeck)) {
         mesDecks.push({
             nom: nomDeck,
-            cartes: precon.cartes.map(c => ({ ...c })),
+            cartes: precon.cartes.map(c => ({ id: c.id, rarete: 'commune' })),
             base: true
         });
+    }
         // Retire de la liste des decks "supprimés"
         if (Array.isArray(profil.decksSupprimes)) {
             profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
@@ -1499,10 +1504,14 @@ function restaurerDecksOfficiels() {
     if (manquants.length === 0) return flashInfo('Tous les decks officiels sont déjà présents.');
     if (!confirm(`Restaurer ${manquants.length} deck(s) officiel(s) ?`)) return;
     if (!Array.isArray(profil.decksSupprimes)) profil.decksSupprimes = [];
-    manquants.forEach(dp => {
+        manquants.forEach(dp => {
         profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== dp.nom);
-        mesDecks.push({ nom: dp.nom, cartes: dp.cartes.map(c => ({ ...c })), base: true });
-    });
+        mesDecks.push({
+            nom: dp.nom,
+            cartes: dp.cartes.map(c => ({ id: c.id, rarete: 'commune' })),
+            base: true
+        });
+    });;
     sauvegarderProgression();
     chargerListeDecks();
     flashInfo(`${manquants.length} deck(s) restauré(s).`);
