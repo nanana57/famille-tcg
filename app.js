@@ -1049,16 +1049,17 @@ function ouvrirChoixStarter() {
     const ov = document.getElementById('starter-overlay');
     if (ov) ov.classList.add('open');
 }
-/** Deck de départ : 20 cartes, UNIQUEMENT des communes (famille choisie, puis neutres, puis sorts peu coûteux). */
+/** Deck de départ : recopie tel quel le deck préconstruit de la famille choisie. */
 function construireDeckDeBase(famille) {
-    const communes = dbCartes.filter(c => c.rarete === 'commune' && c.famille !== 'Terrain' && !/^cp\d/.test(c.id));
-    const fam = communes.filter(c => c.famille === famille);
-    const neutres = communes.filter(c => c.famille === 'Neutre');
-    const sorts = communes.filter(c => c.famille === 'Sort').sort((x, y) => x.cout - y.cout);
-    const deck = [], nb = {};
-    const ajouter = c => { if ((nb[c.id] || 0) >= 2 || deck.length >= 20) return; nb[c.id] = (nb[c.id] || 0) + 1; deck.push(c.id); };
-    [fam, neutres, sorts].forEach(liste => { for (let passe = 0; passe < 2; passe++) liste.forEach(ajouter); });
-    return deck;
+    const correspondances = {
+        'Meridja':   'Meridja Aggro',
+        'Marouf':    'Marouf Contrôle',
+        'Kerkache':  'Kerkache Défense',
+        'Belgacemi': 'Belgacemi Synergie'
+    };
+    const precon = decksPreconstruits.find(d => d.nom === correspondances[famille]);
+    if (!precon) return [];
+    return precon.cartes.map(c => typeof c === 'string' ? c : c.id);
 }
 function choisirStarter(famille) {
     const ov = document.getElementById('starter-overlay');
@@ -1067,22 +1068,36 @@ function choisirStarter(famille) {
     let familleChoisie = famille;
     let auto = false;
     if (!familleChoisie) { familleChoisie = famillesDeBase[Math.floor(Math.random() * famillesDeBase.length)]; auto = true; }
+
+    // Récupère les ids du deck préconstruit correspondant
     const ids = construireDeckDeBase(familleChoisie);
+    if (!ids.length) { console.error('Deck introuvable pour', familleChoisie); return; }
+
+    // Crédite chaque carte en commune dans la collection
     const compte = {};
     ids.forEach(id => { compte[id] = (compte[id] || 0) + 1; });
     Object.entries(compte).forEach(([id, qte]) => {
         initColl(id);
         collectionJoueur[id].commune = (collectionJoueur[id].commune || 0) + qte;
     });
+
+    // Crée le deck "Départ <Famille>" avec les mêmes cartes, marquées commune
     const nomDeck = 'Départ ' + familleChoisie;
     mesDecks = mesDecks.filter(d => d.nom !== nomDeck);
-    mesDecks.push({ nom: nomDeck, cartes: ids.map(id => ({ id: id, rarete: 'commune' })), base: false });
+    mesDecks.push({
+        nom: nomDeck,
+        cartes: ids.map(id => ({ id: id, rarete: 'commune' })),
+        base: false
+    });
+
     profil.deckStart = true;
     profil.coins += ECO.deckDepart;
     profil.deckParDefaut = nomDeck;
     sauvegarderProgression();
     majTopBarCoins();
-    setTimeout(() => { alert(`🎉 Tu as choisi la famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\nTu as reçu un deck de 20 cartes communes + ${ECO.deckDepart} 💰.\nDeck par défaut : ${nomDeck}`); }, 200);
+    setTimeout(() => {
+        alert(`🎉 Famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\nDeck reçu : "${nomDeck}" (20 cartes en communes) + ${ECO.deckDepart} 💰.`);
+    }, 200);
 }
 
 function calculerCartesPossedeesPourDeck(cartesDeck) {
