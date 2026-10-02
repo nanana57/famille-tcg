@@ -5454,37 +5454,88 @@ function adminAfficherEco() {
 }
 document.addEventListener('DOMContentLoaded', () => { majTextesEco(); ecouterEconomie(); });
 
-/* ---------- Cartes légendaires « full art » : <id>_fullart.webp|png|jpg… dans img/cartes/ ---------- */
-const FULLART_RARETES = ['legendaire'];            // raretés qui peuvent avoir une version full art
-const FULLART = {};                                // id -> url | false (absent) | undefined (pas encore testé)
-function sondeFullArt(id) {
-    if (id in FULLART) return; FULLART[id] = false; let i = 0;
+/* ---------- Illustrations de cartes : full art légendaire + illustration normale ---------- */
+/* Pour une légendaire : tente <id>_fullart.ext puis <id>.ext puis emoji.
+   Pour les autres raretés : tente <id>.ext puis emoji.
+   L'illustration affichée suit la rareté AFFICHÉE (celle du haut de pile de la collection). */
+const ILLUSTRATIONS = {};   // clé = `${id}|${rareteAffichee}` -> url | false (absent) | undefined (pas encore testé)
+
+function _chargerImage(urls, onOk) {
+    if (!urls.length) return;
+    let i = 0;
     const img = new Image();
-    const suivant = () => { if (i >= IMG_CARTES_EXTS.length) return; img.src = IMG_CARTES_DIR + id + '_fullart' + IMG_CARTES_EXTS[i++]; };
-    img.onload = () => { FULLART[id] = img.src; majFullArtDOM(id); };
-    img.onerror = suivant; suivant();
+    const suivant = () => { if (i >= urls.length) return onOk(null); img.src = urls[i++]; };
+    img.onload = () => onOk(img.src);
+    img.onerror = suivant;
+    suivant();
 }
-function appliquerFullArt(w, url) {
-    const card = w.querySelector('.card'); if (!card || card.classList.contains('fullart')) return;
-    card.classList.add('fullart'); card.style.setProperty('--fa', `url("${url}")`);
+
+function sondeIllustration(id, rareteAffichee) {
+    const cle = id + '|' + rareteAffichee;
+    if (cle in ILLUSTRATIONS) return;
+    ILLUSTRATIONS[cle] = false;
+
+    const estLegendaire = (rareteAffichee === 'legendaire');
+    const urls = [];
+    if (estLegendaire) IMG_CARTES_EXTS.forEach(ext => urls.push(IMG_CARTES_DIR + id + '_fullart' + ext));
+    IMG_CARTES_EXTS.forEach(ext => urls.push(IMG_CARTES_DIR + id + ext));
+
+    _chargerImage(urls, (trouvee) => {
+        ILLUSTRATIONS[cle] = trouvee || false;
+        if (trouvee) majIllustrationDOM(id, rareteAffichee);
+    });
 }
-function majFullArtDOM(id) { document.querySelectorAll(`.card-wrapper[data-cid="${id}"]`).forEach((w) => { if (FULLART[id]) appliquerFullArt(w, FULLART[id]); }); }
+
+function appliquerIllustration(w, url, estFullArt) {
+    const card = w.querySelector('.card'); if (!card) return;
+    const art = card.querySelector('.card-art'); if (!art) return;
+    if (estFullArt) {
+        card.classList.add('fullart');
+        card.style.setProperty('--fa', `url("${url}")`);
+    } else {
+        // Illustration normale : on remplace l'<img> ou l'emoji par la bonne image
+        art.innerHTML = `<img class="card-img" src="${url}" alt="" onerror="repliIllustration(this)" data-emoji="${esc(w.dataset.emoji || '🃏')}">`;
+    }
+}
+
+function majIllustrationDOM(id, rareteAffichee) {
+    const cle = id + '|' + rareteAffichee;
+    const url = ILLUSTRATIONS[cle]; if (!url) return;
+    const estFullArt = (rareteAffichee === 'legendaire');
+    document.querySelectorAll(`.card-wrapper[data-cid="${id}"][data-crar="${rareteAffichee}"]`)
+        .forEach((w) => appliquerIllustration(w, url, estFullArt));
+}
+
 (() => {
     const original = window.creerHTMLCarte; if (typeof original !== 'function') return;
     window.creerHTMLCarte = function (c, ctx, opts) {
         const w = original.apply(this, arguments);
         try {
-            const card = w.querySelector('.card');
-            if (card && c && c.id && FULLART_RARETES.some((r) => card.classList.contains('border-' + r))) {
-                w.dataset.cid = c.id;
-                if (FULLART[c.id]) appliquerFullArt(w, FULLART[c.id]); else if (!(c.id in FULLART)) sondeFullArt(c.id);
+            if (!c || !c.id) return w;
+            const rareteAffichee = (opts && opts.overrideRarete) ? opts.overrideRarete : c.rarete;
+            // on ne touche qu'aux emplacements "spectateurs" de la carte (collection, booster, zoom, main, jeu)
+            if (!['collection','booster','zoom','main','jeu'].includes(ctx)) return w;
+            // mémorise pour retrouver la bonne illustration au chargement async
+            w.dataset.cid = c.id;
+            w.dataset.crar = rareteAffichee;
+            if (c.emoji) w.dataset.emoji = c.emoji;
+
+            const cle = c.id + '|' + rareteAffichee;
+            if (ILLUSTRATIONS[cle]) {
+                appliquerIllustration(w, ILLUSTRATIONS[cle], rareteAffichee === 'legendaire');
+            } else if (!(cle in ILLUSTRATIONS)) {
+                sondeIllustration(c.id, rareteAffichee);
             }
         } catch (e) {}
         return w;
     };
 })();
+
 document.addEventListener('DOMContentLoaded', () => {
-    // pré-chargement discret : les cartes dont la rareté d'origine est légendaire
-    const lancer = () => dbCartes.filter((c) => FULLART_RARETES.includes(c.rarete)).forEach((c) => sondeFullArt(c.id));
+    // pré-chargement discret : pour chaque carte, toutes les raretés possibles
+    const lancer = () => {
+        const raretes = ['commune','rare','epique','legendaire'];
+        dbCartes.forEach((c) => raretes.forEach((r) => sondeIllustration(c.id, r)));
+    };
     (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(lancer);
 });
