@@ -1094,19 +1094,19 @@ function choisirStarter(famille) {
         collectionJoueur[id].commune = (collectionJoueur[id].commune || 0) + qte;
     });
 
-    // 2. S'assure que le deck préconstruit est bien dans mesDecks (il l'est déjà par défaut,
+     // 2. S'assure que le deck préconstruit est bien dans mesDecks (il l'est déjà par défaut,
     //    mais on le rajoute si jamais il a été supprimé par le passé)
-        if (!mesDecks.some(d => d.nom === nomDeck)) {
+    if (!mesDecks.some(d => d.nom === nomDeck)) {
         mesDecks.push({
             nom: nomDeck,
             cartes: precon.cartes.map(c => ({ id: c.id, rarete: 'commune' })),
             base: true
         });
     }
-        // Retire de la liste des decks "supprimés"
-        if (Array.isArray(profil.decksSupprimes)) {
-            profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
-        }
+    // Retire de la liste des decks "supprimés"
+    if (Array.isArray(profil.decksSupprimes)) {
+        profil.decksSupprimes = profil.decksSupprimes.filter(n => n !== nomDeck);
+    }
 
     // 3. Marque le starter comme effectué + définir le deck par défaut
     profil.deckStart = true;
@@ -1117,12 +1117,7 @@ function choisirStarter(famille) {
 
     // 4. Feedback au joueur
     setTimeout(() => {
-        alert(
-            `🎉 Famille ${familleChoisie}${auto ? ' (choix aléatoire)' : ''} !\n\n` +
-            `Deck de départ : « ${nomDeck} » (20 cartes)\n` +
-            `+ ${ECO.deckDepart} 💰\n\n` +
-            `Tu peux modifier ou supprimer ce deck, et le restaurer à tout moment via « Restaurer decks officiels » dans Mes Decks.`
-        );
+        alert(...);
     }, 200);
 }
 
