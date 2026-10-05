@@ -5518,7 +5518,7 @@ let IMG_MANIFEST_PRET = false;
 const _fileManifest = [];
 const ILLUSTRATIONS = {};
 
-fetch(IMG_MANIFEST_URL, { cache: 'force-cache' })
+fetch(IMG_MANIFEST_URL + '?v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.ok ? r.json() : {})
     .then(m => {
         IMG_MANIFEST = m || {};
