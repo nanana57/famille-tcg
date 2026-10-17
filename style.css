@@ -3477,3 +3477,326 @@ body.boss-mode.is-mobile.game-in-progress{--cw-h:calc((var(--app-h) - 150px - va
 .tournoi-slot.vide b{color:var(--texte-doux)}
 #btn-quitter-tournoi{margin-top:12px; background:linear-gradient(180deg,#ff8a6b,#d9483a) !important; color:#fff !important}
 #btn-quitter-tournoi[hidden]{display:none}
+/* ===========================================================
+   25. v32 — ÉDITION « LA GRANDE TABLE » (Refonte UI Stream-Hit & Gameplay)
+   =========================================================== */
+
+:root {
+    --gt-or: #ffcf56;
+    --gt-corail: #ff5e5b;
+    --gt-menthe: #00cecb;
+    --gt-creme: #fff8ec;
+    --gt-encre: #1e1510;
+    --gt-nappe-1: #9e2a2b;
+    --gt-nappe-2: #801f20;
+}
+
+/* --- Fond Nappe de Repas de Famille & Table Tactile --- */
+body #game-screen.active {
+    background:
+        radial-gradient(circle at 50% 48%, rgba(255, 228, 175, 0.16) 0%, transparent 58%),
+        repeating-conic-gradient(from 0deg, rgba(255,255,255,0.025) 0% 25%, transparent 0% 50%) 50% / 36px 36px,
+        radial-gradient(ellipse at 50% 50%, #3d2214 0%, #24130b 75%, #120904 100%) !important;
+    box-shadow: inset 0 0 0 6px #7c4d2b, inset 0 0 0 10px var(--gt-or), inset 0 0 80px rgba(0,0,0,0.65);
+}
+
+/* --- Bandeau du Service & Jauge de Temps de Parole (Tug-of-War) --- */
+#gt-service-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 14px;
+    background: linear-gradient(90deg, #2a1810, #46281b 50%, #2a1810);
+    border-bottom: 2px solid rgba(255, 207, 86, 0.4);
+    font-family: 'Baloo 2', sans-serif;
+    font-size: 13px;
+    z-index: 40;
+}
+.gt-service-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gt-creme);
+    color: var(--gt-encre);
+    font-weight: 800;
+    padding: 3px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--gt-encre);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+    white-space: nowrap;
+}
+.gt-parole-wrap {
+    flex: 1;
+    max-width: 380px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.gt-parole-track {
+    flex: 1;
+    height: 14px;
+    background: linear-gradient(90deg, #ff6f61 0%, #2c1a12 50%, #5fd6a0 100%);
+    border-radius: 999px;
+    border: 2px solid #fff3d6;
+    position: relative;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
+}
+.gt-parole-marker {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--gt-or);
+    border: 3px solid var(--gt-encre);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.5), 0 0 12px var(--gt-or);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: left 0.35s cubic-bezier(.2,1.2,.3,1);
+}
+.gt-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-decale {
+    background: linear-gradient(180deg, #ffe28a, #f5a623);
+    color: #2b1605;
+    border: 2px solid #2b1605;
+    border-bottom-width: 4px;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font: 800 12px/1 'Baloo 2', sans-serif;
+    cursor: pointer;
+    transition: transform .15s, filter .15s;
+    white-space: nowrap;
+}
+.btn-decale:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
+.btn-decale:disabled { opacity: 0.45; filter: grayscale(0.8); cursor: not-allowed; }
+.btn-decale.actif {
+    background: linear-gradient(180deg, #7ff0c8, #1dd1a1);
+    animation: pulseGold 1.2s infinite;
+}
+
+/* --- Les 5 Chaises de la Grande Table --- */
+.board-area.gt-chaises-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    width: min(100%, 880px);
+    margin: 0 auto;
+    padding: 8px 10px !important;
+    position: relative;
+    overflow: visible !important;
+}
+.board-area.gt-chaises-grid::after { display: none !important; }
+
+.gt-seat {
+    position: relative;
+    min-height: calc(var(--cw-jeu) * 1.42 + 24px);
+    border-radius: 18px;
+    background: radial-gradient(circle at 50% 45%, rgba(255,248,236,0.09), rgba(0,0,0,0.22));
+    border: 2px dashed rgba(255, 225, 166, 0.32);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform .22s cubic-bezier(.2,.9,.3,1.2), border-color .2s, background .2s, box-shadow .2s;
+    padding: 18px 2px 6px;
+}
+.gt-seat.occupee {
+    border-style: solid;
+    border-color: rgba(255, 207, 86, 0.55);
+    background: radial-gradient(circle at 50% 50%, rgba(255, 207, 86, 0.14), rgba(0,0,0,0.28));
+}
+.gt-seat.cible-pose {
+    border: 2px solid var(--gt-menthe) !important;
+    background: rgba(0, 206, 203, 0.16);
+    box-shadow: 0 0 18px rgba(0, 206, 203, 0.45);
+    cursor: pointer;
+    animation: seatPulse 1.3s ease-in-out infinite;
+}
+@keyframes seatPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.035); }
+}
+.gt-seat.decale-source {
+    border: 3px solid #00cecb !important;
+    box-shadow: 0 0 24px #00cecb;
+}
+.gt-seat.joute-active {
+    z-index: 45;
+    transform: scale(1.08);
+    border-color: #fff !important;
+    box-shadow: 0 0 32px rgba(255, 207, 86, 0.95);
+}
+
+.gt-seat-head {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(18, 9, 4, 0.82);
+    border: 1px solid rgba(255, 207, 86, 0.45);
+    color: var(--gt-creme);
+    font: 800 9px/1.2 'Baloo 2', sans-serif;
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: help;
+    z-index: 25;
+}
+.gt-seat-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    opacity: 0.45;
+    pointer-events: none;
+    text-align: center;
+}
+.gt-seat-empty .se-ico { font-size: 22px; }
+.gt-seat-empty .se-nom { font: 800 9px/1.1 'Nunito', sans-serif; color: var(--gt-creme); }
+
+/* --- Liens de Connexion entre voisins (Famille / Couple / Parent) --- */
+.gt-link-badge {
+    position: absolute;
+    right: -13px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 35;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #fff0b8, #ffb84d);
+    border: 2px solid #2b1605;
+    box-shadow: 0 0 12px rgba(255, 184, 77, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    animation: pulseGold 1.6s infinite;
+    pointer-events: auto;
+    cursor: pointer;
+}
+.gt-link-badge.couple {
+    background: linear-gradient(180deg, #ffb3e6, #ff416c);
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    box-shadow: 0 0 16px rgba(255, 65, 108, 0.95);
+}
+
+/* --- Rang Générationnel (Ancien / Adulte / Jeune) sur la carte --- */
+.gt-gen-badge {
+    position: absolute;
+    bottom: 2.1em;
+    right: 0.35em;
+    z-index: 12;
+    font: 800 0.42em/1 'Nunito', sans-serif;
+    padding: 0.18em 0.45em;
+    border-radius: 999px;
+    background: rgba(18, 9, 4, 0.78);
+    color: #ffe29a;
+    border: 1px solid rgba(255, 226, 154, 0.5);
+    pointer-events: none;
+}
+
+/* --- Effet 3D Tilt « Stream-Hit » (Balatro / Snap) sur les cartes --- */
+.card-wrapper {
+    --rx: 0deg;
+    --ry: 0deg;
+}
+@media (hover: hover) and (pointer: fine) {
+    .card-wrapper.gt-tilt:hover .card {
+        transform: perspective(700px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-5px) scale(1.04) !important;
+        box-shadow: 0 14px 28px rgba(0,0,0,0.65), 0 0 18px rgba(255, 207, 86, 0.45);
+    }
+}
+
+/* --- Bulles de Punchline BD pendant la Joute --- */
+.gt-speech-pop {
+    position: fixed;
+    transform: translate(-50%, -100%);
+    background: #fffef9;
+    color: #1e1510;
+    border: 3px solid #1e1510;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font: 800 13px/1.2 'Baloo 2', sans-serif;
+    box-shadow: 0 5px 0 #1e1510, 0 10px 24px rgba(0,0,0,0.45);
+    z-index: 1900;
+    pointer-events: none;
+    white-space: nowrap;
+    animation: gtPopSpeech 1.15s cubic-bezier(.2,1.3,.3,1) forwards;
+}
+.gt-speech-pop::after {
+    content: '';
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #1e1510;
+    border-bottom: 0;
+}
+@keyframes gtPopSpeech {
+    0% { opacity: 0; transform: translate(-50%, -60%) scale(0.4) rotate(-6deg); }
+    18% { opacity: 1; transform: translate(-50%, -115%) scale(1.08) rotate(2deg); }
+    30% { transform: translate(-50%, -105%) scale(1) rotate(0deg); }
+    82% { opacity: 1; transform: translate(-50%, -110%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -135%) scale(0.85); }
+}
+
+/* --- Séparateur central façon Chemin de Table --- */
+.board-divider {
+    height: 18px !important;
+    margin: 2px 0 !important;
+}
+.board-divider::before {
+    content: '🍽️ ── LA GRANDE TABLE ── 🍽️' !important;
+    font: 800 11px/1 'Baloo 2', sans-serif !important;
+    letter-spacing: 0.14em !important;
+    color: var(--gt-or) !important;
+    opacity: 0.85 !important;
+    background: rgba(30, 21, 16, 0.9) !important;
+    padding: 3px 14px !important;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 207, 86, 0.4);
+}
+
+/* --- Adaptation Mobile des 5 Chaises --- */
+@media (max-width: 820px) {
+    #gt-service-bar {
+        padding: 2px 8px;
+        font-size: 11px;
+        gap: 6px;
+    }
+    .gt-service-pill { padding: 2px 8px; font-size: 10px; }
+    .btn-decale { padding: 3px 8px; font-size: 10px; min-height: 28px !important; }
+    .board-area.gt-chaises-grid {
+        gap: 3px;
+        padding: 4px 2px !important;
+    }
+    .gt-seat {
+        min-height: calc(var(--cw-jeu) * 1.42 + 16px);
+        padding: 14px 1px 3px;
+        border-radius: 12px;
+    }
+    .gt-seat-head { font-size: 8px; padding: 1px 4px; }
+    .gt-seat-empty .se-ico { font-size: 16px; }
+    .gt-seat-empty .se-nom { font-size: 7px; }
+    body.is-mobile.game-in-progress {
+        --cw-jeu: clamp(48px, calc((100vw - 68px) / 5), 86px) !important;
+    }
+}
