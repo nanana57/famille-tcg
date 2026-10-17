@@ -6692,3 +6692,513 @@ document.addEventListener('DOMContentLoaded', () => {
         ouvrirDraft((ids) => { window._deckDraftIds = ids; validerChoixDeckEnLigne(); });
     };
 });
+/* ===========================================================
+   v32 — MOTEUR « LA GRANDE TABLE »
+   5 Chaises nommées • Synergies de voisinage • 3 Services du Repas
+   Bouton « Décale-toi ! » • Joute séquentielle (Chaise 1 ➔ 5) • Tilt 3D
+   =========================================================== */
+
+const CHAISES_DEF = [
+    { idx: 0, ico: '👑', court: '1·Bout',    nom: 'Chaise 1 : Bout de Table',   desc: 'Autorité : +1 Tchatche (⚔). Si Ancien : +1 Patience (❤) à ton héros en fin de tour.' },
+    { idx: 1, ico: '🍲', court: '2·Plat',    nom: 'Chaise 2 : Près du Plat',    desc: 'Gourmandise : donne +2 Sang-froid (❤) dès que l\'invité s\'assoit ici.' },
+    { idx: 2, ico: '🎤', court: '3·Micro',   nom: 'Chaise 3 : Le Micro',        desc: 'Porte-voix : +2 Tchatche (⚔). Ses punchlines portent sur toute la table !' },
+    { idx: 3, ico: '🤫', court: '4·Secret',  nom: 'Chaise 4 : Messes Basses',   desc: 'Coulisses : une carte Bluff posée ici peut se retourner dès ce tour et gagne +2/+2 à la révélation.' },
+    { idx: 4, ico: '🏃', court: '5·Cuisine', nom: 'Chaise 5 : Près Cuisine',    desc: 'Réactivité : donne Charge ⚡ aux invités coûtant 3 ou moins.' }
+];
+
+const ANCIENS_IDS = new Set(['k1', 'k2', 'n1', 'n2', 'ma1', 'ma8', 'cp5']);
+const ENFANTS_PARENTS = {
+    m11: ['m4', 'm5'],   // Imran -> Amina, Marouane
+    m12: ['m4', 'm5'],   // Zacharia -> Amina, Marouane
+    ma11: ['ma3', 'ma4'],// Hiba -> Islem, Inès
+    ka11: ['ka3', 'ka4'],// Hanna -> Safya, Saad
+    ka9: ['ka1', 'ka2'], // Camilla -> Khaled, Hanifa
+    ka10: ['ka1', 'ka2'] // Kamel -> Khaled, Hanifa
+};
+
+const PUNCHLINES_FAMILLE = {
+    Meridja:   ['« Passe le plat ! »', '« On parle fort nous ?! »', '« Laisse-moi finir ! »'],
+    Marouf:    ['« Respire, prends un thé… »', '« J\'avais prévenu ! »', '« Calmez-vous à table ! »'],
+    Kerkache:  ['« Personne ne bouge ! »', '« De mon temps… »', '« Touche pas au thermostat ! »'],
+    Belgacemi: ['« En famille on est plus forts ! »', '« Regarde ce combo ! »', '« Qui veut du rab ? »'],
+    Cousins:   ['« Place aux cousins ! »', '« C\'est pas moi, c\'est lui ! »'],
+    Neutre:    ['« Moi je dis ça, je dis rien… »', '« Quel repas ! »']
+};
+
+function generationCarte(c) {
+    if (!c) return 'Adulte';
+    if (ANCIENS_IDS.has(c.id)) return 'Ancien';
+    if (c.motsCles && c.motsCles.includes('Chat')) return 'Mascotte';
+    if (ENFANTS_PARENTS[c.id] || c.cout <= 2) return 'Jeune';
+    return 'Adulte';
+}
+
+function serviceActuel() {
+    const t = Math.max(J.numTour || 1, B.numTour || 1);
+    if (t <= 2) return { num: 1, ico: '🫒', nom: 'Service 1 : L\'Apéro', desc: 'Les invités s\'installent (+2 ❤ sur la Chaise 2).' };
+    if (t <= 5) return { num: 2, ico: '🥘', nom: 'Service 2 : Le Couscous', desc: 'Les liens de voisinage entre même famille donnent +2/+1 !' };
+    return { num: 3, ico: '☕', nom: 'Service 3 : Le Café & Les Dossiers', desc: 'Les langues se délient : +1 Tchatche (⚔) à toutes les chaises !' };
+}
+
+/* ---------- Barre du Service, Jauge de Temps de Parole et Bouton « Décale-toi ! » ---------- */
+var _modeDecale = false;
+var _decaleSourceIdx = null;
+var _decaleUtiliseCeTour = false;
+var _jouteEnCours = false;
+var _jouteFaiteCeTour = false;
+var _paroleBalance = 0; // -10 (adversaire) à +10 (joueur)
+var _poseEnAttente = null; // { indexMain, chaiseCible }
+
+function installerBarreGrandeTable() {
+    const topbar = document.getElementById('topbar');
+    if (!topbar || document.getElementById('gt-service-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'gt-service-bar';
+    bar.innerHTML = `
+        <div class="gt-service-pill" id="gt-service-pill" title="Les règles évoluent au fil du repas">🫒 Service 1 : L'Apéro</div>
+        <div class="gt-parole-wrap" title="Jauge de Temps de Parole : jouer des cartes coûteuses donne du répondant à l'adversaire !">
+            <span>🗣️</span>
+            <div class="gt-parole-track"><div class="gt-parole-marker" id="gt-parole-marker">🎙️</div></div>
+        </div>
+        <div class="gt-actions-bar">
+            <button type="button" class="btn-decale" id="btn-decale" onclick="activerModeDecale()">🪑 Décale-toi ! (1/tour)</button>
+        </div>
+    `;
+    topbar.insertAdjacentElement('afterend', bar);
+}
+
+function majBarreGrandeTable() {
+    installerBarreGrandeTable();
+    const s = serviceActuel();
+    const pill = document.getElementById('gt-service-pill');
+    if (pill) {
+        pill.textContent = `${s.ico} ${s.nom}`;
+        pill.title = s.desc;
+    }
+    const marker = document.getElementById('gt-parole-marker');
+    if (marker) {
+        const pct = Math.max(8, Math.min(92, 50 + (_paroleBalance * 4)));
+        marker.style.left = pct + '%';
+    }
+    const btn = document.getElementById('btn-decale');
+    if (btn) {
+        const peutDecaler = tourActuel === 'joueur' && !modeAttente && !partieFinie && !_decaleUtiliseCeTour && J.plateau.length >= 1;
+        btn.disabled = !peutDecaler;
+        btn.classList.toggle('actif', _modeDecale);
+        btn.textContent = _modeDecale ? '✨ Choisis 2 chaises…' : (_decaleUtiliseCeTour ? '🪑 Déjà décalé' : '🪑 Décale-toi !');
+    }
+    const be = document.getElementById('btn-endturn');
+    if (be) {
+        be.innerHTML = _jouteEnCours ? '🎙️ Débat…' : '🎙️ Lancer le Débat';
+    }
+}
+
+/* ---------- Action Tactique : « Décale-toi ! » (Échanger deux chaises) ---------- */
+function activerModeDecale() {
+    if (tourActuel !== 'joueur' || modeAttente || partieFinie || _decaleUtiliseCeTour) return;
+    _modeDecale = !_modeDecale;
+    _decaleSourceIdx = null;
+    info(_modeDecale ? '🪑 Clique sur un invité allié puis sur une autre chaise pour les échanger !' : 'Déplacement annulé.');
+    rafraichirJeu();
+}
+window.activerModeDecale = activerModeDecale;
+
+function echangerChaisesJoueur(ch1, ch2) {
+    const m1 = J.plateau.find(m => m.chaise === ch1);
+    const m2 = J.plateau.find(m => m.chaise === ch2);
+    if (!m1 && !m2) return;
+    if (m1) {
+        m1.chaise = ch2;
+        appliquerBonusPoseChaise(m1, J);
+        fxSur(m1, `🪑 Chaise ${ch2 + 1}`, 'buff');
+    }
+    if (m2) {
+        m2.chaise = ch1;
+        appliquerBonusPoseChaise(m2, J);
+        fxSur(m2, `🪑 Chaise ${ch1 + 1}`, 'buff');
+    }
+    _modeDecale = false;
+    _decaleSourceIdx = null;
+    _decaleUtiliseCeTour = true;
+    SFX.jouer(540, 0.14, 'triangle', 0.06, 220);
+    recalcAuras();
+    rafraichirJeu();
+}
+
+/* ---------- Attribution & Bonus des 5 Chaises ---------- */
+function assignerChaisesManquantes(side) {
+    const prises = new Set(side.plateau.map(m => typeof m.chaise === 'number' ? m.chaise : -1).filter(n => n >= 0 && n < 5));
+    side.plateau.forEach(m => {
+        if (typeof m.chaise !== 'number' || m.chaise < 0 || m.chaise > 4) {
+            for (let k = 0; k < 5; k++) {
+                if (!prises.has(k)) { m.chaise = k; prises.add(k); break; }
+            }
+        }
+    });
+    side.plateau.sort((a, b) => (a.chaise || 0) - (b.chaise || 0));
+}
+
+function appliquerBonusPoseChaise(m, side) {
+    if (!m || m._bonusChaiseMap === undefined) m._bonusChaiseMap = {};
+    const ch = m.chaise;
+    // Chaise 2 (index 1) : Près du Plat (+2 Sang-froid la première fois qu'il s'y assoit)
+    if (ch === 1 && !m._bonusChaiseMap.plat) {
+        m._bonusChaiseMap.plat = true;
+        m.vie += 2; m.vieMax += 2;
+        setTimeout(() => fxSur(m, '🍲 +2 ❤', 'soin'), 120);
+    }
+    // Chaise 4 (index 3) : Messes Basses (un Bluff peut être retourné dès ce tour)
+    if (ch === 3 && m.motsCles && m.motsCles.includes('Bluff')) {
+        m.poseCeTour = false;
+    }
+    // Chaise 5 (index 4) : Près de la Cuisine (Charge si coût <= 3)
+    if (ch === 4 && m.cout <= 3 && !m.motsCles.includes('Charge')) {
+        m.motsCles.push('Charge');
+        m.malade = false;
+        setTimeout(() => fxSur(m, '🏃 Répartie !', 'buff'), 120);
+    }
+}
+
+/* ---------- Calcul des Auras Spatiales (Chaises + Voisins + Services) ---------- */
+const _recalcAurasOriginal = recalcAuras;
+recalcAuras = function () {
+    assignerChaisesManquantes(J);
+    assignerChaisesManquantes(B);
+    _recalcAurasOriginal.apply(this, arguments);
+
+    const srv = serviceActuel();
+    [J, B].forEach(side => {
+        const parChaise = {};
+        side.plateau.forEach(m => { parChaise[m.chaise] = m; });
+
+        side.plateau.forEach(m => {
+            if (m.silence) return;
+            let bonusSpatialAtk = 0;
+            const ch = m.chaise;
+
+            // 1. Bonus de la Chaise
+            if (ch === 0) bonusSpatialAtk += 1; // Chaise 1 : Bout de table (+1 ATQ)
+            if (ch === 2) bonusSpatialAtk += 2; // Chaise 3 : Le Micro (+2 ATQ)
+
+            // 2. Bonus du Service 3 (Le Café : +1 ATQ à tous)
+            if (srv.num === 3) bonusSpatialAtk += 1;
+
+            // 3. Connexions avec les voisins immédiats (chaise - 1 et chaise + 1)
+            const voisins = [parChaise[ch - 1], parChaise[ch + 1]].filter(Boolean);
+            voisins.forEach(v => {
+                // Même famille (hors Neutre)
+                if (v.famille === m.famille && m.famille !== 'Neutre') {
+                    bonusSpatialAtk += (srv.num >= 2 ? 2 : 1);
+                }
+                // Enfant à côté d'un de ses parents
+                if (ENFANTS_PARENTS[m.id] && ENFANTS_PARENTS[m.id].includes(v.id)) {
+                    bonusSpatialAtk += 2;
+                }
+            });
+
+            m.auraAtk = (m.auraAtk || 0) + bonusSpatialAtk;
+        });
+    });
+};
+
+/* ---------- Détection des Liens entre Chaises Adjacentes ---------- */
+function lienEntreVoisins(mGauche, mDroite) {
+    if (!mGauche || !mDroite) return null;
+    // Vérifie s'ils forment un couple de Fusion
+    for (const [fid, compos] of Object.entries(FUSIONS)) {
+        if ((compos[0] === mGauche.id && compos[1] === mDroite.id) || (compos[1] === mGauche.id && compos[0] === mDroite.id)) {
+            return { type: 'couple', ico: '💑', fusionId: fid, desc: 'Couple réuni à table ! Clique pour fusionner si tu as la carte Fusion.' };
+        }
+    }
+    // Vérifie Parent / Enfant
+    if ((ENFANTS_PARENTS[mGauche.id] && ENFANTS_PARENTS[mGauche.id].includes(mDroite.id)) ||
+        (ENFANTS_PARENTS[mDroite.id] && ENFANTS_PARENTS[mDroite.id].includes(mGauche.id))) {
+        return { type: 'famille', ico: '🛡️', desc: 'Lien Parent-Enfant : +2 Tchatche à l\'enfant !' };
+    }
+    // Même famille
+    if (mGauche.famille === mDroite.famille && mGauche.famille !== 'Neutre') {
+        return { type: 'famille', ico: '🤝', desc: `Entraide ${mGauche.famille} : bonus de Tchatche aux deux voisins !` };
+    }
+    return null;
+}
+
+/* ---------- Bulle de Punchline BD ---------- */
+function afficherPunchlineCarte(m, texteCustom) {
+    const el = elOf(m.uid);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width) return;
+    const pool = PUNCHLINES_FAMILLE[m.famille] || PUNCHLINES_FAMILLE.Neutre;
+    const txt = texteCustom || pool[Math.floor(Math.random() * pool.length)];
+    const pop = document.createElement('div');
+    pop.className = 'gt-speech-pop';
+    pop.textContent = txt;
+    pop.style.left = (r.left + r.width / 2) + 'px';
+    pop.style.top = (r.top - 4) + 'px';
+    document.body.appendChild(pop);
+    setTimeout(() => pop.remove(), 1150);
+}
+
+/* ---------- Rendu des 5 Chaises sur le Plateau ---------- */
+function rendrePlateauChaises(boardEl, side, estJoueur) {
+    if (!boardEl) return;
+    boardEl.classList.add('gt-chaises-grid');
+    boardEl.innerHTML = '';
+    assignerChaisesManquantes(side);
+
+    const parChaise = {};
+    side.plateau.forEach(m => { parChaise[m.chaise] = m; });
+
+    for (let ch = 0; ch < 5; ch++) {
+        const defCh = CHAISES_DEF[ch];
+        const m = parChaise[ch];
+        const seat = document.createElement('div');
+        seat.className = 'gt-seat' + (m ? ' occupee' : '');
+        seat.dataset.chaise = ch;
+
+        // En-tête de la chaise
+        const head = document.createElement('div');
+        head.className = 'gt-seat-head';
+        head.innerHTML = `<span>${defCh.ico}</span><span>${defCh.court}</span>`;
+        head.title = `${defCh.nom} — ${defCh.desc}`;
+        head.onclick = (e) => { e.stopPropagation(); flashInfo(`${defCh.ico} ${defCh.nom} : ${defCh.desc}`); };
+        seat.appendChild(head);
+
+        if (m) {
+            const el = creerHTMLCarte(m, 'jeu');
+            el.classList.add('gt-tilt');
+            // Badge de génération (Ancien / Adulte / Jeune)
+            const gen = generationCarte(m);
+            el.insertAdjacentHTML('beforeend', `<span class="gt-gen-badge">${gen === 'Ancien' ? '👴 Ancien' : (gen === 'Jeune' ? '🧒 Jeune' : (gen === 'Mascotte' ? '🐾 Mascotte' : '🧑 Adulte'))}</span>`);
+
+            if (estJoueur) {
+                if (m === selection) el.classList.add('selection');
+                else if (!m.malade && !m.aAttaque && m.gele === 0 && atkTot(m) > 0 && tourActuel === 'joueur' && (!m.motsCles.includes('Bluff') || m.revele || m.bluffVisible || m.bluffReveleSansEffet)) el.classList.add('pret');
+                if (m.aAttaque || m.malade) el.classList.add('epuise');
+                if (m.gele > 0) el.classList.add('gelee');
+                if (m.silence) el.classList.add('silencieuse');
+                if (ciblage && ciblage.cibles.includes(m)) el.classList.add('ciblable');
+                el.onclick = (e) => {
+                    e.stopPropagation();
+                    if (_modeDecale) {
+                        if (_decaleSourceIdx === null) {
+                            _decaleSourceIdx = ch;
+                            info(`🪑 Chaise ${ch + 1} sélectionnée : touche une autre chaise pour échanger !`);
+                            rafraichirJeu();
+                        } else if (_decaleSourceIdx === ch) {
+                            _modeDecale = false; _decaleSourceIdx = null; rafraichirJeu();
+                        } else {
+                            echangerChaisesJoueur(_decaleSourceIdx, ch);
+                        }
+                        return;
+                    }
+                    clicCreatureAlliee(m);
+                };
+            } else {
+                if (m.gele > 0) el.classList.add('gelee');
+                if (m.silence) el.classList.add('silencieuse');
+                if (ciblage && ciblage.cibles.includes(m)) el.classList.add('ciblable');
+                else if (selection) el.classList.add('ciblable');
+                el.onclick = (e) => { e.stopPropagation(); clicCreatureEnnemie(m); };
+            }
+            seat.appendChild(el);
+
+            // Lien de voisinage avec la chaise de droite (ch + 1)
+            const voisinDroit = parChaise[ch + 1];
+            const lien = lienEntreVoisins(m, voisinDroit);
+            if (lien) {
+                const badge = document.createElement('div');
+                badge.className = 'gt-link-badge ' + lien.type;
+                badge.textContent = lien.ico;
+                badge.title = lien.desc;
+                badge.onclick = (e) => {
+                    e.stopPropagation();
+                    if (estJoueur && lien.type === 'couple' && lien.fusionId) {
+                        const idxMain = J.main.findIndex(x => x.id === lien.fusionId);
+                        if (idxMain >= 0) { _jouerCarteMainDirect(idxMain); return; }
+                    }
+                    flashInfo(`${lien.ico} ${lien.desc}`);
+                };
+                seat.appendChild(badge);
+            }
+        } else {
+            seat.innerHTML += `<div class="gt-seat-empty"><span class="se-ico">${defCh.ico}</span><span class="se-nom">${defCh.court}</span></div>`;
+        }
+
+        // Interaction sur une chaise (mode Décale-toi ou choix de chaise à l'invocation)
+        if (estJoueur) {
+            if (_modeDecale && _decaleSourceIdx === ch) seat.classList.add('decale-source');
+            if (_modeDecale && _decaleSourceIdx !== null && _decaleSourceIdx !== ch) {
+                seat.classList.add('cible-pose');
+                seat.onclick = () => echangerChaisesJoueur(_decaleSourceIdx, ch);
+            } else if (!m && selection === null && !ciblage && _poseEnAttente !== null) {
+                seat.classList.add('cible-pose');
+                seat.onclick = () => {
+                    const idx = _poseEnAttente;
+                    _poseEnAttente = null;
+                    window._chaiseChoisiePose = ch;
+                    _jouerCarteMainDirect(idx);
+                };
+            }
+        }
+
+        boardEl.appendChild(seat);
+    }
+}
+
+/* ---------- Surcharge du Rendu Plateau pour afficher les 5 Chaises ---------- */
+const _rafraichirJeuAvantGT = rafraichirJeu;
+rafraichirJeu = function () {
+    _rafraichirJeuAvantGT.apply(this, arguments);
+    const pj = document.getElementById('player-board');
+    const pb = document.getElementById('opponent-board');
+    if (pj) rendrePlateauChaises(pj, J, true);
+    if (pb) rendrePlateauChaises(pb, B, false);
+    const gs = document.getElementById('game-screen');
+    if (gs) ajusterTextes(gs);
+    majBarreGrandeTable();
+};
+
+/* ---------- Placement sur une Chaise et Jauge de Temps de Parole ---------- */
+const _jouerCarteAvantGT = jouerCarte;
+jouerCarte = function (side, index, cible) {
+    const c = side.main[index];
+    const cout = c ? coutEffectif(side, c) : 0;
+    const chaiseForcee = (side === J && typeof window._chaiseChoisiePose === 'number') ? window._chaiseChoisiePose : null;
+    window._chaiseChoisiePose = null;
+
+    // Évolution de la jauge de Temps de Parole
+    if (c) {
+        _paroleBalance = Math.max(-10, Math.min(10, _paroleBalance + (side === J ? -cout : cout)));
+    }
+
+    const r = _jouerCarteAvantGT.apply(this, arguments);
+
+    if (c && c.famille !== 'Sort' && c.famille !== 'Terrain' && side.plateau.includes(c)) {
+        if (chaiseForcee !== null && !side.plateau.some(x => x !== c && x.chaise === chaiseForcee)) {
+            c.chaise = chaiseForcee;
+        }
+        assignerChaisesManquantes(side);
+        appliquerBonusPoseChaise(c, side);
+        if (c.revele !== false) afficherPunchlineCarte(c);
+        recalcAuras();
+        rafraichirJeu();
+    }
+    return r;
+};
+
+/* ---------- Révélation Bluff sur la Chaise 4 (Messes Basses) ---------- */
+const _retournerBluffAvantGT = retournerBluff;
+retournerBluff = function (m, proprio) {
+    const r = _retournerBluffAvantGT.apply(this, arguments);
+    if (r && m && m.chaise === 3) {
+        buff(m, 2, 2);
+        fxSur(m, '🤫 Chaise 4 : +2/+2', 'buff');
+    }
+    return r;
+};
+
+/* ---------- Phase de Joute Séquentielle (Chaise 1 ➔ Chaise 5) en Fin de Tour ---------- */
+async function executerJouteGrandeTable(side) {
+    if (partieFinie || _jouteEnCours) return;
+    _jouteEnCours = true;
+    const ennemi = autre(side);
+    assignerChaisesManquantes(side);
+    assignerChaisesManquantes(ennemi);
+
+    const boardSideId = side === J ? '#player-board' : '#opponent-board';
+    for (let ch = 0; ch < 5; ch++) {
+        if (partieFinie) break;
+        const m = side.plateau.find(x => x.chaise === ch);
+        if (!m) continue;
+
+        const seatEl = document.querySelector(`${boardSideId} .gt-seat[data-chaise="${ch}"]`);
+        if (seatEl) seatEl.classList.add('joute-active');
+
+        // Bonus passif de la Chaise 1 (Bout de Table) pour un Ancien
+        if (ch === 0 && generationCarte(m) === 'Ancien' && !m.silence) {
+            soinHero(side, 1);
+        }
+
+        // Si l'invité peut encore parler/attaquer ce tour, il débat automatiquement avec son vis-à-vis !
+        const peutParler = !m.aAttaque && !m.malade && m.gele === 0 && atkTot(m) > 0 && (!m.motsCles.includes('Bluff') || m.revele || m.bluffVisible || m.bluffReveleSansEffet);
+        if (peutParler) {
+            let visAVis = ennemi.plateau.find(x => x.chaise === ch);
+            const provocations = ennemi.plateau.filter(x => x.motsCles.includes('Provocation') && !x.silence && x.revele !== false);
+            if (provocations.length && (!visAVis || !visAVis.motsCles.includes('Provocation'))) {
+                visAVis = provocations[0];
+            }
+            const cible = visAVis || ennemi;
+
+            // Si le vis-à-vis est un Bluff caché, il se révèle par surprise !
+            if (cible && cible.uid && cible.motsCles && cible.motsCles.includes('Bluff') && !cible.revele) {
+                retournerBluff(cible, ennemi);
+                await pause(280);
+            }
+
+            if (cible && (!cible.uid || cible.vie > 0)) {
+                afficherPunchlineCarte(m);
+                await attaquer(m, cible);
+                await pause(220);
+            }
+        }
+
+        if (seatEl) seatEl.classList.remove('joute-active');
+    }
+    _jouteEnCours = false;
+}
+
+const _finDeTourAvantGT = finDeTour;
+finDeTour = async function () {
+    if (partieFinie || _jouteEnCours) return;
+    if (modeEnLigne && (modeAttente || tourActuel !== 'joueur')) return info('Ce n\'est pas ton tour.');
+    if (tourActuel !== 'joueur') return;
+    _modeDecale = false; _decaleSourceIdx = null;
+
+    // En solo (contre le Bot ou Boss), on résout la joute séquentielle de la Chaise 1 à la Chaise 5 avant de passer la main
+    if (!modeEnLigne && !modeTuto && !_jouteFaiteCeTour) {
+        _jouteFaiteCeTour = true;
+        await executerJouteGrandeTable(J);
+        if (partieFinie) return;
+    }
+    return _finDeTourAvantGT.apply(this, arguments);
+};
+
+_avant('debutTourJoueur', () => {
+    _decaleUtiliseCeTour = false;
+    _modeDecale = false;
+    _decaleSourceIdx = null;
+    _jouteFaiteCeTour = false;
+    // Si l'adversaire a beaucoup parlé (_paroleBalance > 3), tu gagnes +1 Mana de Répartie !
+    if (_paroleBalance >= 4 && !modeEnLigne && !modeTuto) {
+        setTimeout(() => {
+            J.manaActuel = Math.min(10, J.manaActuel + 1);
+            fxSurHero(J, '+1 🎙️ Répartie', 'buff');
+            rafraichirJeu();
+        }, 250);
+    }
+});
+
+/* ---------- Effet 3D Tilt « Stream-Hit » au survol de toutes les cartes ---------- */
+document.addEventListener('pointermove', (e) => {
+    const w = e.target.closest && e.target.closest('.card-wrapper');
+    if (!w) return;
+    const r = w.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    w.classList.add('gt-tilt');
+    w.style.setProperty('--rx', (-y * 14).toFixed(2) + 'deg');
+    w.style.setProperty('--ry', (x * 16).toFixed(2) + 'deg');
+}, { passive: true });
+
+/* ---------- Mise à jour du Tutoriel & Quiz pour « La Grande Table » ---------- */
+TUTO_ETAPES[0].titre = "Bienvenue à La Grande Table";
+TUTO_ETAPES[0].etapes[0].txt = `🍽️ <b>Bienvenue à La Grande Table !</b><br><br>Dans <b>Famille TCG</b>, chaque duel est un grand repas de famille autour de <b>5 Chaises</b> (👑 Bout de Table, 🍲 Près du Plat, 🎤 Le Micro, 🤫 Messes Basses, 🏃 Près Cuisine).<br><br><b>🎯 Ton objectif :</b> faire tomber la <b>Patience ❤</b> d'en face à 0 !`;
+TUTO_ETAPES[1].titre = "Les 5 Chaises & Le Temps de Parole";
+TUTO_ETAPES[1].etapes[0].txt = `Chaque <b>Chaise</b> donne un bonus unique à la personne assise dessus (ex: <b>Chaise 2 🍲</b> donne +2 ❤, <b>Chaise 3 🎤</b> donne +2 ⚔).<br><br>Une fois par tour, utilise le bouton <b>« 🪑 Décale-toi ! »</b> pour échanger la place de deux invités !`;
+
+document.addEventListener('DOMContentLoaded', () => {
+    installerBarreGrandeTable();
+    majBarreGrandeTable();
+});
